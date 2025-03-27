@@ -117,7 +117,9 @@
   "scripts": {
     "start": "npm run dev",
     "dev": "vite",
-    "build": "NODE_OPTIONS=--max-old-space-size=4096 tsc && vite build",
+    "build": "vite build",
+    "type-check": "tsc",
+    "build:full": "NODE_OPTIONS=--max-old-space-size=4096 tsc && vite build",
     "lint": "eslint ./src --config ./eslint.config.mjs",
     "lint:fix": "eslint --fix ./src --config ./eslint.config.mjs",
     "preview": "vite preview",
