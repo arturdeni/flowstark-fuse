@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect } from 'react';
 import {
   Typography,
   Paper,
@@ -28,7 +28,8 @@ import {
   Grid,
   Card,
   CardContent,
-} from "@mui/material";
+} from '@mui/material';
+import { SelectChangeEvent } from '@mui/material/Select';
 import {
   Add as AddIcon,
   Edit as EditIcon,
@@ -43,39 +44,39 @@ import {
   Pause as PauseIcon,
   PlayArrow as PlayArrowIcon,
   Cancel as CancelIcon,
-} from "@mui/icons-material";
-import { styled } from "@mui/material/styles";
-import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFnsV3";
-import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
-import { DatePicker } from "@mui/x-date-pickers/DatePicker";
-import FusePageSimple from "@fuse/core/FusePageSimple";
+} from '@mui/icons-material';
+import { styled } from '@mui/material/styles';
+import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFnsV3';
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import FusePageSimple from '@fuse/core/FusePageSimple';
 
 // Componente de tabla con estilo
 const StyledTableRow = styled(TableRow)(({ theme }) => ({
-  "&:nth-of-type(odd)": {
+  '&:nth-of-type(odd)': {
     backgroundColor: theme.palette.action.hover,
   },
-  "&:hover": {
+  '&:hover': {
     backgroundColor: theme.palette.action.selected,
   },
-  "&:last-child td, &:last-child th": {
+  '&:last-child td, &:last-child th': {
     border: 0,
   },
 }));
 
 const Root = styled(FusePageSimple)(({ theme }) => ({
-  "& .FusePageSimple-header": {
+  '& .FusePageSimple-header': {
     backgroundColor: theme.palette.background.paper,
     borderBottomWidth: 1,
-    borderStyle: "solid",
+    borderStyle: 'solid',
     borderColor: theme.palette.divider,
   },
-  "& .FusePageSimple-content": {},
-  "& .FusePageSimple-sidebarHeader": {},
-  "& .FusePageSimple-sidebarContent": {},
+  '& .FusePageSimple-content': {},
+  '& .FusePageSimple-sidebarHeader': {},
+  '& .FusePageSimple-sidebarContent': {},
 }));
 
-type StatusType = "active" | "paused" | "cancelled";
+type StatusType = 'active' | 'paused' | 'cancelled';
 
 interface UserType {
   id: number;
@@ -88,7 +89,7 @@ interface ServiceType {
   id: number;
   name: string;
   price: number;
-  billingCycle: "monthly" | "quarterly" | "yearly";
+  billingCycle: 'monthly' | 'quarterly' | 'yearly';
 }
 
 interface SubscriptionType {
@@ -112,8 +113,8 @@ function Subscriptions() {
   const [filteredSubscriptions, setFilteredSubscriptions] = useState<
     SubscriptionType[]
   >([]);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
   const [open, setOpen] = useState(false);
   const [selectedSubscription, setSelectedSubscription] =
     useState<SubscriptionType | null>(null);
@@ -123,19 +124,19 @@ function Subscriptions() {
   const [services, setServices] = useState<ServiceType[]>([]);
   const [snackbar, setSnackbar] = useState({
     open: false,
-    message: "",
-    severity: "success" as "success" | "error" | "warning" | "info",
+    message: '',
+    severity: 'success' as 'success' | 'error' | 'warning' | 'info',
   });
 
   // Formulario para nueva/editar subscripción
   const [formData, setFormData] = useState({
-    userId: "",
-    serviceId: "",
-    status: "active" as StatusType,
+    userId: '',
+    serviceId: '',
+    status: 'active' as StatusType,
     startDate: new Date(),
     endDate: null as Date | null,
-    amount: "",
-    paymentMethod: "credit_card",
+    amount: '',
+    paymentMethod: 'credit_card',
   });
 
   // Simulación de datos para la demostración
@@ -144,60 +145,60 @@ function Subscriptions() {
     const mockUsers = [
       {
         id: 1,
-        name: "Ana",
-        lastName: "García",
-        email: "ana.garcia@ejemplo.com",
+        name: 'Ana',
+        lastName: 'García',
+        email: 'ana.garcia@ejemplo.com',
       },
       {
         id: 2,
-        name: "Carlos",
-        lastName: "López",
-        email: "carlos.lopez@ejemplo.com",
+        name: 'Carlos',
+        lastName: 'López',
+        email: 'carlos.lopez@ejemplo.com',
       },
       {
         id: 3,
-        name: "María",
-        lastName: "Rodríguez",
-        email: "maria.rodriguez@ejemplo.com",
+        name: 'María',
+        lastName: 'Rodríguez',
+        email: 'maria.rodriguez@ejemplo.com',
       },
       {
         id: 4,
-        name: "Juan",
-        lastName: "Martínez",
-        email: "juan.martinez@ejemplo.com",
+        name: 'Juan',
+        lastName: 'Martínez',
+        email: 'juan.martinez@ejemplo.com',
       },
       {
         id: 5,
-        name: "Laura",
-        lastName: "Sánchez",
-        email: "laura.sanchez@ejemplo.com",
+        name: 'Laura',
+        lastName: 'Sánchez',
+        email: 'laura.sanchez@ejemplo.com',
       },
     ];
 
     const mockServices = [
       {
         id: 1,
-        name: "Plan Premium",
+        name: 'Plan Premium',
         price: 29.99,
-        billingCycle: "monthly" as const,
+        billingCycle: 'monthly' as const,
       },
       {
         id: 2,
-        name: "Plan Básico",
+        name: 'Plan Básico',
         price: 9.99,
-        billingCycle: "monthly" as const,
+        billingCycle: 'monthly' as const,
       },
       {
         id: 3,
-        name: "Plan Estándar",
+        name: 'Plan Estándar',
         price: 19.99,
-        billingCycle: "monthly" as const,
+        billingCycle: 'monthly' as const,
       },
       {
         id: 4,
-        name: "Plan Anual Premium",
+        name: 'Plan Anual Premium',
         price: 299.99,
-        billingCycle: "yearly" as const,
+        billingCycle: 'yearly' as const,
       },
     ];
 
@@ -211,12 +212,12 @@ function Subscriptions() {
         serviceId: 1,
         user: mockUsers[0],
         service: mockServices[0],
-        status: "active" as StatusType,
+        status: 'active' as StatusType,
         startDate: new Date(2023, 1, 15),
         nextBillingDate: new Date(2023, 2, 15),
         endDate: null,
         amount: 29.99,
-        paymentMethod: "credit_card",
+        paymentMethod: 'credit_card',
         lastPaymentDate: new Date(2023, 1, 15),
       },
       {
@@ -225,12 +226,12 @@ function Subscriptions() {
         serviceId: 2,
         user: mockUsers[1],
         service: mockServices[1],
-        status: "active" as StatusType,
+        status: 'active' as StatusType,
         startDate: new Date(2023, 0, 10),
         nextBillingDate: new Date(2023, 2, 10),
         endDate: null,
         amount: 9.99,
-        paymentMethod: "paypal",
+        paymentMethod: 'paypal',
         lastPaymentDate: new Date(2023, 1, 10),
       },
       {
@@ -239,12 +240,12 @@ function Subscriptions() {
         serviceId: 3,
         user: mockUsers[2],
         service: mockServices[2],
-        status: "paused" as StatusType,
+        status: 'paused' as StatusType,
         startDate: new Date(2022, 11, 5),
         nextBillingDate: new Date(2023, 2, 5),
         endDate: null,
         amount: 19.99,
-        paymentMethod: "bank_transfer",
+        paymentMethod: 'bank_transfer',
         lastPaymentDate: new Date(2023, 0, 5),
       },
       {
@@ -253,12 +254,12 @@ function Subscriptions() {
         serviceId: 4,
         user: mockUsers[3],
         service: mockServices[3],
-        status: "cancelled" as StatusType,
+        status: 'cancelled' as StatusType,
         startDate: new Date(2022, 9, 20),
         nextBillingDate: new Date(2023, 9, 20),
         endDate: new Date(2023, 0, 15),
         amount: 299.99,
-        paymentMethod: "credit_card",
+        paymentMethod: 'credit_card',
         lastPaymentDate: new Date(2022, 9, 20),
       },
       {
@@ -267,12 +268,12 @@ function Subscriptions() {
         serviceId: 1,
         user: mockUsers[4],
         service: mockServices[0],
-        status: "active" as StatusType,
+        status: 'active' as StatusType,
         startDate: new Date(2023, 0, 1),
         nextBillingDate: new Date(2023, 3, 1),
         endDate: null,
         amount: 29.99,
-        paymentMethod: "paypal",
+        paymentMethod: 'paypal',
         lastPaymentDate: new Date(2023, 2, 1),
       },
     ];
@@ -305,7 +306,7 @@ function Subscriptions() {
     }
 
     // Filtrar por estado
-    if (statusFilter !== "all") {
+    if (statusFilter !== 'all') {
       filtered = filtered.filter(
         (subscription) => subscription.status === statusFilter
       );
@@ -319,9 +320,7 @@ function Subscriptions() {
     setSearchTerm(e.target.value);
   };
 
-  const handleStatusFilterChange = (
-    e: React.ChangeEvent<{ value: unknown }>
-  ) => {
+  const handleStatusFilterChange = (e: SelectChangeEvent) => {
     setStatusFilter(e.target.value as string);
   };
 
@@ -351,15 +350,16 @@ function Subscriptions() {
     } else {
       setSelectedSubscription(null);
       setFormData({
-        userId: "",
-        serviceId: "",
-        status: "active",
+        userId: '',
+        serviceId: '',
+        status: 'active',
         startDate: new Date(),
         endDate: null,
-        amount: "",
-        paymentMethod: "credit_card",
+        amount: '',
+        paymentMethod: 'credit_card',
       });
     }
+
     setOpen(true);
   };
 
@@ -367,13 +367,11 @@ function Subscriptions() {
     setOpen(false);
   };
 
-  const handleInputChange = (
-    e: React.ChangeEvent<HTMLInputElement | { name?: string; value: unknown }>
-  ) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | { name?: string; value: unknown }> | SelectChangeEvent<string | 'active' | 'paused' | 'cancelled'>) => {
     const { name, value } = e.target as { name: string; value: string };
     setFormData({
       ...formData,
-      [name]: value,
+      [name]: value
     });
   };
 
@@ -390,13 +388,13 @@ function Subscriptions() {
   ): Date => {
     const nextDate = new Date(startDate);
     switch (billingCycle) {
-      case "monthly":
+      case 'monthly':
         nextDate.setMonth(nextDate.getMonth() + 1);
         break;
-      case "quarterly":
+      case 'quarterly':
         nextDate.setMonth(nextDate.getMonth() + 3);
         break;
-      case "yearly":
+      case 'yearly':
         nextDate.setFullYear(nextDate.getFullYear() + 1);
         break;
     }
@@ -413,19 +411,20 @@ function Subscriptions() {
     ) {
       setSnackbar({
         open: true,
-        message: "Por favor, completa todos los campos requeridos",
-        severity: "error",
+        message: 'Por favor, completa todos los campos requeridos',
+        severity: 'error',
       });
       return;
     }
 
     // Validar que el monto sea un número válido
     const amount = parseFloat(formData.amount);
+
     if (isNaN(amount) || amount <= 0) {
       setSnackbar({
         open: true,
-        message: "Por favor, introduce un monto válido",
-        severity: "error",
+        message: 'Por favor, introduce un monto válido',
+        severity: 'error',
       });
       return;
     }
@@ -440,8 +439,8 @@ function Subscriptions() {
     if (!user || !service) {
       setSnackbar({
         open: true,
-        message: "Usuario o servicio no válido",
-        severity: "error",
+        message: 'Usuario o servicio no válido',
+        severity: 'error',
       });
       return;
     }
@@ -457,25 +456,25 @@ function Subscriptions() {
       const updatedSubscriptions = subscriptions.map((subscription) =>
         subscription.id === selectedSubscription.id
           ? {
-              ...subscription,
-              userId,
-              serviceId,
-              user,
-              service,
-              status: formData.status,
-              startDate: formData.startDate,
-              nextBillingDate,
-              endDate: formData.endDate,
-              amount,
-              paymentMethod: formData.paymentMethod,
-            }
+            ...subscription,
+            userId,
+            serviceId,
+            user,
+            service,
+            status: formData.status,
+            startDate: formData.startDate,
+            nextBillingDate,
+            endDate: formData.endDate,
+            amount,
+            paymentMethod: formData.paymentMethod,
+          }
           : subscription
       );
       setSubscriptions(updatedSubscriptions);
       setSnackbar({
         open: true,
-        message: "Subscripción actualizada correctamente",
-        severity: "success",
+        message: 'Subscripción actualizada correctamente',
+        severity: 'success',
       });
     } else {
       // Crear nueva subscripción
@@ -496,8 +495,8 @@ function Subscriptions() {
       setSubscriptions([...subscriptions, newSubscription]);
       setSnackbar({
         open: true,
-        message: "Subscripción creada correctamente",
-        severity: "success",
+        message: 'Subscripción creada correctamente',
+        severity: 'success',
       });
     }
 
@@ -508,15 +507,18 @@ function Subscriptions() {
     const updatedSubscriptions = subscriptions.map((subscription) => {
       if (subscription.id === id) {
         let endDate = subscription.endDate;
-        if (newStatus === "cancelled" && !endDate) {
+
+        if (newStatus === 'cancelled' && !endDate) {
           endDate = new Date();
         }
+
         return {
           ...subscription,
           status: newStatus,
           endDate,
         };
       }
+
       return subscription;
     });
 
@@ -524,7 +526,7 @@ function Subscriptions() {
     setSnackbar({
       open: true,
       message: `Estado de la subscripción actualizado a ${getStatusText(newStatus)}`,
-      severity: "success",
+      severity: 'success',
     });
   };
 
@@ -535,8 +537,8 @@ function Subscriptions() {
     setSubscriptions(updatedSubscriptions);
     setSnackbar({
       open: true,
-      message: "Subscripción eliminada correctamente",
-      severity: "success",
+      message: 'Subscripción eliminada correctamente',
+      severity: 'success',
     });
   };
 
@@ -549,12 +551,12 @@ function Subscriptions() {
 
   const getStatusText = (status: string): string => {
     switch (status) {
-      case "active":
-        return "Activa";
-      case "paused":
-        return "Pausada";
-      case "cancelled":
-        return "Cancelada";
+      case 'active':
+        return 'Activa';
+      case 'paused':
+        return 'Pausada';
+      case 'cancelled':
+        return 'Cancelada';
       default:
         return status;
     }
@@ -562,11 +564,11 @@ function Subscriptions() {
 
   const getStatusChip = (status: StatusType) => {
     switch (status) {
-      case "active":
+      case 'active':
         return <Chip label="Activa" color="success" size="small" />;
-      case "paused":
+      case 'paused':
         return <Chip label="Pausada" color="warning" size="small" />;
-      case "cancelled":
+      case 'cancelled':
         return <Chip label="Cancelada" color="error" size="small" />;
       default:
         return <Chip label={status} size="small" />;
@@ -574,11 +576,12 @@ function Subscriptions() {
   };
 
   const formatDate = (date: Date | null): string => {
-    if (!date) return "-";
-    return new Date(date).toLocaleDateString("es-ES", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
+    if (!date) return '-';
+
+    return new Date(date).toLocaleDateString('es-ES', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
     });
   };
 
@@ -612,7 +615,7 @@ function Subscriptions() {
                     Activas
                   </Typography>
                   <Typography variant="h4">
-                    {subscriptions.filter((s) => s.status === "active").length}
+                    {subscriptions.filter((s) => s.status === 'active').length}
                   </Typography>
                 </CardContent>
               </Card>
@@ -624,7 +627,7 @@ function Subscriptions() {
                     Pausadas
                   </Typography>
                   <Typography variant="h4">
-                    {subscriptions.filter((s) => s.status === "paused").length}
+                    {subscriptions.filter((s) => s.status === 'paused').length}
                   </Typography>
                 </CardContent>
               </Card>
@@ -637,7 +640,7 @@ function Subscriptions() {
                   </Typography>
                   <Typography variant="h4">
                     {
-                      subscriptions.filter((s) => s.status === "cancelled")
+                      subscriptions.filter((s) => s.status === 'cancelled')
                         .length
                     }
                   </Typography>
@@ -647,7 +650,7 @@ function Subscriptions() {
           </Grid>
 
           {/* Barra de búsqueda, filtro y botón para añadir */}
-          <Box sx={{ display: "flex", mb: 3 }}>
+          <Box sx={{ display: 'flex', mb: 3 }}>
             <TextField
               variant="outlined"
               placeholder="Buscar subscripciones..."
@@ -708,9 +711,9 @@ function Subscriptions() {
                     <StyledTableRow key={subscription.id}>
                       <TableCell>{subscription.id}</TableCell>
                       <TableCell>
-                        <Box sx={{ display: "flex", flexDirection: "column" }}>
+                        <Box sx={{ display: 'flex', flexDirection: 'column' }}>
                           <Typography variant="body2" fontWeight="bold">
-                            {subscription.user.name}{" "}
+                            {subscription.user.name}{' '}
                             {subscription.user.lastName}
                           </Typography>
                           <Typography variant="caption" color="textSecondary">
@@ -737,11 +740,11 @@ function Subscriptions() {
                           <EditIcon fontSize="small" />
                         </IconButton>
 
-                        {subscription.status === "active" && (
+                        {subscription.status === 'active' && (
                           <IconButton
                             size="small"
                             onClick={() =>
-                              handleChangeStatus(subscription.id, "paused")
+                              handleChangeStatus(subscription.id, 'paused')
                             }
                             title="Pausar"
                           >
@@ -749,11 +752,11 @@ function Subscriptions() {
                           </IconButton>
                         )}
 
-                        {subscription.status === "paused" && (
+                        {subscription.status === 'paused' && (
                           <IconButton
                             size="small"
                             onClick={() =>
-                              handleChangeStatus(subscription.id, "active")
+                              handleChangeStatus(subscription.id, 'active')
                             }
                             title="Activar"
                           >
@@ -761,23 +764,23 @@ function Subscriptions() {
                           </IconButton>
                         )}
 
-                        {(subscription.status === "active" ||
-                          subscription.status === "paused") && (
-                          <IconButton
-                            size="small"
-                            onClick={() =>
-                              handleChangeStatus(subscription.id, "cancelled")
-                            }
-                            title="Cancelar"
-                          >
-                            <CancelIcon fontSize="small" />
-                          </IconButton>
-                        )}
+                        {(subscription.status === 'active' ||
+                          subscription.status === 'paused') && (
+                            <IconButton
+                              size="small"
+                              onClick={() =>
+                                handleChangeStatus(subscription.id, 'cancelled')
+                              }
+                              title="Cancelar"
+                            >
+                              <CancelIcon fontSize="small" />
+                            </IconButton>
+                          )}
 
                         <IconButton
                           size="small"
                           onClick={() => handleDelete(subscription.id)}
-                          disabled={subscription.status === "active"}
+                          disabled={subscription.status === 'active'}
                           title="Eliminar"
                         >
                           <DeleteIcon fontSize="small" />
@@ -806,16 +809,16 @@ function Subscriptions() {
           <Dialog open={open} onClose={handleClose} maxWidth="md" fullWidth>
             <DialogTitle>
               {selectedSubscription
-                ? "Editar Subscripción"
-                : "Nueva Subscripción"}
+                ? 'Editar Subscripción'
+                : 'Nueva Subscripción'}
             </DialogTitle>
             <DialogContent>
               <Box
                 component="form"
                 sx={{
                   mt: 1,
-                  display: "grid",
-                  gridTemplateColumns: "repeat(2, 1fr)",
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(2, 1fr)',
                   gap: 2,
                 }}
               >
@@ -856,7 +859,7 @@ function Subscriptions() {
                   >
                     {services.map((service) => (
                       <MenuItem key={service.id} value={service.id.toString()}>
-                        {service.name} ({service.price.toFixed(2)} € -{" "}
+                        {service.name} ({service.price.toFixed(2)} € -{' '}
                         {service.billingCycle})
                       </MenuItem>
                     ))}
@@ -901,10 +904,10 @@ function Subscriptions() {
                   <DatePicker
                     label="Fecha de Inicio"
                     value={formData.startDate}
-                    onChange={(date) => handleDateChange("startDate", date)}
+                    onChange={(date) => handleDateChange('startDate', date)}
                     slotProps={{
                       textField: {
-                        margin: "normal",
+                        margin: 'normal',
                         fullWidth: true,
                         required: true,
                         InputProps: {
@@ -919,15 +922,15 @@ function Subscriptions() {
                   />
                 </LocalizationProvider>
                 {selectedSubscription &&
-                  selectedSubscription.status === "cancelled" && (
+                  selectedSubscription.status === 'cancelled' && (
                     <LocalizationProvider dateAdapter={AdapterDateFns}>
                       <DatePicker
                         label="Fecha de Finalización"
                         value={formData.endDate}
-                        onChange={(date) => handleDateChange("endDate", date)}
+                        onChange={(date) => handleDateChange('endDate', date)}
                         slotProps={{
                           textField: {
-                            margin: "normal",
+                            margin: 'normal',
                             fullWidth: true,
                             InputProps: {
                               startAdornment: (
@@ -977,7 +980,7 @@ function Subscriptions() {
               onClose={handleCloseSnackbar}
               severity={snackbar.severity}
               variant="filled"
-              sx={{ width: "100%" }}
+              sx={{ width: '100%' }}
             >
               {snackbar.message}
             </Alert>

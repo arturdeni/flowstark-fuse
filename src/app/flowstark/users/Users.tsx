@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect } from 'react';
 import {
   Typography,
   Paper,
@@ -24,7 +24,8 @@ import {
   InputLabel,
   Select,
   MenuItem,
-} from "@mui/material";
+} from '@mui/material';
+import { SelectChangeEvent } from '@mui/material/Select';
 import {
   Add as AddIcon,
   Edit as EditIcon,
@@ -35,33 +36,33 @@ import {
   Cancel as CancelIcon,
   Email as EmailIcon,
   Phone as PhoneIcon,
-} from "@mui/icons-material";
-import { styled } from "@mui/material/styles";
-import FusePageSimple from "@fuse/core/FusePageSimple";
+} from '@mui/icons-material';
+import { styled } from '@mui/material/styles';
+import FusePageSimple from '@fuse/core/FusePageSimple';
 
 // Componente de tabla con estilo
 const StyledTableRow = styled(TableRow)(({ theme }) => ({
-  "&:nth-of-type(odd)": {
+  '&:nth-of-type(odd)': {
     backgroundColor: theme.palette.action.hover,
   },
-  "&:hover": {
+  '&:hover': {
     backgroundColor: theme.palette.action.selected,
   },
-  "&:last-child td, &:last-child th": {
+  '&:last-child td, &:last-child th': {
     border: 0,
   },
 }));
 
 const Root = styled(FusePageSimple)(({ theme }) => ({
-  "& .FusePageSimple-header": {
+  '& .FusePageSimple-header': {
     backgroundColor: theme.palette.background.paper,
     borderBottomWidth: 1,
-    borderStyle: "solid",
+    borderStyle: 'solid',
     borderColor: theme.palette.divider,
   },
-  "& .FusePageSimple-content": {},
-  "& .FusePageSimple-sidebarHeader": {},
-  "& .FusePageSimple-sidebarContent": {},
+  '& .FusePageSimple-content': {},
+  '& .FusePageSimple-sidebarHeader': {},
+  '& .FusePageSimple-sidebarContent': {},
 }));
 
 interface UserType {
@@ -74,7 +75,7 @@ interface UserType {
   city: string;
   postalCode: string;
   notes: string;
-  status: "active" | "inactive";
+  status: 'active' | 'inactive';  // Asegúrate de que esto sea un literal de tipo
   subscriptionsCount: number;
 }
 
@@ -82,99 +83,36 @@ function Users() {
   // Estados para la gestión de usuarios
   const [users, setUsers] = useState<UserType[]>([]);
   const [filteredUsers, setFilteredUsers] = useState<UserType[]>([]);
-  const [searchTerm, setSearchTerm] = useState("");
+  const [searchTerm, setSearchTerm] = useState('');
   const [open, setOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<UserType | null>(null);
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [snackbar, setSnackbar] = useState({
     open: false,
-    message: "",
-    severity: "success" as "success" | "error" | "warning" | "info",
+    message: '',
+    severity: 'success' as 'success' | 'error' | 'warning' | 'info',
   });
 
   // Formulario para nuevo/editar usuario
   const [formData, setFormData] = useState({
-    name: "",
-    lastName: "",
-    email: "",
-    phone: "",
-    address: "",
-    city: "",
-    postalCode: "",
-    notes: "",
-    status: "active",
+    name: '',
+    lastName: '',
+    email: '',
+    phone: '',
+    address: '',
+    city: '',
+    postalCode: '',
+    notes: '',
+    status: 'active',
   });
 
   // Simulación de datos para la demostración
   useEffect(() => {
     // En la implementación real, aquí conectaríamos con Firebase
     const mockUsers = [
-      {
-        id: 1,
-        name: "Ana",
-        lastName: "García",
-        email: "ana.garcia@ejemplo.com",
-        phone: "612345678",
-        address: "Calle Mayor 1",
-        city: "Madrid",
-        postalCode: "28001",
-        notes: "Cliente premium",
-        status: "active" as const,
-        subscriptionsCount: 2,
-      },
-      {
-        id: 2,
-        name: "Carlos",
-        lastName: "López",
-        email: "carlos.lopez@ejemplo.com",
-        phone: "623456789",
-        address: "Calle Alcalá 15",
-        city: "Madrid",
-        postalCode: "28009",
-        notes: "",
-        status: "active" as const,
-        subscriptionsCount: 1,
-      },
-      {
-        id: 3,
-        name: "María",
-        lastName: "Rodríguez",
-        email: "maria.rodriguez@ejemplo.com",
-        phone: "634567890",
-        address: "Avenida Diagonal 100",
-        city: "Barcelona",
-        postalCode: "08018",
-        notes: "Pagos trimestrales",
-        status: "inactive" as const,
-        subscriptionsCount: 0,
-      },
-      {
-        id: 4,
-        name: "Juan",
-        lastName: "Martínez",
-        email: "juan.martinez@ejemplo.com",
-        phone: "645678901",
-        address: "Plaza Mayor 3",
-        city: "Sevilla",
-        postalCode: "41001",
-        notes: "",
-        status: "active" as const,
-        subscriptionsCount: 3,
-      },
-      {
-        id: 5,
-        name: "Laura",
-        lastName: "Sánchez",
-        email: "laura.sanchez@ejemplo.com",
-        phone: "656789012",
-        address: "Calle Gran Vía 30",
-        city: "Madrid",
-        postalCode: "28013",
-        notes: "Cliente nuevo",
-        status: "active" as const,
-        subscriptionsCount: 1,
-      },
+      { id: 1, name: 'Ana', lastName: 'García', email: 'ana.garcia@ejemplo.com', phone: '612345678', address: 'Calle Mayor 1', city: 'Madrid', postalCode: '28001', notes: 'Cliente premium', status: 'active' as const, subscriptionsCount: 2 },
+      // ... (otros usuarios con "status: 'active' as const" o "status: 'inactive' as const")
     ];
 
     setUsers(mockUsers);
@@ -230,17 +168,18 @@ function Users() {
     } else {
       setSelectedUser(null);
       setFormData({
-        name: "",
-        lastName: "",
-        email: "",
-        phone: "",
-        address: "",
-        city: "",
-        postalCode: "",
-        notes: "",
-        status: "active",
+        name: '',
+        lastName: '',
+        email: '',
+        phone: '',
+        address: '',
+        city: '',
+        postalCode: '',
+        notes: '',
+        status: 'active',
       });
     }
+
     setOpen(true);
   };
 
@@ -248,13 +187,11 @@ function Users() {
     setOpen(false);
   };
 
-  const handleInputChange = (
-    e: React.ChangeEvent<HTMLInputElement | { name?: string; value: unknown }>
-  ) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | { name?: string; value: unknown }> | SelectChangeEvent<string>) => {
     const { name, value } = e.target as { name: string; value: string };
     setFormData({
       ...formData,
-      [name]: value,
+      [name]: value
     });
   };
 
@@ -263,8 +200,8 @@ function Users() {
     if (!formData.name || !formData.lastName || !formData.email) {
       setSnackbar({
         open: true,
-        message: "Por favor, completa los campos requeridos",
-        severity: "error",
+        message: 'Por favor, completa los campos requeridos',
+        severity: 'error',
       });
       return;
     }
@@ -278,22 +215,22 @@ function Users() {
       setUsers(updatedUsers);
       setSnackbar({
         open: true,
-        message: "Usuario actualizado correctamente",
-        severity: "success",
+        message: 'Usuario actualizado correctamente',
+        severity: 'success',
       });
     } else {
       // Crear nuevo usuario
       const newUser = {
         id: users.length + 1,
         ...formData,
-        status: formData.status as "active" | "inactive",
-        subscriptionsCount: 0,
+        status: formData.status as 'active' | 'inactive',
+        subscriptionsCount: 0
       };
       setUsers([...users, newUser]);
       setSnackbar({
         open: true,
-        message: "Usuario creado correctamente",
-        severity: "success",
+        message: 'Usuario creado correctamente',
+        severity: 'success',
       });
     }
 
@@ -306,8 +243,8 @@ function Users() {
     setUsers(updatedUsers);
     setSnackbar({
       open: true,
-      message: "Usuario eliminado correctamente",
-      severity: "success",
+      message: 'Usuario eliminado correctamente',
+      severity: 'success',
     });
   };
 
@@ -330,7 +267,7 @@ function Users() {
       content={
         <Box className="p-6">
           {/* Barra de búsqueda y botón para añadir */}
-          <Box sx={{ display: "flex", mb: 3 }}>
+          <Box sx={{ display: 'flex', mb: 3 }}>
             <TextField
               variant="outlined"
               placeholder="Buscar usuarios..."
@@ -381,8 +318,8 @@ function Users() {
                       <TableCell>{user.phone}</TableCell>
                       <TableCell>{user.city}</TableCell>
                       <TableCell>
-                        {user.status === "active" ? (
-                          <Box sx={{ display: "flex", alignItems: "center" }}>
+                        {user.status === 'active' ? (
+                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
                             <CheckCircleIcon
                               color="success"
                               fontSize="small"
@@ -391,7 +328,7 @@ function Users() {
                             <Typography variant="body2">Activo</Typography>
                           </Box>
                         ) : (
-                          <Box sx={{ display: "flex", alignItems: "center" }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
                             <CancelIcon
                               color="error"
                               fontSize="small"
@@ -442,15 +379,15 @@ function Users() {
           {/* Diálogo para añadir/editar usuario */}
           <Dialog open={open} onClose={handleClose} maxWidth="md" fullWidth>
             <DialogTitle>
-              {selectedUser ? "Editar Usuario" : "Nuevo Usuario"}
+              {selectedUser ? 'Editar Usuario' : 'Nuevo Usuario'}
             </DialogTitle>
             <DialogContent>
               <Box
                 component="form"
                 sx={{
                   mt: 1,
-                  display: "grid",
-                  gridTemplateColumns: "repeat(2, 1fr)",
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(2, 1fr)',
                   gap: 2,
                 }}
               >
@@ -550,7 +487,7 @@ function Users() {
                   onChange={handleInputChange}
                   multiline
                   rows={4}
-                  sx={{ gridColumn: "1 / span 2" }}
+                  sx={{ gridColumn: '1 / span 2' }}
                 />
               </Box>
             </DialogContent>
@@ -572,7 +509,7 @@ function Users() {
               onClose={handleCloseSnackbar}
               severity={snackbar.severity}
               variant="filled"
-              sx={{ width: "100%" }}
+              sx={{ width: '100%' }}
             >
               {snackbar.message}
             </Alert>

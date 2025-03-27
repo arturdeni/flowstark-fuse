@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect } from 'react';
 import {
   Typography,
   Paper,
@@ -31,7 +31,8 @@ import {
   TableHead,
   TableRow,
   TablePagination,
-} from "@mui/material";
+} from '@mui/material';
+import { SelectChangeEvent } from '@mui/material/Select';
 import {
   Add as AddIcon,
   Edit as EditIcon,
@@ -43,33 +44,33 @@ import {
   Description as DescriptionIcon,
   Check as CheckIcon,
   Close as CloseIcon,
-} from "@mui/icons-material";
-import { styled } from "@mui/material/styles";
-import FusePageSimple from "@fuse/core/FusePageSimple";
+} from '@mui/icons-material';
+import { styled } from '@mui/material/styles';
+import FusePageSimple from '@fuse/core/FusePageSimple';
 
 // Componente de tabla con estilo
 const StyledTableRow = styled(TableRow)(({ theme }) => ({
-  "&:nth-of-type(odd)": {
+  '&:nth-of-type(odd)': {
     backgroundColor: theme.palette.action.hover,
   },
-  "&:hover": {
+  '&:hover': {
     backgroundColor: theme.palette.action.selected,
   },
-  "&:last-child td, &:last-child th": {
+  '&:last-child td, &:last-child th': {
     border: 0,
   },
 }));
 
 const Root = styled(FusePageSimple)(({ theme }) => ({
-  "& .FusePageSimple-header": {
+  '& .FusePageSimple-header': {
     backgroundColor: theme.palette.background.paper,
     borderBottomWidth: 1,
-    borderStyle: "solid",
+    borderStyle: 'solid',
     borderColor: theme.palette.divider,
   },
-  "& .FusePageSimple-content": {},
-  "& .FusePageSimple-sidebarHeader": {},
-  "& .FusePageSimple-sidebarContent": {},
+  '& .FusePageSimple-content': {},
+  '& .FusePageSimple-sidebarHeader': {},
+  '& .FusePageSimple-sidebarContent': {},
 }));
 
 interface ServiceType {
@@ -77,7 +78,7 @@ interface ServiceType {
   name: string;
   description: string;
   price: number;
-  billingCycle: "monthly" | "quarterly" | "yearly";
+  billingCycle: 'monthly' | 'quarterly' | 'yearly';
   category: string;
   isActive: boolean;
   subscriptionsCount: number;
@@ -87,7 +88,7 @@ function Services() {
   // Estados para la gestión de servicios
   const [services, setServices] = useState<ServiceType[]>([]);
   const [filteredServices, setFilteredServices] = useState<ServiceType[]>([]);
-  const [searchTerm, setSearchTerm] = useState("");
+  const [searchTerm, setSearchTerm] = useState('');
   const [open, setOpen] = useState(false);
   const [selectedService, setSelectedService] = useState<ServiceType | null>(
     null
@@ -95,25 +96,25 @@ function Services() {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [categories, setCategories] = useState([
-    "Premium",
-    "Básico",
-    "Estándar",
-    "Personalizado",
-    "Promocional",
+    'Premium',
+    'Básico',
+    'Estándar',
+    'Personalizado',
+    'Promocional',
   ]);
   const [snackbar, setSnackbar] = useState({
     open: false,
-    message: "",
-    severity: "success" as "success" | "error" | "warning" | "info",
+    message: '',
+    severity: 'success' as 'success' | 'error' | 'warning' | 'info',
   });
 
   // Formulario para nuevo/editar servicio
   const [formData, setFormData] = useState({
-    name: "",
-    description: "",
-    price: "",
-    billingCycle: "monthly" as "monthly" | "quarterly" | "yearly",
-    category: "",
+    name: '',
+    description: '',
+    price: '',
+    billingCycle: 'monthly' as 'monthly' | 'quarterly' | 'yearly',
+    category: '',
     isActive: true,
   });
 
@@ -123,51 +124,51 @@ function Services() {
     const mockServices = [
       {
         id: 1,
-        name: "Plan Premium",
-        description: "Acceso completo a todas las funcionalidades",
+        name: 'Plan Premium',
+        description: 'Acceso completo a todas las funcionalidades',
         price: 29.99,
-        billingCycle: "monthly" as const,
-        category: "Premium",
+        billingCycle: 'monthly' as const,
+        category: 'Premium',
         isActive: true,
         subscriptionsCount: 15,
       },
       {
         id: 2,
-        name: "Plan Básico",
-        description: "Funcionalidades esenciales para pequeños negocios",
+        name: 'Plan Básico',
+        description: 'Funcionalidades esenciales para pequeños negocios',
         price: 9.99,
-        billingCycle: "monthly" as const,
-        category: "Básico",
+        billingCycle: 'monthly' as const,
+        category: 'Básico',
         isActive: true,
         subscriptionsCount: 42,
       },
       {
         id: 3,
-        name: "Plan Estándar",
-        description: "Equilibrio entre funcionalidades y precio",
+        name: 'Plan Estándar',
+        description: 'Equilibrio entre funcionalidades y precio',
         price: 19.99,
-        billingCycle: "monthly" as const,
-        category: "Estándar",
+        billingCycle: 'monthly' as const,
+        category: 'Estándar',
         isActive: true,
         subscriptionsCount: 28,
       },
       {
         id: 4,
-        name: "Plan Anual Premium",
-        description: "Plan Premium con facturación anual",
+        name: 'Plan Anual Premium',
+        description: 'Plan Premium con facturación anual',
         price: 299.99,
-        billingCycle: "yearly" as const,
-        category: "Premium",
+        billingCycle: 'yearly' as const,
+        category: 'Premium',
         isActive: true,
         subscriptionsCount: 7,
       },
       {
         id: 5,
-        name: "Plan Promocional",
-        description: "Oferta por tiempo limitado",
+        name: 'Plan Promocional',
+        description: 'Oferta por tiempo limitado',
         price: 4.99,
-        billingCycle: "monthly" as const,
-        category: "Promocional",
+        billingCycle: 'monthly' as const,
+        category: 'Promocional',
         isActive: false,
         subscriptionsCount: 0,
       },
@@ -224,14 +225,15 @@ function Services() {
     } else {
       setSelectedService(null);
       setFormData({
-        name: "",
-        description: "",
-        price: "",
-        billingCycle: "monthly",
-        category: "",
+        name: '',
+        description: '',
+        price: '',
+        billingCycle: 'monthly',
+        category: '',
         isActive: true,
       });
     }
+
     setOpen(true);
   };
 
@@ -239,16 +241,11 @@ function Services() {
     setOpen(false);
   };
 
-  const handleInputChange = (
-    e: React.ChangeEvent<HTMLInputElement | { name?: string; value: unknown }>
-  ) => {
-    const { name, value } = e.target as {
-      name: string;
-      value: string | boolean;
-    };
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | { name?: string; value: unknown }> | SelectChangeEvent<string | 'monthly' | 'quarterly' | 'yearly'>) => {
+    const { name, value } = e.target as { name: string; value: string | boolean };
     setFormData({
       ...formData,
-      [name]: value,
+      [name]: value
     });
   };
 
@@ -269,19 +266,20 @@ function Services() {
     ) {
       setSnackbar({
         open: true,
-        message: "Por favor, completa todos los campos requeridos",
-        severity: "error",
+        message: 'Por favor, completa todos los campos requeridos',
+        severity: 'error',
       });
       return;
     }
 
     // Validar que el precio sea un número válido
     const price = parseFloat(formData.price);
+
     if (isNaN(price) || price <= 0) {
       setSnackbar({
         open: true,
-        message: "Por favor, introduce un precio válido",
-        severity: "error",
+        message: 'Por favor, introduce un precio válido',
+        severity: 'error',
       });
       return;
     }
@@ -292,21 +290,21 @@ function Services() {
       const updatedServices = services.map((service) =>
         service.id === selectedService.id
           ? {
-              ...service,
-              name: formData.name,
-              description: formData.description,
-              price: parseFloat(formData.price),
-              billingCycle: formData.billingCycle,
-              category: formData.category,
-              isActive: formData.isActive,
-            }
+            ...service,
+            name: formData.name,
+            description: formData.description,
+            price: parseFloat(formData.price),
+            billingCycle: formData.billingCycle,
+            category: formData.category,
+            isActive: formData.isActive,
+          }
           : service
       );
       setServices(updatedServices);
       setSnackbar({
         open: true,
-        message: "Servicio actualizado correctamente",
-        severity: "success",
+        message: 'Servicio actualizado correctamente',
+        severity: 'success',
       });
     } else {
       // Crear nuevo servicio
@@ -323,8 +321,8 @@ function Services() {
       setServices([...services, newService]);
       setSnackbar({
         open: true,
-        message: "Servicio creado correctamente",
-        severity: "success",
+        message: 'Servicio creado correctamente',
+        severity: 'success',
       });
     }
 
@@ -337,8 +335,8 @@ function Services() {
     setServices(updatedServices);
     setSnackbar({
       open: true,
-      message: "Servicio eliminado correctamente",
-      severity: "success",
+      message: 'Servicio eliminado correctamente',
+      severity: 'success',
     });
   };
 
@@ -349,8 +347,8 @@ function Services() {
     setServices(updatedServices);
     setSnackbar({
       open: true,
-      message: "Estado del servicio actualizado correctamente",
-      severity: "success",
+      message: 'Estado del servicio actualizado correctamente',
+      severity: 'success',
     });
   };
 
@@ -363,12 +361,12 @@ function Services() {
 
   const getBillingCycleText = (cycle: string) => {
     switch (cycle) {
-      case "monthly":
-        return "Mensual";
-      case "quarterly":
-        return "Trimestral";
-      case "yearly":
-        return "Anual";
+      case 'monthly':
+        return 'Mensual';
+      case 'quarterly':
+        return 'Trimestral';
+      case 'yearly':
+        return 'Anual';
       default:
         return cycle;
     }
@@ -386,7 +384,7 @@ function Services() {
       content={
         <Box className="p-6">
           {/* Barra de búsqueda y botón para añadir */}
-          <Box sx={{ display: "flex", mb: 3 }}>
+          <Box sx={{ display: 'flex', mb: 3 }}>
             <TextField
               variant="outlined"
               placeholder="Buscar servicios..."
@@ -509,15 +507,15 @@ function Services() {
           {/* Diálogo para añadir/editar servicio */}
           <Dialog open={open} onClose={handleClose} maxWidth="md" fullWidth>
             <DialogTitle>
-              {selectedService ? "Editar Servicio" : "Nuevo Servicio"}
+              {selectedService ? 'Editar Servicio' : 'Nuevo Servicio'}
             </DialogTitle>
             <DialogContent>
               <Box
                 component="form"
                 sx={{
                   mt: 1,
-                  display: "grid",
-                  gridTemplateColumns: "repeat(2, 1fr)",
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(2, 1fr)',
                   gap: 2,
                 }}
               >
@@ -593,7 +591,7 @@ function Services() {
                   onChange={handleInputChange}
                   multiline
                   rows={4}
-                  sx={{ gridColumn: "1 / span 2" }}
+                  sx={{ gridColumn: '1 / span 2' }}
                   InputProps={{
                     startAdornment: (
                       <InputAdornment position="start">
@@ -611,7 +609,7 @@ function Services() {
                     />
                   }
                   label="Servicio Activo"
-                  sx={{ gridColumn: "1 / span 2" }}
+                  sx={{ gridColumn: '1 / span 2' }}
                 />
               </Box>
             </DialogContent>
@@ -633,7 +631,7 @@ function Services() {
               onClose={handleCloseSnackbar}
               severity={snackbar.severity}
               variant="filled"
-              sx={{ width: "100%" }}
+              sx={{ width: '100%' }}
             >
               {snackbar.message}
             </Alert>
