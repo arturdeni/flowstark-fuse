@@ -3,10 +3,8 @@ import FuseMessage from '@fuse/core/FuseMessage';
 import { memo, ReactNode, Suspense } from 'react';
 import { Outlet } from 'react-router';
 import { Layout1ConfigDefaultsType } from 'src/components/theme-layouts/layout1/Layout1Config';
-import Configurator from 'src/components/theme-layouts/components/configurator/Configurator';
 import useFuseLayoutSettings from '@fuse/core/FuseLayout/useFuseLayoutSettings';
 import FuseSuspense from '@fuse/core/FuseSuspense';
-import FooterLayout1 from './components/FooterLayout1';
 import LeftSideLayout1 from './components/LeftSideLayout1';
 import NavbarWrapperLayout1 from './components/NavbarWrapperLayout1';
 import RightSideLayout1 from './components/RightSideLayout1';
@@ -60,10 +58,6 @@ function Layout1(props: Layout1Props) {
 						<ToolbarLayout1 className={config.toolbar.style === 'fixed' ? 'sticky top-0' : ''} />
 					)}
 
-					<div className="sticky top-0 z-99">
-						<Configurator />
-					</div>
-
 					<div className="relative z-10 flex min-h-0 flex-auto flex-col">
 						<Suspense>
 							<FuseDialog />
@@ -73,10 +67,6 @@ function Layout1(props: Layout1Props) {
 						</FuseSuspense>
 						{children}
 					</div>
-
-					{config.footer.display && (
-						<FooterLayout1 className={config.footer.style === 'fixed' ? 'sticky bottom-0' : ''} />
-					)}
 				</main>
 
 				{config.navbar.display && config.navbar.position === 'right' && <NavbarWrapperLayout1 />}

@@ -590,7 +590,7 @@ function Subscriptions() {
       header={
         <Box className="p-6">
           <Typography variant="h4" component="h1" gutterBottom>
-            Gestión de Subscripciones
+            Suscripciones
           </Typography>
         </Box>
       }

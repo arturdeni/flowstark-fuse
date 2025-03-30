@@ -3,7 +3,6 @@ import { SnackbarProvider } from 'notistack';
 import themeLayouts from 'src/components/theme-layouts/themeLayouts';
 import { Provider } from 'react-redux';
 import FuseSettingsProvider from '@fuse/core/FuseSettings/FuseSettingsProvider';
-import { I18nProvider } from '@i18n/I18nProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFnsV3';
 import { enUS } from 'date-fns/locale/en-US';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
@@ -34,24 +33,22 @@ function App() {
 					<Provider store={store}>
 						<Authentication>
 							<FuseSettingsProvider>
-								<I18nProvider>
-									{/* Theme Provider */}
-									<MainThemeProvider>
-										{/* Notistack Notification Provider */}
-										<SnackbarProvider
-											maxSnack={5}
-											anchorOrigin={{
-												vertical: 'bottom',
-												horizontal: 'right'
-											}}
-											classes={{
-												containerRoot: 'bottom-0 right-0 mb-13 md:mb-17 mr-2 lg:mr-20 z-99'
-											}}
-										>
-											<FuseLayout layouts={themeLayouts} />
-										</SnackbarProvider>
-									</MainThemeProvider>
-								</I18nProvider>
+								{/* Theme Provider */}
+								<MainThemeProvider>
+									{/* Notistack Notification Provider */}
+									<SnackbarProvider
+										maxSnack={5}
+										anchorOrigin={{
+											vertical: 'bottom',
+											horizontal: 'right'
+										}}
+										classes={{
+											containerRoot: 'bottom-0 right-0 mb-13 md:mb-17 mr-2 lg:mr-20 z-99'
+										}}
+									>
+										<FuseLayout layouts={themeLayouts} />
+									</SnackbarProvider>
+								</MainThemeProvider>
 							</FuseSettingsProvider>
 						</Authentication>
 					</Provider>

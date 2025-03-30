@@ -260,7 +260,7 @@ function Users() {
       header={
         <Box className="p-6">
           <Typography variant="h4" component="h1" gutterBottom>
-            Gestión de Usuarios
+            Clientes
           </Typography>
         </Box>
       }

@@ -6,7 +6,6 @@ import Navigation from 'src/components/theme-layouts/components/navigation/Navig
 import UserMenu from 'src/components/theme-layouts/components/UserMenu';
 import { Divider } from '@mui/material';
 import Logo from '../../../../components/Logo';
-import GoToDocBox from '@/components/theme-layouts/components/GoToDocBox';
 
 const Root = styled('div')(({ theme }) => ({
 	backgroundColor: theme.palette.background.default,
@@ -65,8 +64,6 @@ function NavbarStyle1Content(props: NavbarStyle1ContentProps) {
 					/>
 				</div>
 			</StyledContent>
-
-			<GoToDocBox className="mx-3 my-4" />
 
 			<Divider />
 

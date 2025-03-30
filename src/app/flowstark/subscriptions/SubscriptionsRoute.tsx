@@ -1,13 +1,13 @@
-import { lazy } from "react";
-import { FuseRouteItemType } from "@fuse/utils/FuseUtils";
+import { lazy } from 'react';
+import { FuseRouteItemType } from '@fuse/utils/FuseUtils';
 
-const Subscriptions = lazy(() => import("./Subscriptions"));
+const Subscriptions = lazy(() => import('./Subscriptions'));
 
 /**
  * The Subscriptions management route.
  */
 const SubscriptionsRoute: FuseRouteItemType = {
-  path: "flowstark/subscriptions",
+  path: 'subscriptions',
   element: <Subscriptions />,
 };
 

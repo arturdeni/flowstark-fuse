@@ -377,7 +377,7 @@ function Services() {
       header={
         <Box className="p-6">
           <Typography variant="h4" component="h1" gutterBottom>
-            Gestión de Servicios
+            Servicios
           </Typography>
         </Box>
       }
