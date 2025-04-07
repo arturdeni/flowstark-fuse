@@ -31,6 +31,7 @@ import {
   TableHead,
   TableRow,
   TablePagination,
+  CircularProgress,
 } from '@mui/material';
 import { SelectChangeEvent } from '@mui/material/Select';
 import {
@@ -44,9 +45,13 @@ import {
   Description as DescriptionIcon,
   Check as CheckIcon,
   Close as CloseIcon,
+  Refresh as RefreshIcon,
 } from '@mui/icons-material';
 import { styled } from '@mui/material/styles';
 import FusePageSimple from '@fuse/core/FusePageSimple';
+
+import { servicesService } from '../../../services/servicesService';
+import { Service } from '../../../types/models';
 
 // Componente de tabla con estilo
 const StyledTableRow = styled(TableRow)(({ theme }) => ({
@@ -73,28 +78,18 @@ const Root = styled(FusePageSimple)(({ theme }) => ({
   '& .FusePageSimple-sidebarContent': {},
 }));
 
-interface ServiceType {
-  id: number;
-  name: string;
-  description: string;
-  price: number;
-  billingCycle: 'monthly' | 'quarterly' | 'yearly';
-  category: string;
-  isActive: boolean;
-  subscriptionsCount: number;
-}
-
 function Services() {
   // Estados para la gestión de servicios
-  const [services, setServices] = useState<ServiceType[]>([]);
-  const [filteredServices, setFilteredServices] = useState<ServiceType[]>([]);
+  const [services, setServices] = useState<Service[]>([]);
+  const [filteredServices, setFilteredServices] = useState<Service[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [open, setOpen] = useState(false);
-  const [selectedService, setSelectedService] = useState<ServiceType | null>(
-    null
-  );
+  const [selectedService, setSelectedService] = useState<Service | null>(null);
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [loading, setLoading] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [serviceToDelete, setServiceToDelete] = useState<string | null>(null);
   const [categories, setCategories] = useState([
     'Premium',
     'Básico',
@@ -112,71 +107,41 @@ function Services() {
   const [formData, setFormData] = useState({
     name: '',
     description: '',
-    price: '',
-    billingCycle: 'monthly' as 'monthly' | 'quarterly' | 'yearly',
+    basePrice: '',
+    vat: 21, // IVA por defecto del 21%
+    frequency: 'monthly' as 'monthly' | 'quarterly' | 'four_monthly' | 'biannual' | 'annual',
     category: '',
-    isActive: true,
+    active: true,
   });
 
-  // Simulación de datos para la demostración
-  useEffect(() => {
-    // En la implementación real, aquí conectaríamos con Firebase
-    const mockServices = [
-      {
-        id: 1,
-        name: 'Plan Premium',
-        description: 'Acceso completo a todas las funcionalidades',
-        price: 29.99,
-        billingCycle: 'monthly' as const,
-        category: 'Premium',
-        isActive: true,
-        subscriptionsCount: 15,
-      },
-      {
-        id: 2,
-        name: 'Plan Básico',
-        description: 'Funcionalidades esenciales para pequeños negocios',
-        price: 9.99,
-        billingCycle: 'monthly' as const,
-        category: 'Básico',
-        isActive: true,
-        subscriptionsCount: 42,
-      },
-      {
-        id: 3,
-        name: 'Plan Estándar',
-        description: 'Equilibrio entre funcionalidades y precio',
-        price: 19.99,
-        billingCycle: 'monthly' as const,
-        category: 'Estándar',
-        isActive: true,
-        subscriptionsCount: 28,
-      },
-      {
-        id: 4,
-        name: 'Plan Anual Premium',
-        description: 'Plan Premium con facturación anual',
-        price: 299.99,
-        billingCycle: 'yearly' as const,
-        category: 'Premium',
-        isActive: true,
-        subscriptionsCount: 7,
-      },
-      {
-        id: 5,
-        name: 'Plan Promocional',
-        description: 'Oferta por tiempo limitado',
-        price: 4.99,
-        billingCycle: 'monthly' as const,
-        category: 'Promocional',
-        isActive: false,
-        subscriptionsCount: 0,
-      },
-    ];
+  // Cargar servicios desde Firestore
+  const fetchServices = async () => {
+    setLoading(true);
+    try {
+      const servicesData = await servicesService.getAllServices();
+      setServices(servicesData);
+      setFilteredServices(servicesData);
+    } catch (error) {
+      console.error('Error fetching services:', error);
+      setSnackbar({
+        open: true,
+        message: 'Error al cargar los servicios. Por favor, inténtalo de nuevo.',
+        severity: 'error',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    setServices(mockServices);
-    setFilteredServices(mockServices);
+  // Cargar datos iniciales
+  useEffect(() => {
+    fetchServices();
   }, []);
+
+  // Función para refrescar los datos
+  const refreshData = async () => {
+    await fetchServices();
+  };
 
   // Filtrado de servicios según término de búsqueda
   useEffect(() => {
@@ -184,10 +149,8 @@ function Services() {
       const filtered = services.filter(
         (service) =>
           service.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          service.description
-            .toLowerCase()
-            .includes(searchTerm.toLowerCase()) ||
-          service.category.toLowerCase().includes(searchTerm.toLowerCase())
+          service.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          (service.category && service.category.toLowerCase().includes(searchTerm.toLowerCase()))
       );
       setFilteredServices(filtered);
     } else {
@@ -211,26 +174,28 @@ function Services() {
     setPage(0);
   };
 
-  const handleClickOpen = (service: ServiceType | null = null) => {
+  const handleClickOpen = (service: Service | null = null) => {
     if (service) {
       setSelectedService(service);
       setFormData({
-        name: service.name,
-        description: service.description,
-        price: service.price.toString(),
-        billingCycle: service.billingCycle,
-        category: service.category,
-        isActive: service.isActive,
+        name: service.name || '',
+        description: service.description || '',
+        basePrice: service.basePrice?.toString() || '',
+        vat: service.vat ?? 21,
+        frequency: service.frequency || 'monthly',
+        category: service.category || '',
+        active: service.active !== false,
       });
     } else {
       setSelectedService(null);
       setFormData({
         name: '',
         description: '',
-        price: '',
-        billingCycle: 'monthly',
+        basePrice: '',
+        vat: 21,
+        frequency: 'monthly',
         category: '',
-        isActive: true,
+        active: true,
       });
     }
 
@@ -241,8 +206,8 @@ function Services() {
     setOpen(false);
   };
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | { name?: string; value: unknown }> | SelectChangeEvent<string | 'monthly' | 'quarterly' | 'yearly'>) => {
-    const { name, value } = e.target as { name: string; value: string | boolean };
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | { name?: string; value: unknown }> | SelectChangeEvent<string | number | 'monthly' | 'quarterly' | 'four_monthly' | 'biannual' | 'annual'>) => {
+    const { name, value } = e.target as { name: string; value: string | number | boolean };
     setFormData({
       ...formData,
       [name]: value
@@ -252,16 +217,16 @@ function Services() {
   const handleToggleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({
       ...formData,
-      isActive: e.target.checked,
+      active: e.target.checked,
     });
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     // Validación básica
     if (
       !formData.name ||
       !formData.description ||
-      !formData.price ||
+      !formData.basePrice ||
       !formData.category
     ) {
       setSnackbar({
@@ -273,7 +238,7 @@ function Services() {
     }
 
     // Validar que el precio sea un número válido
-    const price = parseFloat(formData.price);
+    const price = parseFloat(formData.basePrice);
 
     if (isNaN(price) || price <= 0) {
       setSnackbar({
@@ -284,72 +249,135 @@ function Services() {
       return;
     }
 
-    // Simulamos guardar (en la implementación real se haría con Firebase)
-    if (selectedService) {
-      // Editar servicio existente
-      const updatedServices = services.map((service) =>
-        service.id === selectedService.id
-          ? {
-            ...service,
-            name: formData.name,
-            description: formData.description,
-            price: parseFloat(formData.price),
-            billingCycle: formData.billingCycle,
-            category: formData.category,
-            isActive: formData.isActive,
-          }
-          : service
-      );
-      setServices(updatedServices);
-      setSnackbar({
-        open: true,
-        message: 'Servicio actualizado correctamente',
-        severity: 'success',
-      });
-    } else {
-      // Crear nuevo servicio
-      const newService = {
-        id: services.length + 1,
-        name: formData.name,
-        description: formData.description,
-        price: parseFloat(formData.price),
-        billingCycle: formData.billingCycle,
-        category: formData.category,
-        isActive: formData.isActive,
-        subscriptionsCount: 0,
+    setLoading(true);
+    try {
+      const serviceData = {
+        ...formData,
+        basePrice: parseFloat(formData.basePrice),
+        vat: Number(formData.vat),
       };
-      setServices([...services, newService]);
+
+      if (selectedService) {
+        // Editar servicio existente
+        const updatedService = await servicesService.updateService(selectedService.id!, serviceData);
+
+        // Actualizar el estado local
+        setServices(services.map(service =>
+          service.id === updatedService.id ? updatedService : service
+        ));
+
+        setSnackbar({
+          open: true,
+          message: 'Servicio actualizado correctamente',
+          severity: 'success',
+        });
+      } else {
+        // Crear nuevo servicio
+        const newService = await servicesService.createService(serviceData);
+
+        // Actualizar el estado local
+        setServices([...services, newService]);
+
+        setSnackbar({
+          open: true,
+          message: 'Servicio creado correctamente',
+          severity: 'success',
+        });
+      }
+
+      setOpen(false);
+      // Refrescar datos para asegurar la sincronización
+      await refreshData();
+    } catch (error) {
+      console.error('Error saving service:', error);
       setSnackbar({
         open: true,
-        message: 'Servicio creado correctamente',
+        message: `Error al ${selectedService ? 'actualizar' : 'crear'} el servicio: ${error instanceof Error ? error.message : 'Error desconocido'}`,
+        severity: 'error',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteClick = (id: string) => {
+    setServiceToDelete(id);
+    setDeleteConfirmOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (serviceToDelete) {
+      try {
+        setLoading(true);
+        await servicesService.deleteService(serviceToDelete);
+
+        // Actualizar el estado local
+        setServices(services.filter(service => service.id !== serviceToDelete));
+
+        setSnackbar({
+          open: true,
+          message: 'Servicio eliminado correctamente',
+          severity: 'success',
+        });
+
+        // Refrescar datos para asegurar la sincronización
+        await refreshData();
+      } catch (error) {
+        console.error('Error deleting service:', error);
+        setSnackbar({
+          open: true,
+          message: `Error al eliminar el servicio: ${error instanceof Error ? error.message : 'Error desconocido'}`,
+          severity: 'error',
+        });
+      } finally {
+        setLoading(false);
+        setDeleteConfirmOpen(false);
+        setServiceToDelete(null);
+      }
+    }
+  };
+
+  const handleCancelDelete = () => {
+    setDeleteConfirmOpen(false);
+    setServiceToDelete(null);
+  };
+
+  const handleToggleActive = async (id: string) => {
+    try {
+      setLoading(true);
+      // Encontrar el servicio actual
+      const service = services.find(s => s.id === id);
+
+      if (!service) return;
+
+      // Invertir el estado active
+      const updatedService = await servicesService.updateService(id, {
+        active: !service.active
+      });
+
+      // Actualizar el estado local
+      setServices(services.map(service =>
+        service.id === id ? updatedService : service
+      ));
+
+      setSnackbar({
+        open: true,
+        message: `Servicio ${updatedService.active ? 'activado' : 'desactivado'} correctamente`,
         severity: 'success',
       });
+
+      // Refrescar datos para asegurar la sincronización
+      await refreshData();
+    } catch (error) {
+      console.error('Error toggling service active state:', error);
+      setSnackbar({
+        open: true,
+        message: `Error al cambiar el estado del servicio: ${error instanceof Error ? error.message : 'Error desconocido'}`,
+        severity: 'error',
+      });
+    } finally {
+      setLoading(false);
     }
-
-    setOpen(false);
-  };
-
-  const handleDelete = (id: number) => {
-    // En la implementación real deberíamos verificar si hay suscripciones activas
-    const updatedServices = services.filter((service) => service.id !== id);
-    setServices(updatedServices);
-    setSnackbar({
-      open: true,
-      message: 'Servicio eliminado correctamente',
-      severity: 'success',
-    });
-  };
-
-  const handleToggleActive = (id: number) => {
-    const updatedServices = services.map((service) =>
-      service.id === id ? { ...service, isActive: !service.isActive } : service
-    );
-    setServices(updatedServices);
-    setSnackbar({
-      open: true,
-      message: 'Estado del servicio actualizado correctamente',
-      severity: 'success',
-    });
   };
 
   const handleCloseSnackbar = () => {
@@ -359,16 +387,20 @@ function Services() {
     });
   };
 
-  const getBillingCycleText = (cycle: string) => {
-    switch (cycle) {
+  const getFrequencyText = (frequency: string) => {
+    switch (frequency) {
       case 'monthly':
         return 'Mensual';
       case 'quarterly':
         return 'Trimestral';
-      case 'yearly':
+      case 'four_monthly':
+        return 'Cuatrimestral';
+      case 'biannual':
+        return 'Semestral';
+      case 'annual':
         return 'Anual';
       default:
-        return cycle;
+        return frequency;
     }
   };
 
@@ -383,7 +415,7 @@ function Services() {
       }
       content={
         <Box className="p-6">
-          {/* Barra de búsqueda y botón para añadir */}
+          {/* Barra de búsqueda y botones para añadir/refrescar */}
           <Box sx={{ display: 'flex', mb: 3 }}>
             <TextField
               variant="outlined"
@@ -404,108 +436,148 @@ function Services() {
               color="primary"
               startIcon={<AddIcon />}
               onClick={() => handleClickOpen()}
+              disabled={loading}
+              sx={{ mr: 1 }}
             >
               Nuevo Servicio
             </Button>
+            <Button
+              variant="outlined"
+              color="primary"
+              startIcon={<RefreshIcon />}
+              onClick={refreshData}
+              disabled={loading}
+            >
+              Actualizar
+            </Button>
           </Box>
 
-          {/* Tabla de servicios */}
-          <TableContainer component={Paper}>
-            <Table sx={{ minWidth: 650 }} aria-label="tabla de servicios">
-              <TableHead>
-                <TableRow>
-                  <TableCell>Nombre</TableCell>
-                  <TableCell>Descripción</TableCell>
-                  <TableCell>Precio</TableCell>
-                  <TableCell>Facturación</TableCell>
-                  <TableCell>Categoría</TableCell>
-                  <TableCell>Estado</TableCell>
-                  <TableCell>Subscripciones</TableCell>
-                  <TableCell align="right">Acciones</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {filteredServices
-                  .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
-                  .map((service) => (
-                    <StyledTableRow key={service.id}>
-                      <TableCell component="th" scope="row">
-                        {service.name}
+          {/* Tabla de servicios con estado de carga */}
+          {loading && services.length === 0 ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
+              <CircularProgress />
+            </Box>
+          ) : (
+            <TableContainer component={Paper}>
+              <Table sx={{ minWidth: 650 }} aria-label="tabla de servicios">
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Nombre</TableCell>
+                    <TableCell>Descripción</TableCell>
+                    <TableCell>Precio</TableCell>
+                    <TableCell>IVA</TableCell>
+                    <TableCell>Facturación</TableCell>
+                    <TableCell>Categoría</TableCell>
+                    <TableCell>Estado</TableCell>
+                    <TableCell>Subscripciones</TableCell>
+                    <TableCell align="right">Acciones</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {filteredServices.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={9} align="center">
+                        No se encontraron servicios
                       </TableCell>
-                      <TableCell>{service.description}</TableCell>
-                      <TableCell>{service.price.toFixed(2)} €</TableCell>
-                      <TableCell>
-                        {getBillingCycleText(service.billingCycle)}
-                      </TableCell>
-                      <TableCell>
-                        <Chip label={service.category} size="small" />
-                      </TableCell>
-                      <TableCell>
-                        {service.isActive ? (
-                          <Chip
-                            icon={<CheckIcon />}
-                            label="Activo"
-                            color="success"
-                            size="small"
-                            variant="outlined"
-                          />
-                        ) : (
-                          <Chip
-                            icon={<CloseIcon />}
-                            label="Inactivo"
-                            color="error"
-                            size="small"
-                            variant="outlined"
-                          />
-                        )}
-                      </TableCell>
-                      <TableCell>{service.subscriptionsCount}</TableCell>
-                      <TableCell align="right">
-                        <IconButton
-                          size="small"
-                          onClick={() => handleClickOpen(service)}
-                        >
-                          <EditIcon fontSize="small" />
-                        </IconButton>
-                        <IconButton
-                          size="small"
-                          onClick={() => handleToggleActive(service.id)}
-                        >
-                          {service.isActive ? (
-                            <CloseIcon fontSize="small" />
-                          ) : (
-                            <CheckIcon fontSize="small" />
-                          )}
-                        </IconButton>
-                        <IconButton
-                          size="small"
-                          onClick={() => handleDelete(service.id)}
-                          disabled={service.subscriptionsCount > 0}
-                        >
-                          <DeleteIcon fontSize="small" />
-                        </IconButton>
-                      </TableCell>
-                    </StyledTableRow>
-                  ))}
-              </TableBody>
-            </Table>
-            <TablePagination
-              rowsPerPageOptions={[5, 10, 25]}
-              component="div"
-              count={filteredServices.length}
-              rowsPerPage={rowsPerPage}
-              page={page}
-              onPageChange={handleChangePage}
-              onRowsPerPageChange={handleChangeRowsPerPage}
-              labelRowsPerPage="Filas por página:"
-              labelDisplayedRows={({ from, to, count }) =>
-                `${from}-${to} de ${count}`
-              }
-            />
-          </TableContainer>
+                    </TableRow>
+                  ) : (
+                    filteredServices
+                      .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
+                      .map((service) => (
+                        <StyledTableRow key={service.id}>
+                          <TableCell component="th" scope="row">
+                            {service.name}
+                          </TableCell>
+                          <TableCell>{service.description}</TableCell>
+                          <TableCell>{typeof service.basePrice === 'number' ? service.basePrice.toFixed(2) : '0.00'} €</TableCell>
+                          <TableCell>{service.vat}%</TableCell>
+                          <TableCell>
+                            {getFrequencyText(service.frequency)}
+                          </TableCell>
+                          <TableCell>
+                            <Chip label={service.category} size="small" />
+                          </TableCell>
+                          <TableCell>
+                            {service.active !== false ? (
+                              <Chip
+                                icon={<CheckIcon />}
+                                label="Activo"
+                                color="success"
+                                size="small"
+                                variant="outlined"
+                              />
+                            ) : (
+                              <Chip
+                                icon={<CloseIcon />}
+                                label="Inactivo"
+                                color="error"
+                                size="small"
+                                variant="outlined"
+                              />
+                            )}
+                          </TableCell>
+                          <TableCell>{service.activeSubscriptions || 0}</TableCell>
+                          <TableCell align="right">
+                            <IconButton
+                              size="small"
+                              onClick={() => handleClickOpen(service)}
+                              disabled={loading}
+                              title="Editar"
+                            >
+                              <EditIcon fontSize="small" />
+                            </IconButton>
+                            <IconButton
+                              size="small"
+                              onClick={() => service.id && handleToggleActive(service.id)}
+                              disabled={loading}
+                              title={service.active ? 'Desactivar' : 'Activar'}
+                            >
+                              {service.active ? (
+                                <CloseIcon fontSize="small" />
+                              ) : (
+                                <CheckIcon fontSize="small" />
+                              )}
+                            </IconButton>
+                            <IconButton
+                              size="small"
+                              onClick={() => service.id && handleDeleteClick(service.id)}
+                              disabled={loading || (service.activeSubscriptions && service.activeSubscriptions > 0)}
+                              title="Eliminar"
+                            >
+                              <DeleteIcon fontSize="small" />
+                            </IconButton>
+                          </TableCell>
+                        </StyledTableRow>
+                      ))
+                  )}
+                </TableBody>
+              </Table>
+              <TablePagination
+                rowsPerPageOptions={[5, 10, 25]}
+                component="div"
+                count={filteredServices.length}
+                rowsPerPage={rowsPerPage}
+                page={page}
+                onPageChange={handleChangePage}
+                onRowsPerPageChange={handleChangeRowsPerPage}
+                labelRowsPerPage="Filas por página:"
+                labelDisplayedRows={({ from, to, count }) =>
+                  `${from}-${to} de ${count}`
+                }
+              />
+            </TableContainer>
+          )}
 
           {/* Diálogo para añadir/editar servicio */}
-          <Dialog open={open} onClose={handleClose} maxWidth="md" fullWidth>
+          <Dialog
+            open={open}
+            onClose={handleClose}
+            maxWidth="md"
+            fullWidth
+            PaperProps={{
+              sx: { overflowY: 'visible' }
+            }}
+          >
             <DialogTitle>
               {selectedService ? 'Editar Servicio' : 'Nuevo Servicio'}
             </DialogTitle>
@@ -553,9 +625,9 @@ function Services() {
                   margin="normal"
                   required
                   fullWidth
-                  label="Precio"
-                  name="price"
-                  value={formData.price}
+                  label="Precio Base"
+                  name="basePrice"
+                  value={formData.basePrice}
                   onChange={handleInputChange}
                   InputProps={{
                     startAdornment: (
@@ -566,19 +638,36 @@ function Services() {
                   }}
                 />
                 <FormControl margin="normal" fullWidth required>
-                  <InputLabel id="billing-cycle-label">
-                    Ciclo de Facturación
+                  <InputLabel id="vat-label">IVA</InputLabel>
+                  <Select
+                    labelId="vat-label"
+                    name="vat"
+                    value={formData.vat}
+                    label="IVA"
+                    onChange={handleInputChange}
+                  >
+                    <MenuItem value={0}>0%</MenuItem>
+                    <MenuItem value={4}>4%</MenuItem>
+                    <MenuItem value={10}>10%</MenuItem>
+                    <MenuItem value={21}>21%</MenuItem>
+                  </Select>
+                </FormControl>
+                <FormControl margin="normal" fullWidth required>
+                  <InputLabel id="frequency-label">
+                    Frecuencia de Facturación
                   </InputLabel>
                   <Select
-                    labelId="billing-cycle-label"
-                    name="billingCycle"
-                    value={formData.billingCycle}
-                    label="Ciclo de Facturación"
+                    labelId="frequency-label"
+                    name="frequency"
+                    value={formData.frequency}
+                    label="Frecuencia de Facturación"
                     onChange={handleInputChange}
                   >
                     <MenuItem value="monthly">Mensual</MenuItem>
                     <MenuItem value="quarterly">Trimestral</MenuItem>
-                    <MenuItem value="yearly">Anual</MenuItem>
+                    <MenuItem value="four_monthly">Cuatrimestral</MenuItem>
+                    <MenuItem value="biannual">Semestral</MenuItem>
+                    <MenuItem value="annual">Anual</MenuItem>
                   </Select>
                 </FormControl>
                 <TextField
@@ -603,9 +692,9 @@ function Services() {
                 <FormControlLabel
                   control={
                     <Switch
-                      checked={formData.isActive}
+                      checked={formData.active}
                       onChange={handleToggleChange}
-                      name="isActive"
+                      name="active"
                     />
                   }
                   label="Servicio Activo"
@@ -614,9 +703,36 @@ function Services() {
               </Box>
             </DialogContent>
             <DialogActions>
-              <Button onClick={handleClose}>Cancelar</Button>
-              <Button onClick={handleSave} variant="contained">
-                Guardar
+              <Button onClick={handleClose} disabled={loading}>Cancelar</Button>
+              <Button
+                onClick={handleSave}
+                variant="contained"
+                disabled={loading}
+                startIcon={loading ? <CircularProgress size={20} /> : null}
+              >
+                {loading ? 'Guardando...' : 'Guardar'}
+              </Button>
+            </DialogActions>
+          </Dialog>
+
+          {/* Diálogo de confirmación para eliminar */}
+          <Dialog open={deleteConfirmOpen} onClose={handleCancelDelete}>
+            <DialogTitle>Confirmar eliminación</DialogTitle>
+            <DialogContent>
+              <Typography>
+                ¿Estás seguro de que deseas eliminar este servicio? Esta acción no se puede deshacer.
+              </Typography>
+            </DialogContent>
+            <DialogActions>
+              <Button onClick={handleCancelDelete} disabled={loading}>Cancelar</Button>
+              <Button
+                onClick={handleConfirmDelete}
+                color="error"
+                variant="contained"
+                disabled={loading}
+                startIcon={loading ? <CircularProgress size={20} /> : null}
+              >
+                {loading ? 'Eliminando...' : 'Eliminar'}
               </Button>
             </DialogActions>
           </Dialog>

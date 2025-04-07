@@ -24,6 +24,7 @@ import {
   InputLabel,
   Select,
   MenuItem,
+  CircularProgress,
 } from '@mui/material';
 import { SelectChangeEvent } from '@mui/material/Select';
 import {
@@ -36,9 +37,13 @@ import {
   Cancel as CancelIcon,
   Email as EmailIcon,
   Phone as PhoneIcon,
+  Refresh as RefreshIcon,
 } from '@mui/icons-material';
 import { styled } from '@mui/material/styles';
 import FusePageSimple from '@fuse/core/FusePageSimple';
+
+import { clientsService } from '../../../services/clientsService';
+import { Client } from '../../../types/models';
 
 // Componente de tabla con estilo
 const StyledTableRow = styled(TableRow)(({ theme }) => ({
@@ -65,29 +70,18 @@ const Root = styled(FusePageSimple)(({ theme }) => ({
   '& .FusePageSimple-sidebarContent': {},
 }));
 
-interface UserType {
-  id: number;
-  name: string;
-  lastName: string;
-  email: string;
-  phone: string;
-  address: string;
-  city: string;
-  postalCode: string;
-  notes: string;
-  status: 'active' | 'inactive';  // Asegúrate de que esto sea un literal de tipo
-  subscriptionsCount: number;
-}
-
 function Users() {
   // Estados para la gestión de usuarios
-  const [users, setUsers] = useState<UserType[]>([]);
-  const [filteredUsers, setFilteredUsers] = useState<UserType[]>([]);
+  const [users, setUsers] = useState<Client[]>([]);
+  const [filteredUsers, setFilteredUsers] = useState<Client[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [open, setOpen] = useState(false);
-  const [selectedUser, setSelectedUser] = useState<UserType | null>(null);
+  const [selectedUser, setSelectedUser] = useState<Client | null>(null);
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [loading, setLoading] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [clientToDelete, setClientToDelete] = useState<string | null>(null);
   const [snackbar, setSnackbar] = useState({
     open: false,
     message: '',
@@ -96,38 +90,63 @@ function Users() {
 
   // Formulario para nuevo/editar usuario
   const [formData, setFormData] = useState({
-    name: '',
+    firstName: '',
     lastName: '',
+    fiscalName: '',
     email: '',
     phone: '',
+    idNumber: '',
+    taxId: '',
     address: '',
     city: '',
     postalCode: '',
+    country: '',
     notes: '',
-    status: 'active',
+    active: true,
+    paymentMethod: {
+      type: 'card',
+      details: {},
+    },
   });
 
-  // Simulación de datos para la demostración
-  useEffect(() => {
-    // En la implementación real, aquí conectaríamos con Firebase
-    const mockUsers = [
-      { id: 1, name: 'Ana', lastName: 'García', email: 'ana.garcia@ejemplo.com', phone: '612345678', address: 'Calle Mayor 1', city: 'Madrid', postalCode: '28001', notes: 'Cliente premium', status: 'active' as const, subscriptionsCount: 2 },
-      // ... (otros usuarios con "status: 'active' as const" o "status: 'inactive' as const")
-    ];
+  // Cargar usuarios desde Firestore
+  const fetchUsers = async () => {
+    setLoading(true);
+    try {
+      const clientsData = await clientsService.getAllClients();
+      setUsers(clientsData);
+      setFilteredUsers(clientsData);
+    } catch (error) {
+      console.error('Error fetching clients:', error);
+      setSnackbar({
+        open: true,
+        message: 'Error al cargar los clientes. Por favor, inténtalo de nuevo.',
+        severity: 'error',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    setUsers(mockUsers);
-    setFilteredUsers(mockUsers);
+  // Cargar datos iniciales
+  useEffect(() => {
+    fetchUsers();
   }, []);
+
+  // Función para refrescar los datos
+  const refreshData = async () => {
+    await fetchUsers();
+  };
 
   // Filtrado de usuarios según término de búsqueda
   useEffect(() => {
     if (searchTerm) {
       const filtered = users.filter(
         (user) =>
-          user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          user.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          user.phone.includes(searchTerm)
+          user.firstName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          user.lastName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          user.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          user.phone?.includes(searchTerm)
       );
       setFilteredUsers(filtered);
     } else {
@@ -151,32 +170,48 @@ function Users() {
     setPage(0);
   };
 
-  const handleClickOpen = (user: UserType | null = null) => {
+  const handleClickOpen = (user: Client | null = null) => {
     if (user) {
       setSelectedUser(user);
       setFormData({
-        name: user.name,
-        lastName: user.lastName,
-        email: user.email,
-        phone: user.phone,
-        address: user.address,
-        city: user.city,
-        postalCode: user.postalCode,
-        notes: user.notes,
-        status: user.status,
+        firstName: user.firstName || '',
+        lastName: user.lastName || '',
+        fiscalName: user.fiscalName || '',
+        email: user.email || '',
+        phone: user.phone || '',
+        idNumber: user.idNumber || '',
+        taxId: user.taxId || '',
+        address: user.address || '',
+        city: user.city || '',
+        postalCode: user.postalCode || '',
+        country: user.country || '',
+        notes: user.notes || '',
+        active: user.active !== false, // default to true if undefined
+        paymentMethod: user.paymentMethod || {
+          type: 'card',
+          details: {},
+        },
       });
     } else {
       setSelectedUser(null);
       setFormData({
-        name: '',
+        firstName: '',
         lastName: '',
+        fiscalName: '',
         email: '',
         phone: '',
+        idNumber: '',
+        taxId: '',
         address: '',
         city: '',
         postalCode: '',
+        country: '',
         notes: '',
-        status: 'active',
+        active: true,
+        paymentMethod: {
+          type: 'card',
+          details: {},
+        },
       });
     }
 
@@ -188,16 +223,29 @@ function Users() {
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | { name?: string; value: unknown }> | SelectChangeEvent<string>) => {
-    const { name, value } = e.target as { name: string; value: string };
-    setFormData({
-      ...formData,
-      [name]: value
-    });
+    const { name, value } = e.target as { name: string; value: string | boolean };
+
+    // Manejar campos anidados para paymentMethod
+    if (name.startsWith('paymentMethod.')) {
+      const field = name.split('.')[1];
+      setFormData({
+        ...formData,
+        paymentMethod: {
+          ...formData.paymentMethod,
+          [field]: value
+        }
+      });
+    } else {
+      setFormData({
+        ...formData,
+        [name]: value
+      });
+    }
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     // Validación básica
-    if (!formData.name || !formData.lastName || !formData.email) {
+    if (!formData.firstName || !formData.lastName || !formData.email) {
       setSnackbar({
         open: true,
         message: 'Por favor, completa los campos requeridos',
@@ -206,46 +254,91 @@ function Users() {
       return;
     }
 
-    // Simulamos guardar (en la implementación real se haría con Firebase)
-    if (selectedUser) {
-      // Editar usuario existente
-      const updatedUsers = users.map((user) =>
-        user.id === selectedUser.id ? { ...user, ...formData } : user
-      );
-      setUsers(updatedUsers);
-      setSnackbar({
-        open: true,
-        message: 'Usuario actualizado correctamente',
-        severity: 'success',
-      });
-    } else {
-      // Crear nuevo usuario
-      const newUser = {
-        id: users.length + 1,
-        ...formData,
-        status: formData.status as 'active' | 'inactive',
-        subscriptionsCount: 0
-      };
-      setUsers([...users, newUser]);
-      setSnackbar({
-        open: true,
-        message: 'Usuario creado correctamente',
-        severity: 'success',
-      });
-    }
+    setLoading(true);
+    try {
+      if (selectedUser) {
+        // Editar usuario existente
+        const updatedClient = await clientsService.updateClient(selectedUser.id!, formData);
 
-    setOpen(false);
+        // Actualizar el estado local
+        setUsers(users.map(user =>
+          user.id === updatedClient.id ? updatedClient : user
+        ));
+
+        setSnackbar({
+          open: true,
+          message: 'Cliente actualizado correctamente',
+          severity: 'success',
+        });
+      } else {
+        // Crear nuevo usuario
+        const newClient = await clientsService.createClient(formData);
+
+        // Actualizar el estado local
+        setUsers([...users, newClient]);
+
+        setSnackbar({
+          open: true,
+          message: 'Cliente creado correctamente',
+          severity: 'success',
+        });
+      }
+
+      setOpen(false);
+      // Refrescar datos para asegurar la sincronización
+      await refreshData();
+    } catch (error) {
+      console.error('Error saving client:', error);
+      setSnackbar({
+        open: true,
+        message: `Error al ${selectedUser ? 'actualizar' : 'crear'} el cliente: ${error instanceof Error ? error.message : 'Error desconocido'}`,
+        severity: 'error',
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleDelete = (id: number) => {
-    // En la implementación real deberíamos verificar si tiene subscripciones activas
-    const updatedUsers = users.filter((user) => user.id !== id);
-    setUsers(updatedUsers);
-    setSnackbar({
-      open: true,
-      message: 'Usuario eliminado correctamente',
-      severity: 'success',
-    });
+  const handleDeleteClick = (id: string) => {
+    setClientToDelete(id);
+    setDeleteConfirmOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (clientToDelete) {
+      try {
+        setLoading(true);
+        await clientsService.deleteClient(clientToDelete);
+
+        // Actualizar el estado local
+        setUsers(users.filter(user => user.id !== clientToDelete));
+
+        setSnackbar({
+          open: true,
+          message: 'Cliente eliminado correctamente',
+          severity: 'success',
+        });
+
+        // Refrescar datos para asegurar la sincronización
+        await refreshData();
+      } catch (error) {
+        console.error('Error deleting client:', error);
+        setSnackbar({
+          open: true,
+          message: `Error al eliminar el cliente: ${error instanceof Error ? error.message : 'Error desconocido'}`,
+          severity: 'error',
+        });
+      } finally {
+        setLoading(false);
+        setDeleteConfirmOpen(false);
+        setClientToDelete(null);
+      }
+    }
+  };
+
+  const handleCancelDelete = () => {
+    setDeleteConfirmOpen(false);
+    setClientToDelete(null);
   };
 
   const handleCloseSnackbar = () => {
@@ -253,6 +346,13 @@ function Users() {
       ...snackbar,
       open: false,
     });
+  };
+
+  // Calcular el número de suscripciones para cada cliente (esto sería ideal hacerlo en el backend)
+  // Por ahora simplemente devolvemos 0 o un placeholder
+  const getSubscriptionCount = (client: Client) => {
+    // Aquí podrías implementar una lógica para obtener el recuento de suscripciones
+    return 0; // Por defecto devolvemos 0
   };
 
   return (
@@ -266,11 +366,11 @@ function Users() {
       }
       content={
         <Box className="p-6">
-          {/* Barra de búsqueda y botón para añadir */}
+          {/* Barra de búsqueda y botones para añadir/refrescar */}
           <Box sx={{ display: 'flex', mb: 3 }}>
             <TextField
               variant="outlined"
-              placeholder="Buscar usuarios..."
+              placeholder="Buscar clientes..."
               value={searchTerm}
               onChange={handleSearchChange}
               sx={{ mr: 2, flexGrow: 1 }}
@@ -287,99 +387,135 @@ function Users() {
               color="primary"
               startIcon={<AddIcon />}
               onClick={() => handleClickOpen()}
+              disabled={loading}
+              sx={{ mr: 1 }}
             >
-              Nuevo Usuario
+              Nuevo Cliente
+            </Button>
+            <Button
+              variant="outlined"
+              color="primary"
+              startIcon={<RefreshIcon />}
+              onClick={refreshData}
+              disabled={loading}
+            >
+              Actualizar
             </Button>
           </Box>
 
-          {/* Tabla de usuarios */}
-          <TableContainer component={Paper}>
-            <Table sx={{ minWidth: 650 }} aria-label="tabla de usuarios">
-              <TableHead>
-                <TableRow>
-                  <TableCell>Nombre</TableCell>
-                  <TableCell>Email</TableCell>
-                  <TableCell>Teléfono</TableCell>
-                  <TableCell>Ciudad</TableCell>
-                  <TableCell>Estado</TableCell>
-                  <TableCell>Subscripciones</TableCell>
-                  <TableCell align="right">Acciones</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {filteredUsers
-                  .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
-                  .map((user) => (
-                    <StyledTableRow key={user.id}>
-                      <TableCell component="th" scope="row">
-                        {user.name} {user.lastName}
+          {/* Tabla de usuarios con estado de carga */}
+          {loading && users.length === 0 ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
+              <CircularProgress />
+            </Box>
+          ) : (
+            <TableContainer component={Paper}>
+              <Table sx={{ minWidth: 650 }} aria-label="tabla de clientes">
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Nombre</TableCell>
+                    <TableCell>Email</TableCell>
+                    <TableCell>Teléfono</TableCell>
+                    <TableCell>Ciudad</TableCell>
+                    <TableCell>Estado</TableCell>
+                    <TableCell>Subscripciones</TableCell>
+                    <TableCell align="right">Acciones</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {filteredUsers.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={7} align="center">
+                        No se encontraron clientes
                       </TableCell>
-                      <TableCell>{user.email}</TableCell>
-                      <TableCell>{user.phone}</TableCell>
-                      <TableCell>{user.city}</TableCell>
-                      <TableCell>
-                        {user.status === 'active' ? (
-                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                            <CheckCircleIcon
-                              color="success"
-                              fontSize="small"
-                              sx={{ mr: 0.5 }}
-                            />
-                            <Typography variant="body2">Activo</Typography>
-                          </Box>
-                        ) : (
-                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                            <CancelIcon
-                              color="error"
-                              fontSize="small"
-                              sx={{ mr: 0.5 }}
-                            />
-                            <Typography variant="body2">Inactivo</Typography>
-                          </Box>
-                        )}
-                      </TableCell>
-                      <TableCell>{user.subscriptionsCount}</TableCell>
-                      <TableCell align="right">
-                        <IconButton
-                          size="small"
-                          onClick={() => handleClickOpen(user)}
-                        >
-                          <EditIcon fontSize="small" />
-                        </IconButton>
-                        <IconButton
-                          size="small"
-                          onClick={() => handleDelete(user.id)}
-                          disabled={user.subscriptionsCount > 0}
-                        >
-                          <DeleteIcon fontSize="small" />
-                        </IconButton>
-                        <IconButton size="small">
-                          <MoreVertIcon fontSize="small" />
-                        </IconButton>
-                      </TableCell>
-                    </StyledTableRow>
-                  ))}
-              </TableBody>
-            </Table>
-            <TablePagination
-              rowsPerPageOptions={[5, 10, 25]}
-              component="div"
-              count={filteredUsers.length}
-              rowsPerPage={rowsPerPage}
-              page={page}
-              onPageChange={handleChangePage}
-              onRowsPerPageChange={handleChangeRowsPerPage}
-              labelRowsPerPage="Filas por página:"
-              labelDisplayedRows={({ from, to, count }) =>
-                `${from}-${to} de ${count}`
-              }
-            />
-          </TableContainer>
+                    </TableRow>
+                  ) : (
+                    filteredUsers
+                      .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
+                      .map((user) => (
+                        <StyledTableRow key={user.id}>
+                          <TableCell component="th" scope="row">
+                            {user.firstName} {user.lastName}
+                          </TableCell>
+                          <TableCell>{user.email}</TableCell>
+                          <TableCell>{user.phone}</TableCell>
+                          <TableCell>{user.city}</TableCell>
+                          <TableCell>
+                            {user.active !== false ? (
+                              <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                                <CheckCircleIcon
+                                  color="success"
+                                  fontSize="small"
+                                  sx={{ mr: 0.5 }}
+                                />
+                                <Typography variant="body2">Activo</Typography>
+                              </Box>
+                            ) : (
+                              <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                                <CancelIcon
+                                  color="error"
+                                  fontSize="small"
+                                  sx={{ mr: 0.5 }}
+                                />
+                                <Typography variant="body2">Inactivo</Typography>
+                              </Box>
+                            )}
+                          </TableCell>
+                          <TableCell>{getSubscriptionCount(user)}</TableCell>
+                          <TableCell align="right">
+                            <IconButton
+                              size="small"
+                              onClick={() => handleClickOpen(user)}
+                              disabled={loading}
+                              title="Editar"
+                            >
+                              <EditIcon fontSize="small" />
+                            </IconButton>
+                            <IconButton
+                              size="small"
+                              onClick={() => user.id && handleDeleteClick(user.id)}
+                              disabled={loading || getSubscriptionCount(user) > 0}
+                              title="Eliminar"
+                            >
+                              <DeleteIcon fontSize="small" />
+                            </IconButton>
+                            <IconButton size="small" title="Más opciones">
+                              <MoreVertIcon fontSize="small" />
+                            </IconButton>
+                          </TableCell>
+                        </StyledTableRow>
+                      ))
+                  )}
+                </TableBody>
+              </Table>
+              <TablePagination
+                rowsPerPageOptions={[5, 10, 25]}
+                component="div"
+                count={filteredUsers.length}
+                rowsPerPage={rowsPerPage}
+                page={page}
+                onPageChange={handleChangePage}
+                onRowsPerPageChange={handleChangeRowsPerPage}
+                labelRowsPerPage="Filas por página:"
+                labelDisplayedRows={({ from, to, count }) =>
+                  `${from}-${to} de ${count}`
+                }
+              />
+            </TableContainer>
+          )}
 
           {/* Diálogo para añadir/editar usuario */}
-          <Dialog open={open} onClose={handleClose} maxWidth="md" fullWidth>
+          <Dialog
+            open={open}
+            onClose={handleClose}
+            maxWidth="md"
+            fullWidth
+            PaperProps={{
+              sx: { overflowY: 'visible' }
+            }}
+          >
             <DialogTitle>
-              {selectedUser ? 'Editar Usuario' : 'Nuevo Usuario'}
+              {selectedUser ? 'Editar Cliente' : 'Nuevo Cliente'}
             </DialogTitle>
             <DialogContent>
               <Box
@@ -396,8 +532,8 @@ function Users() {
                   required
                   fullWidth
                   label="Nombre"
-                  name="name"
-                  value={formData.name}
+                  name="firstName"
+                  value={formData.firstName}
                   onChange={handleInputChange}
                 />
                 <TextField
@@ -407,6 +543,14 @@ function Users() {
                   label="Apellidos"
                   name="lastName"
                   value={formData.lastName}
+                  onChange={handleInputChange}
+                />
+                <TextField
+                  margin="normal"
+                  fullWidth
+                  label="Nombre Fiscal"
+                  name="fiscalName"
+                  value={formData.fiscalName}
                   onChange={handleInputChange}
                 />
                 <TextField
@@ -444,6 +588,37 @@ function Users() {
                 <TextField
                   margin="normal"
                   fullWidth
+                  label="DNI/NIF"
+                  name="idNumber"
+                  value={formData.idNumber}
+                  onChange={handleInputChange}
+                />
+                <TextField
+                  margin="normal"
+                  fullWidth
+                  label="CIF"
+                  name="taxId"
+                  value={formData.taxId}
+                  onChange={handleInputChange}
+                />
+                <FormControl margin="normal" fullWidth>
+                  <InputLabel id="payment-method-label">Método de Pago</InputLabel>
+                  <Select
+                    labelId="payment-method-label"
+                    name="paymentMethod.type"
+                    value={formData.paymentMethod.type}
+                    label="Método de Pago"
+                    onChange={handleInputChange}
+                  >
+                    <MenuItem value="card">Tarjeta</MenuItem>
+                    <MenuItem value="transfer">Transferencia</MenuItem>
+                    <MenuItem value="cash">Efectivo</MenuItem>
+                    <MenuItem value="direct_debit">Domiciliación</MenuItem>
+                  </Select>
+                </FormControl>
+                <TextField
+                  margin="normal"
+                  fullWidth
                   label="Dirección"
                   name="address"
                   value={formData.address}
@@ -465,14 +640,27 @@ function Users() {
                   value={formData.postalCode}
                   onChange={handleInputChange}
                 />
+                <TextField
+                  margin="normal"
+                  fullWidth
+                  label="País"
+                  name="country"
+                  value={formData.country}
+                  onChange={handleInputChange}
+                />
                 <FormControl margin="normal" fullWidth>
                   <InputLabel id="status-label">Estado</InputLabel>
                   <Select
                     labelId="status-label"
-                    name="status"
-                    value={formData.status}
+                    name="active"
+                    value={formData.active ? 'active' : 'inactive'}
                     label="Estado"
-                    onChange={handleInputChange}
+                    onChange={(e) => {
+                      setFormData({
+                        ...formData,
+                        active: e.target.value === 'active'
+                      });
+                    }}
                   >
                     <MenuItem value="active">Activo</MenuItem>
                     <MenuItem value="inactive">Inactivo</MenuItem>
@@ -492,9 +680,36 @@ function Users() {
               </Box>
             </DialogContent>
             <DialogActions>
-              <Button onClick={handleClose}>Cancelar</Button>
-              <Button onClick={handleSave} variant="contained">
-                Guardar
+              <Button onClick={handleClose} disabled={loading}>Cancelar</Button>
+              <Button
+                onClick={handleSave}
+                variant="contained"
+                disabled={loading}
+                startIcon={loading ? <CircularProgress size={20} /> : null}
+              >
+                {loading ? 'Guardando...' : 'Guardar'}
+              </Button>
+            </DialogActions>
+          </Dialog>
+
+          {/* Diálogo de confirmación para eliminar */}
+          <Dialog open={deleteConfirmOpen} onClose={handleCancelDelete}>
+            <DialogTitle>Confirmar eliminación</DialogTitle>
+            <DialogContent>
+              <Typography>
+                ¿Estás seguro de que deseas eliminar este cliente? Esta acción no se puede deshacer.
+              </Typography>
+            </DialogContent>
+            <DialogActions>
+              <Button onClick={handleCancelDelete} disabled={loading}>Cancelar</Button>
+              <Button
+                onClick={handleConfirmDelete}
+                color="error"
+                variant="contained"
+                disabled={loading}
+                startIcon={loading ? <CircularProgress size={20} /> : null}
+              >
+                {loading ? 'Eliminando...' : 'Eliminar'}
               </Button>
             </DialogActions>
           </Dialog>
