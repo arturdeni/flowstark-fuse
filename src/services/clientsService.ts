@@ -1,15 +1,25 @@
+// src/services/clientsService.ts
 import { db } from './firebase/firestore';
 import firebase from 'firebase/compat/app';
 import { Client } from '../types/models';
 
-// Colección de clientes
-const clientsCollection = db.collection('clients');
-
 export const clientsService = {
-	// Obtener todos los clientes
+	// Obtener todos los clientes del usuario actual
 	getAllClients: async (): Promise<Client[]> => {
 		try {
-			const querySnapshot = await clientsCollection.orderBy('firstName').get();
+			const currentUser = firebase.auth().currentUser;
+
+			if (!currentUser) {
+				throw new Error('No user logged in');
+			}
+
+			const querySnapshot = await db
+				.collection('users')
+				.doc(currentUser.uid)
+				.collection('clients')
+				.orderBy('firstName')
+				.get();
+
 			return querySnapshot.docs.map((doc) => {
 				const data = doc.data();
 				return {
@@ -29,7 +39,14 @@ export const clientsService = {
 	// Obtener cliente por ID
 	getClientById: async (id: string): Promise<Client> => {
 		try {
-			const docRef = clientsCollection.doc(id);
+			const currentUser = firebase.auth().currentUser;
+
+			if (!currentUser) {
+				throw new Error('No user logged in');
+			}
+
+			const docRef = db.collection('users').doc(currentUser.uid).collection('clients').doc(id);
+
 			const docSnap = await docRef.get();
 
 			if (docSnap.exists) {
@@ -55,6 +72,12 @@ export const clientsService = {
 		clientData: Omit<Client, 'id' | 'registeredDate' | 'active' | 'createdAt' | 'updatedAt'>
 	): Promise<Client> => {
 		try {
+			const currentUser = firebase.auth().currentUser;
+
+			if (!currentUser) {
+				throw new Error('No user logged in');
+			}
+
 			const timestamp = firebase.firestore.Timestamp.now();
 			const clientWithDates = {
 				...clientData,
@@ -64,7 +87,7 @@ export const clientsService = {
 				updatedAt: timestamp
 			};
 
-			const docRef = await clientsCollection.add(clientWithDates);
+			const docRef = await db.collection('users').doc(currentUser.uid).collection('clients').add(clientWithDates);
 
 			return {
 				id: docRef.id,
@@ -83,7 +106,13 @@ export const clientsService = {
 	// Actualizar cliente
 	updateClient: async (id: string, clientData: Partial<Client>): Promise<Client> => {
 		try {
-			const clientRef = clientsCollection.doc(id);
+			const currentUser = firebase.auth().currentUser;
+
+			if (!currentUser) {
+				throw new Error('No user logged in');
+			}
+
+			const clientRef = db.collection('users').doc(currentUser.uid).collection('clients').doc(id);
 
 			// Preparar datos para actualizar
 			const updateData: Record<string, any> = { ...clientData };
@@ -120,7 +149,13 @@ export const clientsService = {
 	// Eliminar cliente (o marcarlo como inactivo)
 	deleteClient: async (id: string): Promise<{ id: string }> => {
 		try {
-			const clientRef = clientsCollection.doc(id);
+			const currentUser = firebase.auth().currentUser;
+
+			if (!currentUser) {
+				throw new Error('No user logged in');
+			}
+
+			const clientRef = db.collection('users').doc(currentUser.uid).collection('clients').doc(id);
 
 			// Verificar si existe el cliente
 			const docSnap = await clientRef.get();
@@ -131,6 +166,8 @@ export const clientsService = {
 
 			// Verificar si tiene suscripciones activas
 			const subscriptionsQuery = db
+				.collection('users')
+				.doc(currentUser.uid)
 				.collection('subscriptions')
 				.where('clientId', '==', id)
 				.where('status', '==', 'active');

@@ -3,14 +3,23 @@ import { db } from './firebase/firestore';
 import firebase from 'firebase/compat/app';
 import { Service } from '../types/models';
 
-// Colección de servicios
-const servicesCollection = db.collection('services');
-
 export const servicesService = {
-	// Obtener todos los servicios
+	// Obtener todos los servicios del usuario actual
 	getAllServices: async (): Promise<Service[]> => {
 		try {
-			const querySnapshot = await servicesCollection.orderBy('name').get();
+			const currentUser = firebase.auth().currentUser;
+
+			if (!currentUser) {
+				throw new Error('No user logged in');
+			}
+
+			const querySnapshot = await db
+				.collection('users')
+				.doc(currentUser.uid)
+				.collection('services')
+				.orderBy('name')
+				.get();
+
 			return querySnapshot.docs.map((doc) => {
 				const data = doc.data();
 				return {
@@ -33,7 +42,13 @@ export const servicesService = {
 	// Obtener servicio por ID
 	getServiceById: async (id: string): Promise<Service> => {
 		try {
-			const docRef = servicesCollection.doc(id);
+			const currentUser = firebase.auth().currentUser;
+
+			if (!currentUser) {
+				throw new Error('No user logged in');
+			}
+
+			const docRef = db.collection('users').doc(currentUser.uid).collection('services').doc(id);
 			const docSnap = await docRef.get();
 
 			if (docSnap.exists) {
@@ -58,6 +73,12 @@ export const servicesService = {
 		serviceData: Omit<Service, 'id' | 'active' | 'activeSubscriptions' | 'createdAt' | 'updatedAt'>
 	): Promise<Service> => {
 		try {
+			const currentUser = firebase.auth().currentUser;
+
+			if (!currentUser) {
+				throw new Error('No user logged in');
+			}
+
 			const timestamp = firebase.firestore.Timestamp.now();
 			const serviceWithDates = {
 				...serviceData,
@@ -67,7 +88,11 @@ export const servicesService = {
 				updatedAt: timestamp
 			};
 
-			const docRef = await servicesCollection.add(serviceWithDates);
+			const docRef = await db
+				.collection('users')
+				.doc(currentUser.uid)
+				.collection('services')
+				.add(serviceWithDates);
 
 			return {
 				id: docRef.id,
@@ -86,7 +111,13 @@ export const servicesService = {
 	// Actualizar servicio
 	updateService: async (id: string, serviceData: Partial<Service>): Promise<Service> => {
 		try {
-			const serviceRef = servicesCollection.doc(id);
+			const currentUser = firebase.auth().currentUser;
+
+			if (!currentUser) {
+				throw new Error('No user logged in');
+			}
+
+			const serviceRef = db.collection('users').doc(currentUser.uid).collection('services').doc(id);
 
 			// Preparar datos para actualizar
 			const updateData: Record<string, any> = { ...serviceData };
@@ -121,7 +152,13 @@ export const servicesService = {
 	// Eliminar servicio
 	deleteService: async (id: string): Promise<{ id: string }> => {
 		try {
-			const serviceRef = servicesCollection.doc(id);
+			const currentUser = firebase.auth().currentUser;
+
+			if (!currentUser) {
+				throw new Error('No user logged in');
+			}
+
+			const serviceRef = db.collection('users').doc(currentUser.uid).collection('services').doc(id);
 
 			// Verificar si existe el servicio
 			const docSnap = await serviceRef.get();
@@ -132,6 +169,8 @@ export const servicesService = {
 
 			// Verificar si tiene suscripciones activas
 			const subscriptionsQuery = db
+				.collection('users')
+				.doc(currentUser.uid)
 				.collection('subscriptions')
 				.where('serviceId', '==', id)
 				.where('status', '==', 'active');
@@ -155,7 +194,19 @@ export const servicesService = {
 	// Obtener servicios activos
 	getActiveServices: async (): Promise<Service[]> => {
 		try {
-			const querySnapshot = await servicesCollection.where('active', '==', true).orderBy('name').get();
+			const currentUser = firebase.auth().currentUser;
+
+			if (!currentUser) {
+				throw new Error('No user logged in');
+			}
+
+			const querySnapshot = await db
+				.collection('users')
+				.doc(currentUser.uid)
+				.collection('services')
+				.where('active', '==', true)
+				.orderBy('name')
+				.get();
 
 			return querySnapshot.docs.map((doc) => {
 				const data = doc.data();

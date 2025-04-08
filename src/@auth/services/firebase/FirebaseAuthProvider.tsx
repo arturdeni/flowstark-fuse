@@ -1,13 +1,14 @@
 import { useState, useEffect, useCallback, useMemo, useImperativeHandle } from 'react';
 import firebase from 'firebase/compat/app';
 import 'firebase/compat/auth';
+import 'firebase/compat/firestore';
 import { FuseAuthProviderComponentProps, FuseAuthProviderState } from '@fuse/core/FuseAuthProvider/types/FuseAuthTypes';
-import { authCreateDbUser, authGetDbUserByEmail, authUpdateDbUser } from '@auth/authApi';
 import { PartialDeep } from 'type-fest';
 import { initializeFirebase } from './initializeFirebase';
 import { User } from '../../user';
 import { FirebaseAuthContextType } from './FirebaseAuthContext';
 import FirebaseAuthContext from './FirebaseAuthContext';
+import { db } from '@/services/firebase/firestore';
 
 export type FirebaseSignInPayload = {
 	email: string;
@@ -65,31 +66,65 @@ function FirebaseAuthProvider(props: FuseAuthProviderComponentProps) {
 				 * if user is logged in
 				 * */
 				if (firebaseUser) {
-					const { currentUser: userAttributes } = firebase.auth();
-					let userDbData: User;
-
 					try {
-						// Fetch user data from db
-						const userResponse = await authGetDbUserByEmail(userAttributes.email);
-						userDbData = (await userResponse.json()) as User;
-					} catch (error) {
-						console.error(error);
+						// Intentar obtener el documento del usuario desde Firestore
+						const userDocRef = db.collection('users').doc(firebaseUser.uid);
+						const userDoc = await userDocRef.get();
 
-						// If user data doess not exist in db, create a new user record
-						const newUserResponse = await authCreateDbUser({
-							email: userAttributes.email,
-							role: ['admin'],
-							displayName: userAttributes.displayName,
-							photoURL: userAttributes.photoURL
+						let userData: User;
+
+						if (userDoc.exists) {
+							// Si el documento existe, usar esos datos
+							const docData = userDoc.data();
+							userData = {
+								id: firebaseUser.uid,
+								email: firebaseUser.email,
+								displayName: docData.displayName || firebaseUser.displayName || '',
+								photoURL: docData.photoURL || firebaseUser.photoURL || '',
+								role: docData.role || ['admin'],
+								loginRedirectUrl: docData.loginRedirectUrl || '/'
+							} as User;
+
+							// Actualizar datos si es necesario (por ejemplo, si el email cambió)
+							if (userData.email !== firebaseUser.email) {
+								await userDocRef.update({
+									email: firebaseUser.email,
+									updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+								});
+							}
+						} else {
+							// Si el documento no existe, crearlo
+							userData = {
+								id: firebaseUser.uid,
+								email: firebaseUser.email,
+								displayName: firebaseUser.displayName || '',
+								photoURL: firebaseUser.photoURL || '',
+								role: ['admin'], // Rol predeterminado
+								loginRedirectUrl: '/'
+							} as User;
+
+							await userDocRef.set({
+								...userData,
+								createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+								updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+							});
+
+							console.log('User document created for:', firebaseUser.uid);
+						}
+
+						setAuthState({
+							user: userData,
+							isAuthenticated: true,
+							authStatus: 'authenticated'
 						});
-						userDbData = (await newUserResponse.json()) as User;
+					} catch (error) {
+						console.error('Error handling user authentication:', error);
+						setAuthState({
+							authStatus: 'unauthenticated',
+							isAuthenticated: false,
+							user: null
+						});
 					}
-
-					setAuthState({
-						user: userDbData,
-						isAuthenticated: true,
-						authStatus: 'authenticated'
-					});
 				} else {
 					/**
 					 * if user is not logged in, set auth state to unauthenticated
@@ -125,11 +160,44 @@ function FirebaseAuthProvider(props: FuseAuthProviderComponentProps) {
 	}, []);
 
 	/**
-	 * Update user data in db
+	 * Update user data in Firestore
 	 */
-	const updateUser: FirebaseAuthContextType['updateUser'] = useCallback(async (_user: PartialDeep<User>) => {
+	const updateUser: FirebaseAuthContextType['updateUser'] = useCallback(async (_userData: PartialDeep<User>) => {
 		try {
-			return await authUpdateDbUser(_user);
+			const currentUser = firebase.auth().currentUser;
+
+			if (!currentUser) {
+				throw new Error('No user logged in');
+			}
+
+			const userRef = db.collection('users').doc(currentUser.uid);
+
+			// Prepare data for update
+			const updateData = { ..._userData };
+			delete updateData.id; // ID cannot be updated
+
+			// Add update timestamp
+			const timestamp = firebase.firestore.FieldValue.serverTimestamp();
+			updateData.updatedAt = timestamp;
+
+			// Update the document
+			await userRef.update(updateData);
+
+			// Get the updated document
+			const updatedDoc = await userRef.get();
+			const updatedData = updatedDoc.data();
+
+			// Create a response similar to the old API
+			const responseData = {
+				...updatedData,
+				id: currentUser.uid
+			};
+
+			// Create a mock response
+			const blob = new Blob([JSON.stringify(responseData, null, 2)], {
+				type: 'application/json'
+			});
+			return new Response(blob, { status: 200, statusText: 'OK' });
 		} catch (error) {
 			console.error('Error updating user:', error);
 			return Promise.reject(error);
@@ -154,6 +222,21 @@ function FirebaseAuthProvider(props: FuseAuthProviderComponentProps) {
 	const signUp: FirebaseAuthContextType['signUp'] = useCallback(async ({ email, password }) => {
 		try {
 			const userCredential = await firebase.auth().createUserWithEmailAndPassword(email, password);
+
+			// Crear documento de usuario en Firestore
+			if (userCredential.user) {
+				await db
+					.collection('users')
+					.doc(userCredential.user.uid)
+					.set({
+						email: userCredential.user.email,
+						displayName: userCredential.user.displayName || '',
+						photoURL: userCredential.user.photoURL || '',
+						role: ['admin'], // Rol predeterminado
+						createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+						updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+					});
+			}
 
 			return userCredential;
 		} catch (error) {
