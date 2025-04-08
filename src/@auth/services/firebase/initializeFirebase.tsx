@@ -8,36 +8,33 @@ let initialized = false;
 
 export function initializeFirebase() {
 	if (initialized) {
-		console.log('Firebase already initialized, skipping...');
+		console.log('Firebase already initialized');
 		return true;
 	}
 
 	try {
-		// Verificar que tenemos todos los valores necesarios
-		if (!firebaseConfig.apiKey || !firebaseConfig.projectId || !firebaseConfig.appId) {
-			console.error('Firebase config is missing critical values:', {
-				hasApiKey: !!firebaseConfig.apiKey,
-				hasProjectId: !!firebaseConfig.projectId,
-				hasAppId: !!firebaseConfig.appId
-			});
-			return false;
-		}
+		// Log detallado para verificar exactamente qué valores están disponibles
+		console.log('Import.meta.env available:', {
+			VITE_FIREBASE_API_KEY: import.meta.env.VITE_FIREBASE_API_KEY ? 'defined' : 'undefined',
+			VITE_FIREBASE_AUTH_DOMAIN: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN ? 'defined' : 'undefined',
+			VITE_FIREBASE_PROJECT_ID: import.meta.env.VITE_FIREBASE_PROJECT_ID ? 'defined' : 'undefined',
+			VITE_FIREBASE_APP_ID: import.meta.env.VITE_FIREBASE_APP_ID ? 'defined' : 'undefined'
+		});
 
-		// Inicializar la aplicación de Firebase si no está ya inicializada
+		console.log('Firebase config from import:', {
+			apiKey: firebaseConfig.apiKey ? 'defined' : 'undefined',
+			authDomain: firebaseConfig.authDomain ? 'defined' : 'undefined',
+			projectId: firebaseConfig.projectId ? 'defined' : 'undefined',
+			appId: firebaseConfig.appId ? 'defined' : 'undefined'
+		});
+
+		// Inicializar Firebase si no está ya inicializado
 		if (!firebase.apps.length) {
-			console.log('Initializing Firebase app...');
 			firebase.initializeApp(firebaseConfig);
-			console.log('Firebase app initialized successfully');
+			console.log('Firebase initialized successfully');
 		} else {
 			console.log('Using existing Firebase app');
 		}
-
-		// Inicializar Firebase Auth explícitamente
-		const auth = firebase.auth();
-		console.log('Firebase auth initialized:', !!auth);
-
-		// Verificar la conexión a Firebase Auth
-		auth.tenantId; // Acceder a una propiedad para verificar que la instancia es válida
 
 		initialized = true;
 		return true;
@@ -48,7 +45,7 @@ export function initializeFirebase() {
 	}
 }
 
-// Intenta inicializar Firebase inmediatamente
+// Intentar inicializar Firebase inmediatamente
 try {
 	console.log('Attempting early Firebase initialization...');
 	const success = initializeFirebase();
