@@ -1,17 +1,16 @@
 import './styles/index.css';
 import { createRoot } from 'react-dom/client';
 import { createBrowserRouter, RouterProvider } from 'react-router';
+import { initializeFirebase } from '@auth/services/firebase/initializeFirebase';
 import routes from 'src/configs/routesConfig';
-import { worker } from '@mock-utils/mswMockAdapter';
-import { API_BASE_URL } from '@/utils/apiFetch';
 
-async function mockSetup() {
-	return worker.start({
-		onUnhandledRequest: 'bypass',
-		serviceWorker: {
-			url: `${API_BASE_URL}/mockServiceWorker.js`
-		}
-	});
+// Inicializar Firebase lo antes posible
+const firebaseInitialized = initializeFirebase();
+
+// Función de configuración inicial vacía, ya no iniciamos MSW
+async function appSetup() {
+	// Aquí puedes mantener cualquier otra configuración inicial que necesites
+	return Promise.resolve();
 }
 
 /**
@@ -23,7 +22,7 @@ if (!container) {
 	throw new Error('Failed to find the root element');
 }
 
-mockSetup().then(() => {
+appSetup().then(() => {
 	/**
 	 * The root component of the application.
 	 */

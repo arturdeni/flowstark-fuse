@@ -46,7 +46,6 @@ export default defineConfig({
 			'@fuse': '/src/@fuse',
 			'@history': '/src/@history',
 			'@lodash': '/src/@lodash',
-			'@mock-api': '/src/@mock-api',
 			'@schema': '/src/@schema',
 			'app/store': '/src/app/store',
 			'app/shared-components': '/src/app/shared-components',

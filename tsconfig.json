@@ -5,7 +5,6 @@
       "@auth/*": ["./src/@auth/*"],
       "@fuse/*": ["./src/@fuse/*"],
       "@history*": ["./src/@history"],
-      "@mock-utils/*": ["./src/@mock-utils/*"],
       "@schema": ["./src/@schema"],
       "@/*": ["./src/*"]
     },

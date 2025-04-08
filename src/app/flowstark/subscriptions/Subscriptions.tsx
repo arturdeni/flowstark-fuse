@@ -28,6 +28,7 @@ import {
   Grid,
   Card,
   CardContent,
+  CircularProgress,
 } from '@mui/material';
 import { SelectChangeEvent } from '@mui/material/Select';
 import {
@@ -35,7 +36,6 @@ import {
   Edit as EditIcon,
   Delete as DeleteIcon,
   Search as SearchIcon,
-  MoreVert as MoreVertIcon,
   CalendarToday as CalendarIcon,
   Person as PersonIcon,
   Inventory as InventoryIcon,
@@ -50,6 +50,11 @@ import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFnsV3';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import FusePageSimple from '@fuse/core/FusePageSimple';
+
+import { subscriptionsService } from '../../../services/subscriptionsService';
+import { clientsService } from '../../../services/clientsService';
+import { servicesService } from '../../../services/servicesService';
+import { Subscription, Client, Service } from '../../../types/models';
 
 // Componente de tabla con estilo
 const StyledTableRow = styled(TableRow)(({ theme }) => ({
@@ -76,52 +81,27 @@ const Root = styled(FusePageSimple)(({ theme }) => ({
   '& .FusePageSimple-sidebarContent': {},
 }));
 
-type StatusType = 'active' | 'paused' | 'cancelled';
-
-interface UserType {
-  id: number;
-  name: string;
-  lastName: string;
-  email: string;
-}
-
-interface ServiceType {
-  id: number;
-  name: string;
-  price: number;
-  billingCycle: 'monthly' | 'quarterly' | 'yearly';
-}
-
-interface SubscriptionType {
-  id: number;
-  userId: number;
-  serviceId: number;
-  user: UserType;
-  service: ServiceType;
-  status: StatusType;
-  startDate: Date;
-  nextBillingDate: Date;
-  endDate: Date | null;
-  amount: number;
-  paymentMethod: string;
-  lastPaymentDate: Date | null;
-}
+// Tipo extendido para incluir la información relacionada
+type SubscriptionWithRelations = Subscription & {
+  clientInfo?: any;
+  serviceInfo?: any;
+};
 
 function Subscriptions() {
   // Estados para la gestión de subscripciones
-  const [subscriptions, setSubscriptions] = useState<SubscriptionType[]>([]);
-  const [filteredSubscriptions, setFilteredSubscriptions] = useState<
-    SubscriptionType[]
-  >([]);
+  const [subscriptions, setSubscriptions] = useState<SubscriptionWithRelations[]>([]);
+  const [filteredSubscriptions, setFilteredSubscriptions] = useState<SubscriptionWithRelations[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [open, setOpen] = useState(false);
-  const [selectedSubscription, setSelectedSubscription] =
-    useState<SubscriptionType | null>(null);
+  const [selectedSubscription, setSelectedSubscription] = useState<SubscriptionWithRelations | null>(null);
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
-  const [users, setUsers] = useState<UserType[]>([]);
-  const [services, setServices] = useState<ServiceType[]>([]);
+  const [clients, setClients] = useState<Client[]>([]);
+  const [services, setServices] = useState<Service[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [subscriptionToDelete, setSubscriptionToDelete] = useState<string | null>(null);
   const [snackbar, setSnackbar] = useState({
     open: false,
     message: '',
@@ -130,157 +110,70 @@ function Subscriptions() {
 
   // Formulario para nueva/editar subscripción
   const [formData, setFormData] = useState({
-    userId: '',
+    clientId: '',
     serviceId: '',
-    status: 'active' as StatusType,
+    status: 'active' as 'active' | 'paused' | 'cancelled',
     startDate: new Date(),
     endDate: null as Date | null,
-    amount: '',
-    paymentMethod: 'credit_card',
+    paymentDate: new Date(),
+    paymentMethod: {
+      type: 'credit_card',
+      details: {},
+    },
+    renewal: 'monthly' as 'monthly' | 'quarterly' | 'biannual' | 'annual',
+    paymentHistory: [] as any[],
   });
 
-  // Simulación de datos para la demostración
+  // Cargar datos iniciales
   useEffect(() => {
-    // En la implementación real, aquí conectaríamos con Firebase
-    const mockUsers = [
-      {
-        id: 1,
-        name: 'Ana',
-        lastName: 'García',
-        email: 'ana.garcia@ejemplo.com',
-      },
-      {
-        id: 2,
-        name: 'Carlos',
-        lastName: 'López',
-        email: 'carlos.lopez@ejemplo.com',
-      },
-      {
-        id: 3,
-        name: 'María',
-        lastName: 'Rodríguez',
-        email: 'maria.rodriguez@ejemplo.com',
-      },
-      {
-        id: 4,
-        name: 'Juan',
-        lastName: 'Martínez',
-        email: 'juan.martinez@ejemplo.com',
-      },
-      {
-        id: 5,
-        name: 'Laura',
-        lastName: 'Sánchez',
-        email: 'laura.sanchez@ejemplo.com',
-      },
-    ];
-
-    const mockServices = [
-      {
-        id: 1,
-        name: 'Plan Premium',
-        price: 29.99,
-        billingCycle: 'monthly' as const,
-      },
-      {
-        id: 2,
-        name: 'Plan Básico',
-        price: 9.99,
-        billingCycle: 'monthly' as const,
-      },
-      {
-        id: 3,
-        name: 'Plan Estándar',
-        price: 19.99,
-        billingCycle: 'monthly' as const,
-      },
-      {
-        id: 4,
-        name: 'Plan Anual Premium',
-        price: 299.99,
-        billingCycle: 'yearly' as const,
-      },
-    ];
-
-    setUsers(mockUsers);
-    setServices(mockServices);
-
-    const mockSubscriptions = [
-      {
-        id: 1,
-        userId: 1,
-        serviceId: 1,
-        user: mockUsers[0],
-        service: mockServices[0],
-        status: 'active' as StatusType,
-        startDate: new Date(2023, 1, 15),
-        nextBillingDate: new Date(2023, 2, 15),
-        endDate: null,
-        amount: 29.99,
-        paymentMethod: 'credit_card',
-        lastPaymentDate: new Date(2023, 1, 15),
-      },
-      {
-        id: 2,
-        userId: 2,
-        serviceId: 2,
-        user: mockUsers[1],
-        service: mockServices[1],
-        status: 'active' as StatusType,
-        startDate: new Date(2023, 0, 10),
-        nextBillingDate: new Date(2023, 2, 10),
-        endDate: null,
-        amount: 9.99,
-        paymentMethod: 'paypal',
-        lastPaymentDate: new Date(2023, 1, 10),
-      },
-      {
-        id: 3,
-        userId: 3,
-        serviceId: 3,
-        user: mockUsers[2],
-        service: mockServices[2],
-        status: 'paused' as StatusType,
-        startDate: new Date(2022, 11, 5),
-        nextBillingDate: new Date(2023, 2, 5),
-        endDate: null,
-        amount: 19.99,
-        paymentMethod: 'bank_transfer',
-        lastPaymentDate: new Date(2023, 0, 5),
-      },
-      {
-        id: 4,
-        userId: 4,
-        serviceId: 4,
-        user: mockUsers[3],
-        service: mockServices[3],
-        status: 'cancelled' as StatusType,
-        startDate: new Date(2022, 9, 20),
-        nextBillingDate: new Date(2023, 9, 20),
-        endDate: new Date(2023, 0, 15),
-        amount: 299.99,
-        paymentMethod: 'credit_card',
-        lastPaymentDate: new Date(2022, 9, 20),
-      },
-      {
-        id: 5,
-        userId: 5,
-        serviceId: 1,
-        user: mockUsers[4],
-        service: mockServices[0],
-        status: 'active' as StatusType,
-        startDate: new Date(2023, 0, 1),
-        nextBillingDate: new Date(2023, 3, 1),
-        endDate: null,
-        amount: 29.99,
-        paymentMethod: 'paypal',
-        lastPaymentDate: new Date(2023, 2, 1),
-      },
-    ];
-
-    setSubscriptions(mockSubscriptions);
-    setFilteredSubscriptions(mockSubscriptions);
+    fetchSubscriptions();
+    fetchClients();
+    fetchServices();
   }, []);
+
+  // Cargar subscripciones desde Firestore
+  const fetchSubscriptions = async () => {
+    setLoading(true);
+    try {
+      const subscriptionsData = await subscriptionsService.getAllSubscriptions();
+      setSubscriptions(subscriptionsData);
+      setFilteredSubscriptions(subscriptionsData);
+    } catch (error) {
+      console.error('Error fetching subscriptions:', error);
+      setSnackbar({
+        open: true,
+        message: 'Error al cargar las suscripciones. Por favor, inténtalo de nuevo.',
+        severity: 'error',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Cargar clientes desde Firestore
+  const fetchClients = async () => {
+    try {
+      const clientsData = await clientsService.getAllClients();
+      setClients(clientsData);
+    } catch (error) {
+      console.error('Error fetching clients:', error);
+    }
+  };
+
+  // Cargar servicios desde Firestore
+  const fetchServices = async () => {
+    try {
+      const servicesData = await servicesService.getAllServices();
+      setServices(servicesData);
+    } catch (error) {
+      console.error('Error fetching services:', error);
+    }
+  };
+
+  // Función para refrescar los datos
+  const refreshData = async () => {
+    await fetchSubscriptions();
+  };
 
   // Filtrado de subscripciones según término de búsqueda y filtro de estado
   useEffect(() => {
@@ -290,18 +183,10 @@ function Subscriptions() {
     if (searchTerm) {
       filtered = filtered.filter(
         (subscription) =>
-          subscription.user.name
-            .toLowerCase()
-            .includes(searchTerm.toLowerCase()) ||
-          subscription.user.lastName
-            .toLowerCase()
-            .includes(searchTerm.toLowerCase()) ||
-          subscription.user.email
-            .toLowerCase()
-            .includes(searchTerm.toLowerCase()) ||
-          subscription.service.name
-            .toLowerCase()
-            .includes(searchTerm.toLowerCase())
+          subscription.clientInfo?.firstName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          subscription.clientInfo?.lastName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          subscription.clientInfo?.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          subscription.serviceInfo?.name?.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
 
@@ -335,28 +220,38 @@ function Subscriptions() {
     setPage(0);
   };
 
-  const handleClickOpen = (subscription: SubscriptionType | null = null) => {
+  const handleClickOpen = (subscription: SubscriptionWithRelations | null = null) => {
     if (subscription) {
       setSelectedSubscription(subscription);
       setFormData({
-        userId: subscription.userId.toString(),
-        serviceId: subscription.serviceId.toString(),
+        clientId: subscription.clientId,
+        serviceId: subscription.serviceId,
         status: subscription.status,
-        startDate: new Date(subscription.startDate),
-        endDate: subscription.endDate ? new Date(subscription.endDate) : null,
-        amount: subscription.amount.toString(),
-        paymentMethod: subscription.paymentMethod,
+        startDate: subscription.startDate,
+        endDate: subscription.endDate,
+        paymentDate: subscription.paymentDate || new Date(),
+        paymentMethod: subscription.paymentMethod || {
+          type: 'credit_card',
+          details: {},
+        },
+        renewal: subscription.renewal || 'monthly',
+        paymentHistory: subscription.paymentHistory || [],
       });
     } else {
       setSelectedSubscription(null);
       setFormData({
-        userId: '',
+        clientId: '',
         serviceId: '',
         status: 'active',
         startDate: new Date(),
         endDate: null,
-        amount: '',
-        paymentMethod: 'credit_card',
+        paymentDate: new Date(),
+        paymentMethod: {
+          type: 'credit_card',
+          details: {},
+        },
+        renewal: 'monthly',
+        paymentHistory: [],
       });
     }
 
@@ -369,10 +264,23 @@ function Subscriptions() {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | { name?: string; value: unknown }> | SelectChangeEvent<string | 'active' | 'paused' | 'cancelled'>) => {
     const { name, value } = e.target as { name: string; value: string };
-    setFormData({
-      ...formData,
-      [name]: value
-    });
+
+    // Manejar campos anidados para paymentMethod
+    if (name.startsWith('paymentMethod.')) {
+      const field = name.split('.')[1];
+      setFormData({
+        ...formData,
+        paymentMethod: {
+          ...formData.paymentMethod,
+          [field]: value
+        }
+      });
+    } else {
+      setFormData({
+        ...formData,
+        [name]: value
+      });
+    }
   };
 
   const handleDateChange = (name: string, date: Date | null) => {
@@ -384,29 +292,31 @@ function Subscriptions() {
 
   const calculateNextBillingDate = (
     startDate: Date,
-    billingCycle: string
+    renewal: string
   ): Date => {
     const nextDate = new Date(startDate);
-    switch (billingCycle) {
+    switch (renewal) {
       case 'monthly':
         nextDate.setMonth(nextDate.getMonth() + 1);
         break;
       case 'quarterly':
         nextDate.setMonth(nextDate.getMonth() + 3);
         break;
-      case 'yearly':
+      case 'biannual':
+        nextDate.setMonth(nextDate.getMonth() + 6);
+        break;
+      case 'annual':
         nextDate.setFullYear(nextDate.getFullYear() + 1);
         break;
     }
     return nextDate;
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     // Validación básica
     if (
-      !formData.userId ||
+      !formData.clientId ||
       !formData.serviceId ||
-      !formData.amount ||
       !formData.startDate
     ) {
       setSnackbar({
@@ -417,129 +327,117 @@ function Subscriptions() {
       return;
     }
 
-    // Validar que el monto sea un número válido
-    const amount = parseFloat(formData.amount);
-
-    if (isNaN(amount) || amount <= 0) {
-      setSnackbar({
-        open: true,
-        message: 'Por favor, introduce un monto válido',
-        severity: 'error',
-      });
-      return;
-    }
-
-    const userId = parseInt(formData.userId);
-    const serviceId = parseInt(formData.serviceId);
-
-    // Buscar usuario y servicio
-    const user = users.find((u) => u.id === userId);
-    const service = services.find((s) => s.id === serviceId);
-
-    if (!user || !service) {
-      setSnackbar({
-        open: true,
-        message: 'Usuario o servicio no válido',
-        severity: 'error',
-      });
-      return;
-    }
-
-    const nextBillingDate = calculateNextBillingDate(
-      formData.startDate,
-      service.billingCycle
-    );
-
-    // Simulamos guardar (en la implementación real se haría con Firebase)
-    if (selectedSubscription) {
-      // Editar subscripción existente
-      const updatedSubscriptions = subscriptions.map((subscription) =>
-        subscription.id === selectedSubscription.id
-          ? {
-            ...subscription,
-            userId,
-            serviceId,
-            user,
-            service,
-            status: formData.status,
-            startDate: formData.startDate,
-            nextBillingDate,
-            endDate: formData.endDate,
-            amount,
-            paymentMethod: formData.paymentMethod,
-          }
-          : subscription
-      );
-      setSubscriptions(updatedSubscriptions);
-      setSnackbar({
-        open: true,
-        message: 'Subscripción actualizada correctamente',
-        severity: 'success',
-      });
-    } else {
-      // Crear nueva subscripción
-      const newSubscription = {
-        id: subscriptions.length + 1,
-        userId,
-        serviceId,
-        user,
-        service,
-        status: formData.status,
-        startDate: formData.startDate,
-        nextBillingDate,
-        endDate: formData.endDate,
-        amount,
-        paymentMethod: formData.paymentMethod,
-        lastPaymentDate: formData.startDate,
-      };
-      setSubscriptions([...subscriptions, newSubscription]);
-      setSnackbar({
-        open: true,
-        message: 'Subscripción creada correctamente',
-        severity: 'success',
-      });
-    }
-
-    setOpen(false);
-  };
-
-  const handleChangeStatus = (id: number, newStatus: StatusType) => {
-    const updatedSubscriptions = subscriptions.map((subscription) => {
-      if (subscription.id === id) {
-        let endDate = subscription.endDate;
-
-        if (newStatus === 'cancelled' && !endDate) {
-          endDate = new Date();
+    setLoading(true);
+    try {
+      // Preparar el historial de pagos inicial si es una nueva suscripción
+      const paymentHistory = formData.paymentHistory.length ? formData.paymentHistory : [
+        {
+          date: formData.paymentDate || new Date(),
+          amount: 0, // Se actualizará con el precio del servicio
+          status: 'paid',
         }
+      ];
 
-        return {
-          ...subscription,
-          status: newStatus,
-          endDate,
-        };
+      if (selectedSubscription) {
+        // Editar subscripción existente
+        const updatedSubscription = await subscriptionsService.updateSubscription(selectedSubscription.id!, {
+          ...formData,
+          paymentHistory
+        });
+
+        setSnackbar({
+          open: true,
+          message: 'Suscripción actualizada correctamente',
+          severity: 'success',
+        });
+      } else {
+        // Crear nueva subscripción
+        const newSubscription = await subscriptionsService.createSubscription({
+          ...formData,
+          paymentHistory
+        });
+
+        setSnackbar({
+          open: true,
+          message: 'Suscripción creada correctamente',
+          severity: 'success',
+        });
       }
 
-      return subscription;
-    });
-
-    setSubscriptions(updatedSubscriptions);
-    setSnackbar({
-      open: true,
-      message: `Estado de la subscripción actualizado a ${getStatusText(newStatus)}`,
-      severity: 'success',
-    });
+      setOpen(false);
+      await refreshData();
+    } catch (error) {
+      console.error('Error saving subscription:', error);
+      setSnackbar({
+        open: true,
+        message: `Error al ${selectedSubscription ? 'actualizar' : 'crear'} la suscripción: ${error instanceof Error ? error.message : 'Error desconocido'}`,
+        severity: 'error',
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleDelete = (id: number) => {
-    const updatedSubscriptions = subscriptions.filter(
-      (subscription) => subscription.id !== id
-    );
-    setSubscriptions(updatedSubscriptions);
-    setSnackbar({
-      open: true,
-      message: 'Subscripción eliminada correctamente',
-      severity: 'success',
-    });
+  const handleChangeStatus = async (id: string, newStatus: 'active' | 'paused' | 'cancelled') => {
+    try {
+      setLoading(true);
+      await subscriptionsService.changeSubscriptionStatus(id, newStatus);
+
+      setSnackbar({
+        open: true,
+        message: `Estado de la suscripción actualizado a ${getStatusText(newStatus)}`,
+        severity: 'success',
+      });
+
+      await refreshData();
+    } catch (error) {
+      console.error('Error changing subscription status:', error);
+      setSnackbar({
+        open: true,
+        message: `Error al cambiar el estado de la suscripción: ${error instanceof Error ? error.message : 'Error desconocido'}`,
+        severity: 'error',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteClick = (id: string) => {
+    setSubscriptionToDelete(id);
+    setDeleteConfirmOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (subscriptionToDelete) {
+      try {
+        setLoading(true);
+        await subscriptionsService.deleteSubscription(subscriptionToDelete);
+
+        setSnackbar({
+          open: true,
+          message: 'Suscripción eliminada correctamente',
+          severity: 'success',
+        });
+
+        await refreshData();
+      } catch (error) {
+        console.error('Error deleting subscription:', error);
+        setSnackbar({
+          open: true,
+          message: `Error al eliminar la suscripción: ${error instanceof Error ? error.message : 'Error desconocido'}`,
+          severity: 'error',
+        });
+      } finally {
+        setLoading(false);
+        setDeleteConfirmOpen(false);
+        setSubscriptionToDelete(null);
+      }
+    }
+  };
+
+  const handleCancelDelete = () => {
+    setDeleteConfirmOpen(false);
+    setSubscriptionToDelete(null);
   };
 
   const handleCloseSnackbar = () => {
@@ -562,7 +460,7 @@ function Subscriptions() {
     }
   };
 
-  const getStatusChip = (status: StatusType) => {
+  const getStatusChip = (status: 'active' | 'paused' | 'cancelled') => {
     switch (status) {
       case 'active':
         return <Chip label="Activa" color="success" size="small" />;
@@ -585,6 +483,38 @@ function Subscriptions() {
     });
   };
 
+  const getRenewalText = (renewal: string): string => {
+    switch (renewal) {
+      case 'monthly':
+        return 'Mensual';
+      case 'quarterly':
+        return 'Trimestral';
+      case 'biannual':
+        return 'Semestral';
+      case 'annual':
+        return 'Anual';
+      default:
+        return renewal;
+    }
+  };
+
+  const getPaymentMethodText = (method: string): string => {
+    switch (method) {
+      case 'credit_card':
+        return 'Tarjeta de Crédito';
+      case 'paypal':
+        return 'PayPal';
+      case 'bank_transfer':
+        return 'Transferencia Bancaria';
+      case 'cash':
+        return 'Efectivo';
+      case 'direct_debit':
+        return 'Domiciliación';
+      default:
+        return method;
+    }
+  };
+
   return (
     <Root
       header={
@@ -602,7 +532,7 @@ function Subscriptions() {
               <Card>
                 <CardContent>
                   <Typography color="textSecondary" gutterBottom>
-                    Total Subscripciones
+                    Total Suscripciones
                   </Typography>
                   <Typography variant="h4">{subscriptions.length}</Typography>
                 </CardContent>
@@ -653,7 +583,7 @@ function Subscriptions() {
           <Box sx={{ display: 'flex', mb: 3 }}>
             <TextField
               variant="outlined"
-              placeholder="Buscar subscripciones..."
+              placeholder="Buscar suscripciones..."
               value={searchTerm}
               onChange={handleSearchChange}
               sx={{ mr: 2, flexGrow: 1 }}
@@ -684,133 +614,171 @@ function Subscriptions() {
               color="primary"
               startIcon={<AddIcon />}
               onClick={() => handleClickOpen()}
+              disabled={loading}
+              sx={{ mr: 1 }}
             >
-              Nueva Subscripción
+              Nueva Suscripción
+            </Button>
+            <Button
+              variant="outlined"
+              color="primary"
+              startIcon={<RefreshIcon />}
+              onClick={refreshData}
+              disabled={loading}
+            >
+              Actualizar
             </Button>
           </Box>
 
-          {/* Tabla de subscripciones */}
-          <TableContainer component={Paper}>
-            <Table sx={{ minWidth: 650 }} aria-label="tabla de subscripciones">
-              <TableHead>
-                <TableRow>
-                  <TableCell>ID</TableCell>
-                  <TableCell>Cliente</TableCell>
-                  <TableCell>Servicio</TableCell>
-                  <TableCell>Monto</TableCell>
-                  <TableCell>Estado</TableCell>
-                  <TableCell>Inicio</TableCell>
-                  <TableCell>Próximo Pago</TableCell>
-                  <TableCell align="right">Acciones</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {filteredSubscriptions
-                  .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
-                  .map((subscription) => (
-                    <StyledTableRow key={subscription.id}>
-                      <TableCell>{subscription.id}</TableCell>
-                      <TableCell>
-                        <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-                          <Typography variant="body2" fontWeight="bold">
-                            {subscription.user.name}{' '}
-                            {subscription.user.lastName}
-                          </Typography>
-                          <Typography variant="caption" color="textSecondary">
-                            {subscription.user.email}
-                          </Typography>
-                        </Box>
+          {/* Tabla de subscripciones con estado de carga */}
+          {loading && subscriptions.length === 0 ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
+              <CircularProgress />
+            </Box>
+          ) : (
+            <TableContainer component={Paper}>
+              <Table sx={{ minWidth: 650 }} aria-label="tabla de suscripciones">
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Cliente</TableCell>
+                    <TableCell>Servicio</TableCell>
+                    <TableCell>Frecuencia</TableCell>
+                    <TableCell>Método de Pago</TableCell>
+                    <TableCell>Estado</TableCell>
+                    <TableCell>Inicio</TableCell>
+                    <TableCell>Fin</TableCell>
+                    <TableCell align="right">Acciones</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {filteredSubscriptions.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={8} align="center">
+                        No se encontraron suscripciones
                       </TableCell>
-                      <TableCell>{subscription.service.name}</TableCell>
-                      <TableCell>{subscription.amount.toFixed(2)} €</TableCell>
-                      <TableCell>
-                        {getStatusChip(subscription.status)}
-                      </TableCell>
-                      <TableCell>
-                        {formatDate(subscription.startDate)}
-                      </TableCell>
-                      <TableCell>
-                        {formatDate(subscription.nextBillingDate)}
-                      </TableCell>
-                      <TableCell align="right">
-                        <IconButton
-                          size="small"
-                          onClick={() => handleClickOpen(subscription)}
-                        >
-                          <EditIcon fontSize="small" />
-                        </IconButton>
-
-                        {subscription.status === 'active' && (
-                          <IconButton
-                            size="small"
-                            onClick={() =>
-                              handleChangeStatus(subscription.id, 'paused')
-                            }
-                            title="Pausar"
-                          >
-                            <PauseIcon fontSize="small" />
-                          </IconButton>
-                        )}
-
-                        {subscription.status === 'paused' && (
-                          <IconButton
-                            size="small"
-                            onClick={() =>
-                              handleChangeStatus(subscription.id, 'active')
-                            }
-                            title="Activar"
-                          >
-                            <PlayArrowIcon fontSize="small" />
-                          </IconButton>
-                        )}
-
-                        {(subscription.status === 'active' ||
-                          subscription.status === 'paused') && (
+                    </TableRow>
+                  ) : (
+                    filteredSubscriptions
+                      .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
+                      .map((subscription) => (
+                        <StyledTableRow key={subscription.id}>
+                          <TableCell>
+                            <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+                              <Typography variant="body2" fontWeight="bold">
+                                {subscription.clientInfo?.firstName}{' '}
+                                {subscription.clientInfo?.lastName}
+                              </Typography>
+                              <Typography variant="caption" color="textSecondary">
+                                {subscription.clientInfo?.email}
+                              </Typography>
+                            </Box>
+                          </TableCell>
+                          <TableCell>{subscription.serviceInfo?.name}</TableCell>
+                          <TableCell>{getRenewalText(subscription.renewal)}</TableCell>
+                          <TableCell>{getPaymentMethodText(subscription.paymentMethod?.type)}</TableCell>
+                          <TableCell>
+                            {getStatusChip(subscription.status)}
+                          </TableCell>
+                          <TableCell>
+                            {formatDate(subscription.startDate)}
+                          </TableCell>
+                          <TableCell>
+                            {formatDate(subscription.endDate)}
+                          </TableCell>
+                          <TableCell align="right">
                             <IconButton
                               size="small"
-                              onClick={() =>
-                                handleChangeStatus(subscription.id, 'cancelled')
-                              }
-                              title="Cancelar"
+                              onClick={() => handleClickOpen(subscription)}
+                              disabled={loading}
+                              title="Editar"
                             >
-                              <CancelIcon fontSize="small" />
+                              <EditIcon fontSize="small" />
                             </IconButton>
-                          )}
 
-                        <IconButton
-                          size="small"
-                          onClick={() => handleDelete(subscription.id)}
-                          disabled={subscription.status === 'active'}
-                          title="Eliminar"
-                        >
-                          <DeleteIcon fontSize="small" />
-                        </IconButton>
-                      </TableCell>
-                    </StyledTableRow>
-                  ))}
-              </TableBody>
-            </Table>
-            <TablePagination
-              rowsPerPageOptions={[5, 10, 25]}
-              component="div"
-              count={filteredSubscriptions.length}
-              rowsPerPage={rowsPerPage}
-              page={page}
-              onPageChange={handleChangePage}
-              onRowsPerPageChange={handleChangeRowsPerPage}
-              labelRowsPerPage="Filas por página:"
-              labelDisplayedRows={({ from, to, count }) =>
-                `${from}-${to} de ${count}`
-              }
-            />
-          </TableContainer>
+                            {subscription.status === 'active' && (
+                              <IconButton
+                                size="small"
+                                onClick={() =>
+                                  handleChangeStatus(subscription.id!, 'paused')
+                                }
+                                disabled={loading}
+                                title="Pausar"
+                              >
+                                <PauseIcon fontSize="small" />
+                              </IconButton>
+                            )}
+
+                            {subscription.status === 'paused' && (
+                              <IconButton
+                                size="small"
+                                onClick={() =>
+                                  handleChangeStatus(subscription.id!, 'active')
+                                }
+                                disabled={loading}
+                                title="Activar"
+                              >
+                                <PlayArrowIcon fontSize="small" />
+                              </IconButton>
+                            )}
+
+                            {(subscription.status === 'active' ||
+                              subscription.status === 'paused') && (
+                                <IconButton
+                                  size="small"
+                                  onClick={() =>
+                                    handleChangeStatus(subscription.id!, 'cancelled')
+                                  }
+                                  disabled={loading}
+                                  title="Cancelar"
+                                >
+                                  <CancelIcon fontSize="small" />
+                                </IconButton>
+                              )}
+
+                            <IconButton
+                              size="small"
+                              onClick={() => subscription.id && handleDeleteClick(subscription.id)}
+                              disabled={loading || subscription.status === 'active'}
+                              title="Eliminar"
+                            >
+                              <DeleteIcon fontSize="small" />
+                            </IconButton>
+                          </TableCell>
+                        </StyledTableRow>
+                      ))
+                  )}
+                </TableBody>
+              </Table>
+              <TablePagination
+                rowsPerPageOptions={[5, 10, 25]}
+                component="div"
+                count={filteredSubscriptions.length}
+                rowsPerPage={rowsPerPage}
+                page={page}
+                onPageChange={handleChangePage}
+                onRowsPerPageChange={handleChangeRowsPerPage}
+                labelRowsPerPage="Filas por página:"
+                labelDisplayedRows={({ from, to, count }) =>
+                  `${from}-${to} de ${count}`
+                }
+              />
+            </TableContainer>
+          )}
 
           {/* Diálogo para añadir/editar subscripción */}
-          <Dialog open={open} onClose={handleClose} maxWidth="md" fullWidth>
+          <Dialog
+            open={open}
+            onClose={handleClose}
+            maxWidth="md"
+            fullWidth
+            PaperProps={{
+              sx: { overflowY: 'visible' }
+            }}
+          >
             <DialogTitle>
               {selectedSubscription
-                ? 'Editar Subscripción'
-                : 'Nueva Subscripción'}
+                ? 'Editar Suscripción'
+                : 'Nueva Suscripción'}
             </DialogTitle>
             <DialogContent>
               <Box
@@ -823,11 +791,11 @@ function Subscriptions() {
                 }}
               >
                 <FormControl margin="normal" fullWidth required>
-                  <InputLabel id="user-label">Cliente</InputLabel>
+                  <InputLabel id="client-label">Cliente</InputLabel>
                   <Select
-                    labelId="user-label"
-                    name="userId"
-                    value={formData.userId}
+                    labelId="client-label"
+                    name="clientId"
+                    value={formData.clientId}
                     label="Cliente"
                     onChange={handleInputChange}
                     startAdornment={
@@ -836,9 +804,9 @@ function Subscriptions() {
                       </InputAdornment>
                     }
                   >
-                    {users.map((user) => (
-                      <MenuItem key={user.id} value={user.id.toString()}>
-                        {user.name} {user.lastName} ({user.email})
+                    {clients.map((client) => (
+                      <MenuItem key={client.id} value={client.id}>
+                        {client.firstName} {client.lastName} ({client.email})
                       </MenuItem>
                     ))}
                   </Select>
@@ -858,46 +826,43 @@ function Subscriptions() {
                     }
                   >
                     {services.map((service) => (
-                      <MenuItem key={service.id} value={service.id.toString()}>
-                        {service.name} ({service.price.toFixed(2)} € -{' '}
-                        {service.billingCycle})
+                      <MenuItem key={service.id} value={service.id}>
+                        {service.name} ({service.basePrice?.toFixed(2)} € - {getRenewalText(service.frequency)})
                       </MenuItem>
                     ))}
                   </Select>
                 </FormControl>
-                <TextField
-                  margin="normal"
-                  required
-                  fullWidth
-                  label="Monto"
-                  name="amount"
-                  value={formData.amount}
-                  onChange={handleInputChange}
-                  InputProps={{
-                    startAdornment: (
-                      <InputAdornment position="start">
-                        <EuroIcon fontSize="small" />
-                      </InputAdornment>
-                    ),
-                  }}
-                />
+                <FormControl margin="normal" fullWidth required>
+                  <InputLabel id="renewal-label">Frecuencia</InputLabel>
+                  <Select
+                    labelId="renewal-label"
+                    name="renewal"
+                    value={formData.renewal}
+                    label="Frecuencia"
+                    onChange={handleInputChange}
+                  >
+                    <MenuItem value="monthly">Mensual</MenuItem>
+                    <MenuItem value="quarterly">Trimestral</MenuItem>
+                    <MenuItem value="biannual">Semestral</MenuItem>
+                    <MenuItem value="annual">Anual</MenuItem>
+                  </Select>
+                </FormControl>
                 <FormControl margin="normal" fullWidth required>
                   <InputLabel id="payment-method-label">
                     Método de Pago
                   </InputLabel>
                   <Select
                     labelId="payment-method-label"
-                    name="paymentMethod"
-                    value={formData.paymentMethod}
+                    name="paymentMethod.type"
+                    value={formData.paymentMethod.type}
                     label="Método de Pago"
                     onChange={handleInputChange}
                   >
                     <MenuItem value="credit_card">Tarjeta de Crédito</MenuItem>
                     <MenuItem value="paypal">PayPal</MenuItem>
-                    <MenuItem value="bank_transfer">
-                      Transferencia Bancaria
-                    </MenuItem>
+                    <MenuItem value="bank_transfer">Transferencia Bancaria</MenuItem>
                     <MenuItem value="cash">Efectivo</MenuItem>
+                    <MenuItem value="direct_debit">Domiciliación</MenuItem>
                   </Select>
                 </FormControl>
                 <LocalizationProvider dateAdapter={AdapterDateFns}>
@@ -921,29 +886,52 @@ function Subscriptions() {
                     }}
                   />
                 </LocalizationProvider>
-                {selectedSubscription &&
-                  selectedSubscription.status === 'cancelled' && (
-                    <LocalizationProvider dateAdapter={AdapterDateFns}>
-                      <DatePicker
-                        label="Fecha de Finalización"
-                        value={formData.endDate}
-                        onChange={(date) => handleDateChange('endDate', date)}
-                        slotProps={{
-                          textField: {
-                            margin: 'normal',
-                            fullWidth: true,
-                            InputProps: {
-                              startAdornment: (
-                                <InputAdornment position="start">
-                                  <CalendarIcon fontSize="small" />
-                                </InputAdornment>
-                              ),
-                            },
+
+                <LocalizationProvider dateAdapter={AdapterDateFns}>
+                  <DatePicker
+                    label="Fecha de Pago"
+                    value={formData.paymentDate}
+                    onChange={(date) => handleDateChange('paymentDate', date)}
+                    slotProps={{
+                      textField: {
+                        margin: 'normal',
+                        fullWidth: true,
+                        required: true,
+                        InputProps: {
+                          startAdornment: (
+                            <InputAdornment position="start">
+                              <CalendarIcon fontSize="small" />
+                            </InputAdornment>
+                          ),
+                        },
+                      },
+                    }}
+                  />
+                </LocalizationProvider>
+
+                {(selectedSubscription?.status === 'cancelled' || formData.status === 'cancelled') && (
+                  <LocalizationProvider dateAdapter={AdapterDateFns}>
+                    <DatePicker
+                      label="Fecha de Finalización"
+                      value={formData.endDate}
+                      onChange={(date) => handleDateChange('endDate', date)}
+                      slotProps={{
+                        textField: {
+                          margin: 'normal',
+                          fullWidth: true,
+                          InputProps: {
+                            startAdornment: (
+                              <InputAdornment position="start">
+                                <CalendarIcon fontSize="small" />
+                              </InputAdornment>
+                            ),
                           },
-                        }}
-                      />
-                    </LocalizationProvider>
-                  )}
+                        },
+                      }}
+                    />
+                  </LocalizationProvider>
+                )}
+
                 {selectedSubscription && (
                   <FormControl margin="normal" fullWidth>
                     <InputLabel id="status-label">Estado</InputLabel>
@@ -963,9 +951,36 @@ function Subscriptions() {
               </Box>
             </DialogContent>
             <DialogActions>
-              <Button onClick={handleClose}>Cancelar</Button>
-              <Button onClick={handleSave} variant="contained">
-                Guardar
+              <Button onClick={handleClose} disabled={loading}>Cancelar</Button>
+              <Button
+                onClick={handleSave}
+                variant="contained"
+                disabled={loading}
+                startIcon={loading ? <CircularProgress size={20} /> : null}
+              >
+                {loading ? 'Guardando...' : 'Guardar'}
+              </Button>
+            </DialogActions>
+          </Dialog>
+
+          {/* Diálogo de confirmación para eliminar */}
+          <Dialog open={deleteConfirmOpen} onClose={handleCancelDelete}>
+            <DialogTitle>Confirmar eliminación</DialogTitle>
+            <DialogContent>
+              <Typography>
+                ¿Estás seguro de que deseas eliminar esta suscripción? Esta acción no se puede deshacer.
+              </Typography>
+            </DialogContent>
+            <DialogActions>
+              <Button onClick={handleCancelDelete} disabled={loading}>Cancelar</Button>
+              <Button
+                onClick={handleConfirmDelete}
+                color="error"
+                variant="contained"
+                disabled={loading}
+                startIcon={loading ? <CircularProgress size={20} /> : null}
+              >
+                {loading ? 'Eliminando...' : 'Eliminar'}
               </Button>
             </DialogActions>
           </Dialog>

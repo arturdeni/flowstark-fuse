@@ -1,21 +1,45 @@
 import { User } from '@auth/user';
-import UserModel from '@auth/user/models/UserModel';
 import { PartialDeep } from 'type-fest';
-import apiFetch from '@/utils/apiFetch';
+import firebase from 'firebase/compat/app';
+import 'firebase/compat/firestore';
+
+// Esta función simula la respuesta HTTP
+const createResponse = (data: any): Response => {
+	const blob = new Blob([JSON.stringify(data, null, 2)], {
+		type: 'application/json'
+	});
+
+	const init = { status: 200, statusText: 'OK' };
+	return new Response(blob, init);
+};
+
+// Usuario de prueba para desarrollo
+const demoUser: User = {
+	id: 'demo-user-id',
+	displayName: 'Usuario Demo',
+	email: 'demo@example.com',
+	role: ['admin'], // Asigna los roles que necesites
+	photoURL: '',
+	loginRedirectUrl: '/'
+};
 
 /**
  * Refreshes the access token
  */
 export async function authRefreshToken(): Promise<Response> {
-	return apiFetch('/api/mock/auth/refresh', { method: 'POST' });
+	// Simular token refresh exitoso
+	return createResponse({
+		token: `demo-token-${Date.now()}`
+	});
 }
 
 /**
  * Sign in with token
  */
 export async function authSignInWithToken(accessToken: string): Promise<Response> {
-	return apiFetch('/api/mock/auth/sign-in-with-token', {
-		headers: { Authorization: `Bearer ${accessToken}` }
+	// Simular un inicio de sesión exitoso
+	return createResponse({
+		user: demoUser
 	});
 }
 
@@ -23,9 +47,23 @@ export async function authSignInWithToken(accessToken: string): Promise<Response
  * Sign in
  */
 export async function authSignIn(credentials: { email: string; password: string }): Promise<Response> {
-	return apiFetch('/api/mock/auth/sign-in', {
-		method: 'POST',
-		body: JSON.stringify(credentials)
+	// Aquí podrías verificar las credenciales para desarrollo
+	// Por ejemplo, permitir solo ciertos usuarios de prueba
+	if (credentials.email === 'admin@example.com' && credentials.password === 'password') {
+		return createResponse({
+			user: demoUser,
+			access_token: `demo-token-${Date.now()}`
+		});
+	}
+
+	// O simplemente aceptar cualquier credencial para fines de desarrollo
+	return createResponse({
+		user: {
+			...demoUser,
+			email: credentials.email,
+			displayName: credentials.email.split('@')[0]
+		},
+		access_token: `demo-token-${Date.now()}`
 	});
 }
 
@@ -33,9 +71,14 @@ export async function authSignIn(credentials: { email: string; password: string 
  * Sign up
  */
 export async function authSignUp(data: { displayName: string; email: string; password: string }): Promise<Response> {
-	return apiFetch('/api/mock/auth/sign-up', {
-		method: 'POST',
-		body: JSON.stringify(data)
+	// Simular un registro exitoso
+	return createResponse({
+		user: {
+			...demoUser,
+			displayName: data.displayName,
+			email: data.email
+		},
+		access_token: `demo-token-${Date.now()}`
 	});
 }
 
@@ -43,32 +86,58 @@ export async function authSignUp(data: { displayName: string; email: string; pas
  * Get user by id
  */
 export async function authGetDbUser(userId: string): Promise<Response> {
-	return apiFetch(`/api/mock/auth/user/${userId}`);
+	// Buscar en Firestore si existe, sino devolver usuario demo
+	try {
+		const db = firebase.firestore();
+		const userDoc = await db.collection('users').doc(userId).get();
+
+		if (userDoc.exists) {
+			const userData = userDoc.data();
+			return createResponse({
+				...userData,
+				id: userId
+			});
+		}
+	} catch (error) {
+		console.warn('Error fetching user from Firestore:', error);
+	}
+
+	// Si no existe o hay error, devolver usuario demo
+	return createResponse(demoUser);
 }
 
 /**
  * Get user by email
  */
 export async function authGetDbUserByEmail(email: string): Promise<Response> {
-	return apiFetch(`/api/mock/auth/user-by-email/${email}`);
+	// Simular búsqueda por email
+	return createResponse({
+		...demoUser,
+		email
+	});
 }
 
 /**
  * Update user
  */
-export function authUpdateDbUser(user: PartialDeep<User>) {
-	return apiFetch(`/api/mock/auth/user/${user.id}`, {
-		method: 'PUT',
-		body: JSON.stringify(UserModel(user))
-	});
+export function authUpdateDbUser(user: PartialDeep<User>): Promise<Response> {
+	// Simular actualización exitosa
+	return Promise.resolve(
+		createResponse({
+			...demoUser,
+			...user
+		})
+	);
 }
 
 /**
  * Create user
  */
-export async function authCreateDbUser(user: PartialDeep<User>) {
-	return apiFetch('/api/mock/users', {
-		method: 'POST',
-		body: JSON.stringify(UserModel(user))
+export async function authCreateDbUser(user: PartialDeep<User>): Promise<Response> {
+	// Simular creación exitosa
+	return createResponse({
+		...demoUser,
+		...user,
+		id: `user-${Date.now()}`
 	});
 }

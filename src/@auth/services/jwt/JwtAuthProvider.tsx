@@ -103,21 +103,38 @@ function JwtAuthProvider(props: FuseAuthProviderComponentProps) {
 	 */
 	const signIn: JwtAuthContextType['signIn'] = useCallback(
 		async (credentials) => {
-			const response = await authSignIn(credentials);
+			try {
+				const response = await authSignIn(credentials);
 
-			const session = (await response.json()) as { user: User; access_token: string };
+				if (!response.ok) {
+					throw new Error(`HTTP error! status: ${response.status}`);
+				}
 
-			if (session) {
-				setAuthState({
-					authStatus: 'authenticated',
-					isAuthenticated: true,
-					user: session.user
+				const session = (await response.json()) as { user: User; access_token: string };
+
+				if (session && session.access_token) {
+					setAuthState({
+						authStatus: 'authenticated',
+						isAuthenticated: true,
+						user: session.user
+					});
+
+					// Asegurarse de que el token no es undefined
+					if (session.access_token) {
+						setTokenStorageValue(session.access_token);
+						setGlobalHeaders({ Authorization: `Bearer ${session.access_token}` });
+					}
+				}
+
+				return response;
+			} catch (error) {
+				console.error('Error during sign in:', error);
+				// Devolver una respuesta de error simulada
+				return new Response(JSON.stringify({ error: 'Authentication failed' }), {
+					status: 401,
+					headers: { 'Content-Type': 'application/json' }
 				});
-				setTokenStorageValue(session.access_token);
-				setGlobalHeaders({ Authorization: `Bearer ${session.access_token}` });
 			}
-
-			return response;
 		},
 		[setTokenStorageValue]
 	);

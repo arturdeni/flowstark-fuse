@@ -3,6 +3,7 @@ const devApiBaseHost = apiUrl.hostname;
 const PORT = Number(import.meta.env.VITE_PORT) || 3000;
 const devApiBaseUrl = `${apiUrl.protocol}//${devApiBaseHost}:${PORT}`;
 
+// Esto ya no lo usaremos para MSW, pero lo mantenemos para cualquier otra API externa que puedas necesitar
 export const API_BASE_URL = import.meta.env.DEV ? devApiBaseUrl : (import.meta.env.VITE_API_BASE_URL as string) || '/';
 
 // Define the types for options and configuration
