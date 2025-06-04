@@ -1,11 +1,7 @@
 import './styles/index.css';
 import { createRoot } from 'react-dom/client';
 import { createBrowserRouter, RouterProvider } from 'react-router';
-import { initializeFirebase } from '@auth/services/firebase/initializeFirebase';
 import routes from 'src/configs/routesConfig';
-
-// Inicializar Firebase lo antes posible
-const firebaseInitialized = initializeFirebase();
 
 // Función de configuración inicial vacía, ya no iniciamos MSW
 async function appSetup() {
