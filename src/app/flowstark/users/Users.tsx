@@ -51,7 +51,6 @@ function Users() {
     updateUser,
     deleteUser,
     closeSnackbar,
-    getSubscriptionCount,
   } = useUsers();
 
   // Manejadores de eventos de UI
@@ -129,7 +128,6 @@ function Users() {
             onRowsPerPageChange={handleChangeRowsPerPage}
             onEdit={handleOpenForm}
             onDelete={handleDeleteClick}
-            getSubscriptionCount={getSubscriptionCount}
           />
 
           {/* Formulario para añadir/editar usuario */}

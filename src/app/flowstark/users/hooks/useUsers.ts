@@ -1,12 +1,18 @@
 // src/app/flowstark/users/hooks/useUsers.ts
 import { useState, useEffect } from 'react';
 import { clientsService } from '../../../../services/clientsService';
-import { Client } from '../../../../types/models';
+import { subscriptionsService } from '../../../../services/subscriptionsService';
+import { Client, Subscription } from '../../../../types/models';
+
+// Tipo extendido para cliente con contador de suscripciones
+export type ClientWithSubscriptions = Client & {
+  subscriptionCount: number;
+};
 
 export interface UseUsersReturn {
   // Estado
-  users: Client[];
-  filteredUsers: Client[];
+  users: ClientWithSubscriptions[];
+  filteredUsers: ClientWithSubscriptions[];
   searchTerm: string;
   loading: boolean;
   snackbar: {
@@ -28,12 +34,12 @@ export interface UseUsersReturn {
     severity?: 'success' | 'error' | 'warning' | 'info'
   ) => void;
   closeSnackbar: () => void;
-  getSubscriptionCount: (client: Client) => number;
 }
 
 export const useUsers = (): UseUsersReturn => {
-  const [users, setUsers] = useState<Client[]>([]);
-  const [filteredUsers, setFilteredUsers] = useState<Client[]>([]);
+  const [users, setUsers] = useState<ClientWithSubscriptions[]>([]);
+  const [filteredUsers, setFilteredUsers] = useState<ClientWithSubscriptions[]>([]);
+  const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(false);
   const [snackbar, setSnackbar] = useState({
@@ -42,13 +48,35 @@ export const useUsers = (): UseUsersReturn => {
     severity: 'success' as 'success' | 'error' | 'warning' | 'info',
   });
 
+  // Función para calcular el conteo de suscripciones para un cliente
+  const calculateSubscriptionCount = (clientId: string, subscriptionsList: Subscription[]): number => {
+    if (!clientId || !subscriptionsList.length) {
+      return 0;
+    }
+
+    return subscriptionsList.filter(
+      subscription => 
+        subscription.clientId === clientId && 
+        subscription.status === 'active'
+    ).length;
+  };
+
+  // Función para procesar usuarios con conteo de suscripciones
+  const processUsersWithSubscriptions = (clientsList: Client[], subscriptionsList: Subscription[]): ClientWithSubscriptions[] => {
+    return clientsList.map(client => ({
+      ...client,
+      subscriptionCount: calculateSubscriptionCount(client.id || '', subscriptionsList)
+    }));
+  };
+
   // Cargar usuarios desde Firestore
   const fetchUsers = async () => {
     setLoading(true);
     try {
       const clientsData = await clientsService.getAllClients();
-      setUsers(clientsData);
-      setFilteredUsers(clientsData);
+      const processedUsers = processUsersWithSubscriptions(clientsData, subscriptions);
+      setUsers(processedUsers);
+      setFilteredUsers(processedUsers);
     } catch (error) {
       console.error('Error fetching clients:', error);
       showSnackbar(
@@ -60,9 +88,46 @@ export const useUsers = (): UseUsersReturn => {
     }
   };
 
+  // Cargar suscripciones desde Firestore
+  const fetchSubscriptions = async () => {
+    try {
+      const subscriptionsData = await subscriptionsService.getAllSubscriptions();
+      setSubscriptions(subscriptionsData);
+      return subscriptionsData;
+    } catch (error) {
+      console.error('Error fetching subscriptions:', error);
+      return [];
+    }
+  };
+
+  // Función para actualizar usuarios con nuevos datos de suscripciones
+  const updateUsersWithSubscriptions = async (clientsList?: Client[]) => {
+    try {
+      const [clientsData, subscriptionsData] = await Promise.all([
+        clientsList ? Promise.resolve(clientsList) : clientsService.getAllClients(),
+        subscriptionsService.getAllSubscriptions()
+      ]);
+      
+      setSubscriptions(subscriptionsData);
+      const processedUsers = processUsersWithSubscriptions(clientsData, subscriptionsData);
+      setUsers(processedUsers);
+      setFilteredUsers(processedUsers);
+    } catch (error) {
+      console.error('Error updating users with subscriptions:', error);
+    }
+  };
+
   // Cargar datos iniciales
   useEffect(() => {
-    fetchUsers();
+    const loadData = async () => {
+      setLoading(true);
+      try {
+        await updateUsersWithSubscriptions();
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadData();
   }, []);
 
   // Filtrado de usuarios según término de búsqueda
@@ -83,7 +148,7 @@ export const useUsers = (): UseUsersReturn => {
 
   // Función para refrescar los datos
   const refreshData = async () => {
-    await fetchUsers();
+    await updateUsersWithSubscriptions();
   };
 
   // Crear nuevo usuario
@@ -93,9 +158,8 @@ export const useUsers = (): UseUsersReturn => {
     setLoading(true);
     try {
       const newClient = await clientsService.createClient(userData);
-      setUsers([...users, newClient]);
       showSnackbar('Cliente creado correctamente', 'success');
-      await refreshData();
+      await updateUsersWithSubscriptions();
     } catch (error) {
       console.error('Error creating client:', error);
       showSnackbar(
@@ -112,12 +176,9 @@ export const useUsers = (): UseUsersReturn => {
   const updateUser = async (id: string, userData: Partial<Client>) => {
     setLoading(true);
     try {
-      const updatedClient = await clientsService.updateClient(id, userData);
-      setUsers(users.map(user =>
-        user.id === updatedClient.id ? updatedClient : user
-      ));
+      await clientsService.updateClient(id, userData);
       showSnackbar('Cliente actualizado correctamente', 'success');
-      await refreshData();
+      await updateUsersWithSubscriptions();
     } catch (error) {
       console.error('Error updating client:', error);
       showSnackbar(
@@ -135,9 +196,8 @@ export const useUsers = (): UseUsersReturn => {
     setLoading(true);
     try {
       await clientsService.deleteClient(id);
-      setUsers(users.filter(user => user.id !== id));
       showSnackbar('Cliente eliminado correctamente', 'success');
-      await refreshData();
+      await updateUsersWithSubscriptions();
     } catch (error) {
       console.error('Error deleting client:', error);
       showSnackbar(
@@ -148,14 +208,6 @@ export const useUsers = (): UseUsersReturn => {
     } finally {
       setLoading(false);
     }
-  };
-
-  // Calcular el número de suscripciones para cada cliente
-  // Por ahora devolvemos 0, pero esto podría expandirse para hacer una consulta real
-  const getSubscriptionCount = (client: Client): number => {
-    // Aquí podrías implementar una lógica para obtener el recuento de suscripciones
-    // Por ejemplo, hacer una consulta a Firestore o mantener un contador en el cliente
-    return 0;
   };
 
   // Mostrar notificación
@@ -194,6 +246,5 @@ export const useUsers = (): UseUsersReturn => {
     deleteUser,
     showSnackbar,
     closeSnackbar,
-    getSubscriptionCount,
   };
 };
