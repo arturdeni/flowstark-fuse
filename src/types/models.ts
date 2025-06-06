@@ -31,8 +31,7 @@ export interface Service {
 	basePrice: number;
 	vat: number;
 	frequency: 'monthly' | 'quarterly' | 'four_monthly' | 'biannual' | 'annual';
-	category: string;
-	active: boolean;
+	renovation: 'first_day' | 'last_day'; // Nuevo campo
 	activeSubscriptions?: number;
 	createdAt?: Date;
 	updatedAt?: Date;

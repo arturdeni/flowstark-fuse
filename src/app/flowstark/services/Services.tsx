@@ -59,7 +59,6 @@ function Services() {
     createService,
     updateService,
     deleteService,
-    toggleActiveService,
     closeSnackbar,
   } = useServices();
 
@@ -137,7 +136,6 @@ function Services() {
             onPageChange={handleChangePage}
             onRowsPerPageChange={handleChangeRowsPerPage}
             onEdit={handleOpenForm}
-            onToggleActive={toggleActiveService}
             onDelete={handleDeleteClick}
           />
 
@@ -149,7 +147,6 @@ function Services() {
             onClose={handleCloseForm}
             onSave={createService}
             onUpdate={updateService}
-            categories={categories}
           />
 
           {/* Diálogo de confirmación para eliminar */}

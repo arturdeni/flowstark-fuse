@@ -12,16 +12,14 @@ import {
     InputLabel,
     Select,
     MenuItem,
-    Switch,
-    FormControlLabel,
     InputAdornment,
     CircularProgress,
+    Typography,
 } from '@mui/material';
 import { SelectChangeEvent } from '@mui/material/Select';
 import {
     Euro as EuroIcon,
-    Category as CategoryIcon,
-    Description as DescriptionIcon,
+    Percent as PercentIcon,
 } from '@mui/icons-material';
 import { Service } from '../../../../types/models';
 
@@ -30,19 +28,17 @@ interface ServiceFormProps {
     selectedService: Service | null;
     loading: boolean;
     onClose: () => void;
-    onSave: (serviceData: Omit<Service, 'id' | 'active' | 'activeSubscriptions' | 'createdAt' | 'updatedAt'>) => Promise<void>;
+    onSave: (serviceData: Omit<Service, 'id' | 'createdAt' | 'updatedAt' | 'activeSubscriptions'>) => Promise<void>;
     onUpdate: (id: string, serviceData: Partial<Service>) => Promise<void>;
-    categories: string[];
 }
 
 interface FormData {
     name: string;
     description: string;
-    basePrice: string;
+    basePrice: number;
     vat: number;
     frequency: 'monthly' | 'quarterly' | 'four_monthly' | 'biannual' | 'annual';
-    category: string;
-    active: boolean;
+    renovation: 'first_day' | 'last_day';
 }
 
 export const ServiceForm: React.FC<ServiceFormProps> = ({
@@ -52,16 +48,14 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
     onClose,
     onSave,
     onUpdate,
-    categories,
 }) => {
     const [formData, setFormData] = useState<FormData>({
         name: '',
         description: '',
-        basePrice: '',
-        vat: 21,
+        basePrice: 0,
+        vat: 21, // IVA por defecto en España
         frequency: 'monthly',
-        category: '',
-        active: true,
+        renovation: 'first_day',
     });
 
     const [validationError, setValidationError] = useState<string>('');
@@ -72,21 +66,19 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
             setFormData({
                 name: selectedService.name || '',
                 description: selectedService.description || '',
-                basePrice: selectedService.basePrice?.toString() || '',
-                vat: selectedService.vat ?? 21,
+                basePrice: selectedService.basePrice || 0,
+                vat: selectedService.vat || 21,
                 frequency: selectedService.frequency || 'monthly',
-                category: selectedService.category || '',
-                active: selectedService.active !== false,
+                renovation: selectedService.renovation || 'first_day',
             });
         } else {
             setFormData({
                 name: '',
                 description: '',
-                basePrice: '',
+                basePrice: 0,
                 vat: 21,
                 frequency: 'monthly',
-                category: '',
-                active: true,
+                renovation: 'first_day',
             });
         }
 
@@ -95,12 +87,20 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
 
     const handleInputChange = (
         e: React.ChangeEvent<HTMLInputElement | { name?: string; value: unknown }> |
-            SelectChangeEvent<string | number | 'monthly' | 'quarterly' | 'four_monthly' | 'biannual' | 'annual'>
+            SelectChangeEvent<string>
     ) => {
-        const { name, value } = e.target as { name: string; value: string | number | boolean };
+        const { name, value } = e.target as { name: string; value: string | number };
+
+        // Convertir valores numéricos
+        let processedValue: string | number = value;
+
+        if (name === 'basePrice' || name === 'vat') {
+            processedValue = parseFloat(value as string) || 0;
+        }
+
         setFormData({
             ...formData,
-            [name]: value
+            [name]: processedValue
         });
 
         // Limpiar error de validación cuando el usuario empiece a escribir
@@ -109,23 +109,24 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
         }
     };
 
-    const handleToggleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        setFormData({
-            ...formData,
-            active: e.target.checked,
-        });
-    };
-
     const validateForm = (): boolean => {
-        if (!formData.name || !formData.description || !formData.basePrice || !formData.category) {
-            setValidationError('Por favor, completa todos los campos requeridos');
+        if (!formData.name.trim()) {
+            setValidationError('El nombre del servicio es requerido');
             return false;
         }
 
-        const price = parseFloat(formData.basePrice);
+        if (!formData.description.trim()) {
+            setValidationError('La descripción del servicio es requerida');
+            return false;
+        }
 
-        if (isNaN(price) || price <= 0) {
-            setValidationError('Por favor, introduce un precio válido');
+        if (formData.basePrice <= 0) {
+            setValidationError('El precio debe ser mayor que 0');
+            return false;
+        }
+
+        if (formData.vat < 0 || formData.vat > 100) {
+            setValidationError('El IVA debe estar entre 0 y 100%');
             return false;
         }
 
@@ -138,21 +139,14 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
         }
 
         try {
-            const serviceData = {
-                ...formData,
-                basePrice: parseFloat(formData.basePrice),
-                vat: Number(formData.vat),
-            };
-
             if (selectedService) {
-                await onUpdate(selectedService.id!, serviceData);
+                await onUpdate(selectedService.id!, formData);
             } else {
-                await onSave(serviceData);
+                await onSave(formData);
             }
 
             onClose();
         } catch (error) {
-            // Error handling is done in the hook
             console.error('Error in form save:', error);
         }
     };
@@ -165,11 +159,9 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
         { value: 'annual', label: 'Anual' },
     ];
 
-    const getVatOptions = () => [
-        { value: 0, label: '0%' },
-        { value: 4, label: '4%' },
-        { value: 10, label: '10%' },
-        { value: 21, label: '21%' },
+    const getRenovationOptions = () => [
+        { value: 'first_day', label: 'Primer día del mes' },
+        { value: 'last_day', label: 'Último día del mes' },
     ];
 
     return (
@@ -191,15 +183,17 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
                         {validationError}
                     </Box>
                 )}
+
                 <Box
                     component="form"
                     sx={{
-                        mt: 1,
                         display: 'grid',
                         gridTemplateColumns: 'repeat(2, 1fr)',
                         gap: 2,
+                        mt: 1,
                     }}
                 >
+                    {/* Nombre del servicio */}
                     <TextField
                         margin="normal"
                         required
@@ -208,36 +202,37 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
                         name="name"
                         value={formData.name}
                         onChange={handleInputChange}
+                        sx={{ gridColumn: '1 / span 2' }}
                     />
-                    <FormControl margin="normal" fullWidth required>
-                        <InputLabel id="category-label">Categoría</InputLabel>
-                        <Select
-                            labelId="category-label"
-                            name="category"
-                            value={formData.category}
-                            label="Categoría"
-                            onChange={handleInputChange}
-                            startAdornment={
-                                <InputAdornment position="start">
-                                    <CategoryIcon fontSize="small" />
-                                </InputAdornment>
-                            }
-                        >
-                            {categories.map((category) => (
-                                <MenuItem key={category} value={category}>
-                                    {category}
-                                </MenuItem>
-                            ))}
-                        </Select>
-                    </FormControl>
+
+                    {/* Descripción */}
+                    <TextField
+                        margin="normal"
+                        required
+                        fullWidth
+                        label="Descripción"
+                        name="description"
+                        value={formData.description}
+                        onChange={handleInputChange}
+                        multiline
+                        rows={3}
+                        sx={{ gridColumn: '1 / span 2' }}
+                    />
+
+                    {/* Precio base */}
                     <TextField
                         margin="normal"
                         required
                         fullWidth
                         label="Precio Base"
                         name="basePrice"
+                        type="number"
                         value={formData.basePrice}
                         onChange={handleInputChange}
+                        inputProps={{
+                            min: 0,
+                            step: 0.01
+                        }}
                         InputProps={{
                             startAdornment: (
                                 <InputAdornment position="start">
@@ -246,26 +241,34 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
                             ),
                         }}
                     />
-                    <FormControl margin="normal" fullWidth required>
-                        <InputLabel id="vat-label">IVA</InputLabel>
-                        <Select
-                            labelId="vat-label"
-                            name="vat"
-                            value={formData.vat}
-                            label="IVA"
-                            onChange={handleInputChange}
-                        >
-                            {getVatOptions().map((option) => (
-                                <MenuItem key={option.value} value={option.value}>
-                                    {option.label}
-                                </MenuItem>
-                            ))}
-                        </Select>
-                    </FormControl>
-                    <FormControl margin="normal" fullWidth required>
-                        <InputLabel id="frequency-label">
-                            Frecuencia de Facturación
-                        </InputLabel>
+
+                    {/* IVA */}
+                    <TextField
+                        margin="normal"
+                        required
+                        fullWidth
+                        label="IVA"
+                        name="vat"
+                        type="number"
+                        value={formData.vat}
+                        onChange={handleInputChange}
+                        inputProps={{
+                            min: 0,
+                            max: 100,
+                            step: 0.1
+                        }}
+                        InputProps={{
+                            endAdornment: (
+                                <InputAdornment position="end">
+                                    <PercentIcon fontSize="small" />
+                                </InputAdornment>
+                            ),
+                        }}
+                    />
+
+                    {/* Frecuencia */}
+                    <FormControl margin="normal" fullWidth>
+                        <InputLabel id="frequency-label">Frecuencia de Facturación</InputLabel>
                         <Select
                             labelId="frequency-label"
                             name="frequency"
@@ -280,36 +283,31 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
                             ))}
                         </Select>
                     </FormControl>
-                    <TextField
-                        margin="normal"
-                        required
-                        fullWidth
-                        label="Descripción"
-                        name="description"
-                        value={formData.description}
-                        onChange={handleInputChange}
-                        multiline
-                        rows={4}
-                        sx={{ gridColumn: '1 / span 2' }}
-                        InputProps={{
-                            startAdornment: (
-                                <InputAdornment position="start">
-                                    <DescriptionIcon fontSize="small" />
-                                </InputAdornment>
-                            ),
-                        }}
-                    />
-                    <FormControlLabel
-                        control={
-                            <Switch
-                                checked={formData.active}
-                                onChange={handleToggleChange}
-                                name="active"
-                            />
-                        }
-                        label="Servicio Activo"
-                        sx={{ gridColumn: '1 / span 2' }}
-                    />
+
+                    {/* Renovación */}
+                    <FormControl margin="normal" fullWidth>
+                        <InputLabel id="renovation-label">Día de Renovación</InputLabel>
+                        <Select
+                            labelId="renovation-label"
+                            name="renovation"
+                            value={formData.renovation}
+                            label="Día de Renovación"
+                            onChange={handleInputChange}
+                        >
+                            {getRenovationOptions().map((option) => (
+                                <MenuItem key={option.value} value={option.value}>
+                                    {option.label}
+                                </MenuItem>
+                            ))}
+                        </Select>
+                    </FormControl>
+
+                    {/* Información adicional */}
+                    <Box sx={{ gridColumn: '1 / span 2', mt: 2 }}>
+                        <Typography variant="body2" color="textSecondary">
+                            <strong>Precio final:</strong> {(formData.basePrice * (1 + formData.vat / 100)).toFixed(2)} € (IVA incluido)
+                        </Typography>
+                    </Box>
                 </Box>
             </DialogContent>
             <DialogActions>

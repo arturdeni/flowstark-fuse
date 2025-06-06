@@ -26,7 +26,6 @@ export interface UseServicesReturn {
   ) => Promise<void>;
   updateService: (id: string, serviceData: Partial<Service>) => Promise<void>;
   deleteService: (id: string) => Promise<void>;
-  toggleActiveService: (id: string) => Promise<void>;
   showSnackbar: (
     message: string,
     severity?: 'success' | 'error' | 'warning' | 'info'
@@ -74,11 +73,7 @@ export const useServices = (): UseServicesReturn => {
       const filtered = services.filter(
         (service) =>
           service.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          service.description
-            .toLowerCase()
-            .includes(searchTerm.toLowerCase()) ||
-          (service.category &&
-            service.category.toLowerCase().includes(searchTerm.toLowerCase()))
+          service.description.toLowerCase().includes(searchTerm.toLowerCase())
       );
       setFilteredServices(filtered);
     } else {
@@ -163,41 +158,6 @@ export const useServices = (): UseServicesReturn => {
     }
   };
 
-  // Cambiar estado activo/inactivo
-  const toggleActiveService = async (id: string) => {
-    setLoading(true);
-    try {
-      const service = services.find((s) => s.id === id);
-
-      if (!service) return;
-
-      const updatedService = await servicesService.updateService(id, {
-        active: !service.active,
-      });
-
-      setServices(
-        services.map((service) =>
-          service.id === id ? updatedService : service
-        )
-      );
-
-      showSnackbar(
-        `Servicio ${updatedService.active ? 'activado' : 'desactivado'} correctamente`,
-        'success'
-      );
-      await refreshData();
-    } catch (error) {
-      console.error('Error toggling service active state:', error);
-      showSnackbar(
-        `Error al cambiar el estado del servicio: ${error instanceof Error ? error.message : 'Error desconocido'}`,
-        'error'
-      );
-      throw error;
-    } finally {
-      setLoading(false);
-    }
-  };
-
   // Mostrar notificación
   const showSnackbar = (
     message: string,
@@ -232,7 +192,6 @@ export const useServices = (): UseServicesReturn => {
     createService,
     updateService,
     deleteService,
-    toggleActiveService,
     showSnackbar,
     closeSnackbar,
   };
