@@ -21,6 +21,7 @@ import {
     Delete as DeleteIcon,
     MoreVert as MoreVertIcon,
     Business as BusinessIcon,
+    Person as PersonIcon,
 } from '@mui/icons-material';
 import { styled } from '@mui/material/styles';
 import { Client } from '../../../../types/models';
@@ -85,63 +86,47 @@ export const UsersTable: React.FC<UsersTableProps> = ({
         return (client.fiscalName || client.taxId) ? 'empresa' : 'particular';
     };
 
-    // Función para obtener el nombre a mostrar
+    // Función para obtener el nombre completo
     const getDisplayName = (client: ClientWithSubscriptions): string => {
         const clientType = getClientType(client);
-
+        
         if (clientType === 'empresa') {
-            return client.firstName || '';
+            return client.firstName || client.fiscalName || '';
         } else {
             return `${client.firstName || ''} ${client.lastName || ''}`.trim();
         }
     };
 
-    // Función para obtener el método de pago formateado
-    const getPaymentMethodText = (paymentMethod: { type: string; details: Record<string, any> } | undefined): string => {
+    // Función para obtener el texto del método de pago
+    const getPaymentMethodText = (paymentMethod: any): string => {
         if (!paymentMethod || !paymentMethod.type) return '-';
-
-        switch (paymentMethod.type) {
-            case 'card':
-                return 'Tarjeta';
-            case 'transfer':
-                return 'Transfer.';
-            case 'cash':
-                return 'Efectivo';
-            case 'direct_debit':
-                return 'Domicil.';
-            default:
-                return paymentMethod.type;
-        }
+        
+        const paymentMethods: Record<string, string> = {
+            card: 'Tarjeta',
+            transfer: 'Transferencia',
+            cash: 'Efectivo',
+            direct_debit: 'Domiciliación',
+        };
+        
+        return paymentMethods[paymentMethod.type] || paymentMethod.type;
     };
 
-    // Función para formatear la fecha
-    const formatDate = (date: Date | undefined): string => {
+    // Función para formatear fechas
+    const formatDate = (date: Date | null | undefined): string => {
         if (!date) return '-';
-
+        
         try {
-            return new Date(date).toLocaleDateString('es-ES', {
+            return new Intl.DateTimeFormat('es-ES', {
                 day: '2-digit',
                 month: '2-digit',
-                year: '2-digit',
-            });
-        } catch (error) {
+                year: '2-digit'
+            }).format(date instanceof Date ? date : new Date(date));
+        } catch {
             return '-';
         }
     };
 
-    // Función de comparación para el ordenamiento
-    const descendingComparator = <T,>(a: T, b: T, orderBy: keyof T) => {
-        if (b[orderBy] < a[orderBy]) {
-            return -1;
-        }
-
-        if (b[orderBy] > a[orderBy]) {
-            return 1;
-        }
-
-        return 0;
-    };
-
+    // Función para comparar valores en el ordenamiento
     const getComparator = <Key extends keyof any>(
         order: Order,
         orderBy: Key,
@@ -151,49 +136,69 @@ export const UsersTable: React.FC<UsersTableProps> = ({
             : (a, b) => -descendingComparator(a, b, orderBy);
     };
 
-    // Función para obtener el valor de ordenamiento
-    const getOrderValue = (user: ClientWithSubscriptions, orderBy: OrderBy): string | number | Date => {
-        switch (orderBy) {
-            case 'name':
-                return getDisplayName(user).toLowerCase();
-            case 'email':
-                return (user.email || '').toLowerCase();
-            case 'phone':
-                return user.phone || '';
-            case 'paymentMethod':
-                return getPaymentMethodText(user.paymentMethod).toLowerCase();
-            case 'registeredDate':
-                return user.registeredDate ? new Date(user.registeredDate) : new Date(0);
-            case 'subscriptions':
-                return user.subscriptionCount;
-            default:
-                return '';
+    const descendingComparator = <T,>(a: T, b: T, orderBy: keyof T) => {
+        let aVal: any;
+        let bVal: any;
+
+        if (orderBy === 'name') {
+            aVal = getDisplayName(a as any).toLowerCase();
+            bVal = getDisplayName(b as any).toLowerCase();
+        } else if (orderBy === 'paymentMethod') {
+            aVal = getPaymentMethodText((a as any).paymentMethod);
+            bVal = getPaymentMethodText((b as any).paymentMethod);
+        } else if (orderBy === 'subscriptions') {
+            aVal = (a as any).subscriptionCount || 0;
+            bVal = (b as any).subscriptionCount || 0;
+        } else {
+            aVal = a[orderBy];
+            bVal = b[orderBy];
         }
+
+        if (bVal < aVal) {
+            return -1;
+        }
+
+        if (bVal > aVal) {
+            return 1;
+        }
+
+        return 0;
     };
 
-    // Función para manejar el click en el header para ordenar
+    // Función estable para ordenar
+    const stableSort = <T,>(array: readonly T[], comparator: (a: T, b: T) => number) => {
+        const stabilizedThis = array.map((el, index) => [el, index] as [T, number]);
+        stabilizedThis.sort((a, b) => {
+            const order = comparator(a[0], b[0]);
+
+            if (order !== 0) {
+                return order;
+            }
+
+            return a[1] - b[1];
+        });
+        return stabilizedThis.map((el) => el[0]);
+    };
+
+    // Memoización de datos ordenados
+    const sortedUsers = useMemo(() => {
+        return stableSort(users, getComparator(order, orderBy));
+    }, [users, order, orderBy]);
+
+    // Manejar el ordenamiento
     const handleRequestSort = (property: OrderBy) => {
         const isAsc = orderBy === property && order === 'asc';
         setOrder(isAsc ? 'desc' : 'asc');
         setOrderBy(property);
     };
 
-    // Ordenar los usuarios
-    const sortedUsers = useMemo(() => {
-        const comparator = getComparator(order, orderBy);
-        const usersWithOrderValue = users.map(user => ({
-            ...user,
-            orderValue: getOrderValue(user, orderBy)
-        }));
-
-        return usersWithOrderValue.sort((a, b) => comparator(
-            { [orderBy]: a.orderValue },
-            { [orderBy]: b.orderValue }
-        ));
-    }, [users, order, orderBy]);
-
-    // Componente para el header ordenable
-    const SortableTableHead = ({ id, label, numeric = false, width }: {
+    // Componente para cabeceras ordenables
+    const SortableTableHead = ({
+        id,
+        label,
+        numeric = false,
+        width
+    }: {
         id: OrderBy;
         label: string;
         numeric?: boolean;
@@ -271,42 +276,46 @@ export const UsersTable: React.FC<UsersTableProps> = ({
 
                                 return (
                                     <StyledTableRow key={user.id}>
-                                        {/* Nombre con chip de empresa y DNI/CIF */}
+                                        {/* Nombre con icono de tipo de cliente */}
                                         <CompactTableCell>
-                                            <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
+                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                                {/* Icono de tipo de cliente */}
+                                                {clientType === 'empresa' ? (
+                                                    <BusinessIcon 
+                                                        sx={{ 
+                                                            fontSize: '1rem', 
+                                                            color: 'primary.main',
+                                                            flexShrink: 0
+                                                        }} 
+                                                        title="Empresa"
+                                                    />
+                                                ) : (
+                                                    <PersonIcon 
+                                                        sx={{ 
+                                                            fontSize: '1rem', 
+                                                            color: 'text.secondary',
+                                                            flexShrink: 0
+                                                        }} 
+                                                        title="Particular"
+                                                    />
+                                                )}
+                                                
+                                                {/* Información del cliente */}
                                                 <Box sx={{ flex: 1, minWidth: 0 }}>
-                                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
-                                                        <Typography
-                                                            variant="body2"
-                                                            fontWeight="medium"
-                                                            sx={{
-                                                                overflow: 'hidden',
-                                                                textOverflow: 'ellipsis',
-                                                                whiteSpace: 'nowrap',
-                                                                lineHeight: 1.2,
-                                                                flex: 1
-                                                            }}
-                                                            title={displayName}
-                                                        >
-                                                            {displayName}
-                                                        </Typography>
-                                                        {clientType === 'empresa' && (
-                                                            <Chip
-                                                                icon={<BusinessIcon />}
-                                                                label="Empresa"
-                                                                color="primary"
-                                                                size="small"
-                                                                variant="outlined"
-                                                                sx={{
-                                                                    fontSize: '0.7rem',
-                                                                    height: '20px',
-                                                                    '& .MuiChip-icon': {
-                                                                        fontSize: '0.8rem'
-                                                                    }
-                                                                }}
-                                                            />
-                                                        )}
-                                                    </Box>
+                                                    <Typography
+                                                        variant="body2"
+                                                        fontWeight="medium"
+                                                        sx={{
+                                                            overflow: 'hidden',
+                                                            textOverflow: 'ellipsis',
+                                                            whiteSpace: 'nowrap',
+                                                            lineHeight: 1.2,
+                                                        }}
+                                                        title={displayName}
+                                                    >
+                                                        {displayName}
+                                                    </Typography>
+                                                    
                                                     {/* DNI/CIF */}
                                                     {clientType === 'particular' && user.idNumber && (
                                                         <Typography
@@ -360,32 +369,29 @@ export const UsersTable: React.FC<UsersTableProps> = ({
 
                                         {/* Método de pago */}
                                         <CompactTableCell>
-                                            <Chip
-                                                label={paymentMethodText}
-                                                size="small"
-                                                variant="outlined"
-                                                color="default"
-                                                sx={{ fontSize: '0.7rem' }}
-                                            />
+                                            <Typography variant="body2">
+                                                {paymentMethodText}
+                                            </Typography>
                                         </CompactTableCell>
 
-                                        {/* Fecha de alta */}
+                                        {/* Fecha de registro */}
                                         <CompactTableCell>
-                                            <Typography variant="body2" sx={{ fontSize: '0.75rem' }}>
+                                            <Typography variant="body2">
                                                 {registrationDate}
                                             </Typography>
                                         </CompactTableCell>
 
-                                        {/* Suscripciones activas */}
-                                        <CompactTableCell align="center">
+                                        {/* Número de suscripciones */}
+                                        <CompactTableCell align="right">
                                             <Chip
-                                                label={user.subscriptionCount}
+                                                label={user.subscriptionCount || 0}
+                                                color={user.subscriptionCount > 0 ? 'primary' : 'default'}
                                                 size="small"
                                                 variant="outlined"
-                                                color="default"
                                                 sx={{
-                                                    minWidth: '28px',
-                                                    fontSize: '0.7rem'
+                                                    fontSize: '0.75rem',
+                                                    height: '20px',
+                                                    minWidth: '28px'
                                                 }}
                                             />
                                         </CompactTableCell>
@@ -427,7 +433,7 @@ export const UsersTable: React.FC<UsersTableProps> = ({
                 </TableBody>
             </Table>
             <TablePagination
-                rowsPerPageOptions={[5, 10, 25]}
+                rowsPerPageOptions={[25, 50, 100]}
                 component="div"
                 count={users.length}
                 rowsPerPage={rowsPerPage}

@@ -24,8 +24,15 @@ import {
     Phone as PhoneIcon,
     Person as PersonIcon,
     Business as BusinessIcon,
+    AccountBalance as BankIcon,
+    CreditCard as IbanIcon,
 } from '@mui/icons-material';
 import { Client } from '../../../../types/models';
+import {
+    obtenerBancoPorIban,
+    formatearIban,
+    validarFormatoIbanEspanol,
+} from '../../../../utils/bancoLookup';
 
 interface UserFormProps {
     open: boolean;
@@ -48,13 +55,14 @@ interface FormData {
     city: string;
     postalCode: string;
     country: string;
-    notes: string;
     active: boolean;
-    clientType: 'particular' | 'empresa'; // Nuevo campo para el tipo de cliente
+    clientType: 'particular' | 'empresa';
     paymentMethod: {
         type: string;
         details: Record<string, any>;
     };
+    iban: string;
+    bank: string;
 }
 
 // Componente para el panel de tabs
@@ -111,17 +119,19 @@ export const UserForm: React.FC<UserFormProps> = ({
         city: '',
         postalCode: '',
         country: '',
-        notes: '',
         active: true,
         clientType: 'particular', // Por defecto "Particular"
         paymentMethod: {
-            type: 'card',
+            type: 'direct_debit', // Método de pago por defecto: Domiciliación
             details: {},
         },
+        iban: '',
+        bank: '',
     });
 
     const [validationError, setValidationError] = useState<string>('');
     const [tabValue, setTabValue] = useState(0); // 0 = Particular, 1 = Empresa
+    const [ibanError, setIbanError] = useState<string>('');
 
     // Actualizar formulario cuando cambie el usuario seleccionado
     useEffect(() => {
@@ -129,7 +139,7 @@ export const UserForm: React.FC<UserFormProps> = ({
             // Determinar el tipo de cliente basado en si tiene fiscalName y taxId
             const isEmpresa = Boolean(selectedUser.fiscalName || selectedUser.taxId);
             const clientType = isEmpresa ? 'empresa' : 'particular';
-            
+
             setFormData({
                 firstName: selectedUser.firstName || '',
                 lastName: selectedUser.lastName || '',
@@ -142,15 +152,16 @@ export const UserForm: React.FC<UserFormProps> = ({
                 city: selectedUser.city || '',
                 postalCode: selectedUser.postalCode || '',
                 country: selectedUser.country || '',
-                notes: selectedUser.notes || '',
                 active: selectedUser.active !== false,
                 clientType,
                 paymentMethod: selectedUser.paymentMethod || {
-                    type: 'card',
+                    type: 'direct_debit',
                     details: {},
                 },
+                iban: selectedUser.iban || '',
+                bank: selectedUser.bank || '',
             });
-            
+
             // Establecer el tab correcto
             setTabValue(isEmpresa ? 1 : 0);
         } else {
@@ -166,25 +177,66 @@ export const UserForm: React.FC<UserFormProps> = ({
                 city: '',
                 postalCode: '',
                 country: '',
-                notes: '',
                 active: true,
                 clientType: 'particular',
                 paymentMethod: {
-                    type: 'card',
+                    type: 'direct_debit', // Método de pago por defecto: Domiciliación
                     details: {},
                 },
+                iban: '',
+                bank: '',
             });
             setTabValue(0); // Por defecto "Particular"
         }
 
         setValidationError('');
+        setIbanError('');
     }, [selectedUser, open]);
+
+    // Función para detectar banco automáticamente cuando cambia el IBAN
+    const handleIbanChange = (value: string) => {
+        setFormData(prev => ({
+            ...prev,
+            iban: value
+        }));
+
+        // Limpiar errores previos
+        setIbanError('');
+
+        // Si el IBAN tiene suficientes caracteres, intentar detectar el banco
+        if (value.length >= 8) { // ES + 2 dígitos control + 4 dígitos entidad
+            const bancoInfo = obtenerBancoPorIban(value);
+
+            if (bancoInfo) {
+                // Banco detectado automáticamente
+                setFormData(prev => ({
+                    ...prev,
+                    iban: value,
+                    bank: bancoInfo.nombre
+                }));
+                console.log(`✅ Banco detectado automáticamente: ${bancoInfo.nombre}`);
+            } else if (value.length >= 20) {
+                // IBAN parece completo pero no se reconoce el banco
+                if (validarFormatoIbanEspanol(value)) {
+                    setIbanError('Banco no reconocido en nuestra base de datos');
+                } else {
+                    setIbanError('Formato de IBAN español no válido');
+                }
+            }
+        }
+    };
 
     const handleInputChange = (
         e: React.ChangeEvent<HTMLInputElement | { name?: string; value: unknown }> |
             SelectChangeEvent<string>
     ) => {
         const { name, value } = e.target as { name: string; value: string | boolean };
+
+        // Manejar cambio de IBAN con detección automática
+        if (name === 'iban') {
+            handleIbanChange(value as string);
+            return;
+        }
 
         // Manejar campos anidados para paymentMethod
         if (name.startsWith('paymentMethod.')) {
@@ -211,7 +263,7 @@ export const UserForm: React.FC<UserFormProps> = ({
 
     const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
         setTabValue(newValue);
-        
+
         // Actualizar el tipo de cliente y limpiar campos específicos
         if (newValue === 0) { // Particular
             setFormData({
@@ -242,6 +294,19 @@ export const UserForm: React.FC<UserFormProps> = ({
             }
         }
 
+        // Validación de IBAN si el método de pago es domiciliación
+        if (formData.paymentMethod.type === 'direct_debit') {
+            if (!formData.iban) {
+                setValidationError('El IBAN es obligatorio cuando el método de pago es Domiciliación');
+                return false;
+            }
+
+            if (!validarFormatoIbanEspanol(formData.iban)) {
+                setValidationError('El formato del IBAN español no es válido');
+                return false;
+            }
+        }
+
         // Validación básica de email
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -259,9 +324,13 @@ export const UserForm: React.FC<UserFormProps> = ({
         }
 
         try {
+            // Formatear IBAN antes de guardar
+            const ibanFormateado = formData.iban ? formatearIban(formData.iban) : '';
+
             // Para empresa, el lastName se deja vacío y el firstName contiene el nombre comercial
             const userData = {
                 ...formData,
+                iban: ibanFormateado,
                 // Si es empresa, lastName se deja vacío
                 lastName: tabValue === 1 ? '' : formData.lastName,
                 // Si es particular, fiscalName y taxId se dejan vacíos
@@ -287,10 +356,10 @@ export const UserForm: React.FC<UserFormProps> = ({
     };
 
     const getPaymentMethodOptions = () => [
+        { value: 'direct_debit', label: 'Domiciliación' }, // Primero en la lista
         { value: 'card', label: 'Tarjeta' },
         { value: 'transfer', label: 'Transferencia' },
         { value: 'cash', label: 'Efectivo' },
-        { value: 'direct_debit', label: 'Domiciliación' },
     ];
 
     return (
@@ -306,110 +375,108 @@ export const UserForm: React.FC<UserFormProps> = ({
             <DialogTitle>
                 {selectedUser ? 'Editar Cliente' : 'Nuevo Cliente'}
             </DialogTitle>
-            <DialogContent>
+
+            <DialogContent sx={{ px: 3, py: 2 }}>
                 {validationError && (
-                    <Box sx={{ color: 'error.main', mb: 2, fontSize: '0.875rem' }}>
+                    <Typography
+                        color="error"
+                        variant="body2"
+                        sx={{ mb: 2, p: 1, bgcolor: 'error.light', borderRadius: 1 }}
+                    >
                         {validationError}
-                    </Box>
+                    </Typography>
                 )}
+
+
 
                 {/* Tabs para tipo de cliente */}
                 <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 2 }}>
-                    <Tabs 
-                        value={tabValue} 
-                        onChange={handleTabChange} 
-                        aria-label="Tipo de cliente"
-                        variant="fullWidth"
-                    >
-                        <Tab 
-                            icon={<PersonIcon />} 
-                            label="Particular" 
-                            {...a11yProps(0)} 
+                    <Tabs value={tabValue} onChange={handleTabChange} aria-label="tipo de cliente" variant='fullWidth'>
+                        <Tab
+                            icon={<PersonIcon />}
+                            label="Particular"
+                            {...a11yProps(0)}
+                            iconPosition="start"
                         />
-                        <Tab 
-                            icon={<BusinessIcon />} 
-                            label="Empresa" 
-                            {...a11yProps(1)} 
+                        <Tab
+                            icon={<BusinessIcon />}
+                            label="Empresa"
+                            {...a11yProps(1)}
+                            iconPosition="start"
                         />
                     </Tabs>
                 </Box>
 
-                {/* Panel para Particular */}
+                {/* Panel Particular */}
                 <TabPanel value={tabValue} index={0}>
-                    <Box
-                        component="form"
-                        sx={{
-                            display: 'grid',
-                            gridTemplateColumns: 'repeat(2, 1fr)',
-                            gap: 2,
-                        }}
-                    >
+                    <Box sx={{ display: 'grid', gap: 2, gridTemplateColumns: '1fr 1fr' }}>
                         <TextField
-                            margin="normal"
-                            required
-                            fullWidth
-                            label="Nombre"
+                            label="Nombre *"
                             name="firstName"
                             value={formData.firstName}
                             onChange={handleInputChange}
+                            fullWidth
+                            variant="outlined"
+                            size="small"
                         />
                         <TextField
-                            margin="normal"
-                            required
-                            fullWidth
-                            label="Apellidos"
+                            label="Apellidos *"
                             name="lastName"
                             value={formData.lastName}
                             onChange={handleInputChange}
+                            fullWidth
+                            variant="outlined"
+                            size="small"
                         />
                         <TextField
-                            margin="normal"
-                            required
-                            fullWidth
-                            label="Email"
+                            label="Email *"
                             name="email"
                             type="email"
                             value={formData.email}
                             onChange={handleInputChange}
+                            fullWidth
+                            variant="outlined"
+                            size="small"
                             InputProps={{
                                 startAdornment: (
                                     <InputAdornment position="start">
-                                        <EmailIcon fontSize="small" />
+                                        <EmailIcon />
                                     </InputAdornment>
                                 ),
                             }}
                         />
                         <TextField
-                            margin="normal"
-                            fullWidth
                             label="Teléfono"
                             name="phone"
                             value={formData.phone}
                             onChange={handleInputChange}
+                            fullWidth
+                            variant="outlined"
+                            size="small"
                             InputProps={{
                                 startAdornment: (
                                     <InputAdornment position="start">
-                                        <PhoneIcon fontSize="small" />
+                                        <PhoneIcon />
                                     </InputAdornment>
                                 ),
                             }}
                         />
                         <TextField
-                            margin="normal"
-                            fullWidth
-                            label="DNI/NIF"
+                            label="DNI"
                             name="idNumber"
                             value={formData.idNumber}
                             onChange={handleInputChange}
+                            fullWidth
+                            variant="outlined"
+                            size="small"
                         />
-                        <FormControl margin="normal" fullWidth>
-                            <InputLabel id="payment-method-label">Método de Pago</InputLabel>
+                        <FormControl fullWidth size="small" variant="outlined">
+                            <InputLabel>Método de Pago</InputLabel>
                             <Select
-                                labelId="payment-method-label"
                                 name="paymentMethod.type"
                                 value={formData.paymentMethod.type}
-                                label="Método de Pago"
                                 onChange={handleInputChange}
+                                label="Método de Pago"
                             >
                                 {getPaymentMethodOptions().map((option) => (
                                     <MenuItem key={option.value} value={option.value}>
@@ -418,128 +485,163 @@ export const UserForm: React.FC<UserFormProps> = ({
                                 ))}
                             </Select>
                         </FormControl>
+
+                        {/* Campos IBAN y Banco - Solo si método de pago es domiciliación */}
+                        {formData.paymentMethod.type === 'direct_debit' && (
+                            <>
+                                <TextField
+                                    label="IBAN"
+                                    name="iban"
+                                    value={formData.iban}
+                                    onChange={handleInputChange}
+                                    fullWidth
+                                    variant="outlined"
+                                    size="small"
+                                    placeholder="ES00 0000 0000 0000 0000 0000"
+                                    required
+                                    error={!!ibanError}
+                                    helperText={ibanError || (formData.iban && validarFormatoIbanEspanol(formData.iban) ? '✅ IBAN válido' : '')}
+                                    InputProps={{
+                                        startAdornment: (
+                                            <InputAdornment position="start">
+                                                <IbanIcon />
+                                            </InputAdornment>
+                                        ),
+                                    }}
+                                />
+                                <TextField
+                                    label="Banco"
+                                    name="bank"
+                                    value={formData.bank}
+                                    fullWidth
+                                    variant="outlined"
+                                    size="small"
+                                    disabled
+                                    InputProps={{
+                                        startAdornment: (
+                                            <InputAdornment position="start">
+                                                <BankIcon />
+                                            </InputAdornment>
+                                        ),
+                                    }}
+                                />
+                            </>
+                        )}
+
                         <TextField
-                            margin="normal"
-                            fullWidth
                             label="Dirección"
                             name="address"
                             value={formData.address}
                             onChange={handleInputChange}
-                        />
-                        <TextField
-                            margin="normal"
                             fullWidth
+                            variant="outlined"
+                            size="small"
+                            sx={{ gridColumn: '1 / -1' }}
+                        />
+                    </Box>
+
+                    {/* Fila separada para Ciudad, Código Postal y País */}
+                    <Box sx={{ display: 'flex', gap: 2, mt: 2, width: '100%' }}>
+                        <TextField
                             label="Ciudad"
                             name="city"
                             value={formData.city}
                             onChange={handleInputChange}
+                            variant="outlined"
+                            size="small"
+                            sx={{ flex: '1 1 50%' }}
                         />
                         <TextField
-                            margin="normal"
-                            fullWidth
                             label="Código Postal"
                             name="postalCode"
                             value={formData.postalCode}
                             onChange={handleInputChange}
+                            variant="outlined"
+                            size="small"
+                            sx={{ flex: '1 1 20%' }}
                         />
                         <TextField
-                            margin="normal"
-                            fullWidth
                             label="País"
                             name="country"
                             value={formData.country}
                             onChange={handleInputChange}
-                        />
-                        <TextField
-                            margin="normal"
-                            fullWidth
-                            label="Notas"
-                            name="notes"
-                            value={formData.notes}
-                            onChange={handleInputChange}
-                            multiline
-                            rows={4}
-                            sx={{ gridColumn: '1 / span 2' }}
+                            variant="outlined"
+                            size="small"
+                            sx={{ flex: '1 1 30%' }}
                         />
                     </Box>
                 </TabPanel>
 
-                {/* Panel para Empresa */}
+                {/* Panel Empresa */}
                 <TabPanel value={tabValue} index={1}>
-                    <Box
-                        component="form"
-                        sx={{
-                            display: 'grid',
-                            gridTemplateColumns: 'repeat(2, 1fr)',
-                            gap: 2,
-                        }}
-                    >
+                    <Box sx={{ display: 'grid', gap: 2, gridTemplateColumns: '1fr 1fr' }}>
                         <TextField
-                            margin="normal"
-                            required
-                            fullWidth
-                            label="Nombre Comercial"
+                            label="Nombre Comercial *"
                             name="firstName"
                             value={formData.firstName}
                             onChange={handleInputChange}
+                            fullWidth
+                            variant="outlined"
+                            size="small"
                         />
                         <TextField
-                            margin="normal"
-                            required
-                            fullWidth
-                            label="Nombre Fiscal"
+                            label="Nombre Fiscal *"
                             name="fiscalName"
                             value={formData.fiscalName}
                             onChange={handleInputChange}
+                            fullWidth
+                            variant="outlined"
+                            size="small"
                         />
                         <TextField
-                            margin="normal"
-                            required
-                            fullWidth
-                            label="Email"
+                            label="Email *"
                             name="email"
                             type="email"
                             value={formData.email}
                             onChange={handleInputChange}
+                            fullWidth
+                            variant="outlined"
+                            size="small"
                             InputProps={{
                                 startAdornment: (
                                     <InputAdornment position="start">
-                                        <EmailIcon fontSize="small" />
+                                        <EmailIcon />
                                     </InputAdornment>
                                 ),
                             }}
                         />
                         <TextField
-                            margin="normal"
-                            fullWidth
                             label="Teléfono"
                             name="phone"
                             value={formData.phone}
                             onChange={handleInputChange}
+                            fullWidth
+                            variant="outlined"
+                            size="small"
                             InputProps={{
                                 startAdornment: (
                                     <InputAdornment position="start">
-                                        <PhoneIcon fontSize="small" />
+                                        <PhoneIcon />
                                     </InputAdornment>
                                 ),
                             }}
                         />
                         <TextField
-                            margin="normal"
-                            fullWidth
                             label="CIF"
                             name="taxId"
                             value={formData.taxId}
                             onChange={handleInputChange}
+                            fullWidth
+                            variant="outlined"
+                            size="small"
                         />
-                        <FormControl margin="normal" fullWidth>
-                            <InputLabel id="payment-method-label">Método de Pago</InputLabel>
+                        <FormControl fullWidth size="small" variant="outlined">
+                            <InputLabel>Método de Pago</InputLabel>
                             <Select
-                                labelId="payment-method-label"
                                 name="paymentMethod.type"
                                 value={formData.paymentMethod.type}
-                                label="Método de Pago"
                                 onChange={handleInputChange}
+                                label="Método de Pago"
                             >
                                 {getPaymentMethodOptions().map((option) => (
                                     <MenuItem key={option.value} value={option.value}>
@@ -548,54 +650,95 @@ export const UserForm: React.FC<UserFormProps> = ({
                                 ))}
                             </Select>
                         </FormControl>
+
+                        {/* Campos IBAN y Banco - Solo si método de pago es domiciliación */}
+                        {formData.paymentMethod.type === 'direct_debit' && (
+                            <>
+                                <TextField
+                                    label={'IBAN'}
+                                    name="iban"
+                                    value={formData.iban}
+                                    onChange={handleInputChange}
+                                    fullWidth
+                                    variant="outlined"
+                                    size="small"
+                                    placeholder="ES00 0000 0000 0000 0000 0000"
+                                    required
+                                    error={!!ibanError}
+                                    helperText={ibanError || (formData.iban && validarFormatoIbanEspanol(formData.iban) ? '✅ IBAN válido' : '')}
+                                    InputProps={{
+                                        startAdornment: (
+                                            <InputAdornment position="start">
+                                                <IbanIcon />
+                                            </InputAdornment>
+                                        ),
+                                    }}
+                                />
+                                <TextField
+                                    label="Banco"
+                                    name="bank"
+                                    value={formData.bank}
+                                    fullWidth
+                                    variant="outlined"
+                                    size="small"
+                                    disabled
+                                    InputProps={{
+                                        startAdornment: (
+                                            <InputAdornment position="start">
+                                                <BankIcon />
+                                            </InputAdornment>
+                                        ),
+                                    }}
+                                />
+                            </>
+                        )}
                         <TextField
-                            margin="normal"
-                            fullWidth
                             label="Dirección"
                             name="address"
                             value={formData.address}
                             onChange={handleInputChange}
-                        />
-                        <TextField
-                            margin="normal"
                             fullWidth
+                            variant="outlined"
+                            size="small"
+                            sx={{ gridColumn: '1 / -1' }}
+                        />
+                    </Box>
+
+                    {/* Fila separada para Ciudad, Código Postal y País */}
+                    <Box sx={{ display: 'flex', gap: 2, mt: 2, width: '100%' }}>
+                        <TextField
                             label="Ciudad"
                             name="city"
                             value={formData.city}
                             onChange={handleInputChange}
+                            variant="outlined"
+                            size="small"
+                            sx={{ flex: '1 1 50%' }}
                         />
                         <TextField
-                            margin="normal"
-                            fullWidth
                             label="Código Postal"
                             name="postalCode"
                             value={formData.postalCode}
                             onChange={handleInputChange}
+                            variant="outlined"
+                            size="small"
+                            sx={{ flex: '1 1 20%' }}
                         />
                         <TextField
-                            margin="normal"
-                            fullWidth
                             label="País"
                             name="country"
                             value={formData.country}
                             onChange={handleInputChange}
-                        />
-                        <TextField
-                            margin="normal"
-                            fullWidth
-                            label="Notas"
-                            name="notes"
-                            value={formData.notes}
-                            onChange={handleInputChange}
-                            multiline
-                            rows={4}
-                            sx={{ gridColumn: '1 / span 2' }}
+                            variant="outlined"
+                            size="small"
+                            sx={{ flex: '1 1 30%' }}
                         />
                     </Box>
                 </TabPanel>
             </DialogContent>
-            <DialogActions>
-                <Button onClick={onClose} disabled={loading}>
+
+            <DialogActions sx={{ px: 3, py: 2 }}>
+                <Button onClick={onClose} color="inherit">
                     Cancelar
                 </Button>
                 <Button
@@ -604,7 +747,7 @@ export const UserForm: React.FC<UserFormProps> = ({
                     disabled={loading}
                     startIcon={loading ? <CircularProgress size={20} /> : null}
                 >
-                    {loading ? 'Guardando...' : 'Guardar'}
+                    {selectedUser ? 'Actualizar' : 'Crear'}
                 </Button>
             </DialogActions>
         </Dialog>

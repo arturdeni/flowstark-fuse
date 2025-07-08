@@ -35,10 +35,9 @@ interface ServiceFormProps {
 interface FormData {
     name: string;
     description: string;
-    basePrice: number;
-    vat: number;
+    basePrice: number | string; // Permitir string para mejor UX al editar
+    vat: number | string; // Permitir string para mejor UX al editar
     frequency: 'monthly' | 'quarterly' | 'four_monthly' | 'biannual' | 'annual';
-    renovation: 'first_day' | 'last_day';
 }
 
 export const ServiceForm: React.FC<ServiceFormProps> = ({
@@ -55,7 +54,6 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
         basePrice: 0,
         vat: 21, // IVA por defecto en España
         frequency: 'monthly',
-        renovation: 'first_day',
     });
 
     const [validationError, setValidationError] = useState<string>('');
@@ -69,7 +67,6 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
                 basePrice: selectedService.basePrice || 0,
                 vat: selectedService.vat || 21,
                 frequency: selectedService.frequency || 'monthly',
-                renovation: selectedService.renovation || 'first_day',
             });
         } else {
             setFormData({
@@ -78,7 +75,6 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
                 basePrice: 0,
                 vat: 21,
                 frequency: 'monthly',
-                renovation: 'first_day',
             });
         }
 
@@ -95,7 +91,12 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
         let processedValue: string | number = value;
 
         if (name === 'basePrice' || name === 'vat') {
-            processedValue = parseFloat(value as string) || 0;
+            // Si el valor está vacío, dejarlo como string vacío para mejor UX
+            if (value === '' || value === null || value === undefined) {
+                processedValue = '';
+            } else {
+                processedValue = parseFloat(value as string) || 0;
+            }
         }
 
         setFormData({
@@ -120,12 +121,16 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
             return false;
         }
 
-        if (formData.basePrice <= 0) {
+        // Convertir a número para validación si es string
+        const basePrice = typeof formData.basePrice === 'string' ? parseFloat(formData.basePrice) || 0 : formData.basePrice;
+        const vat = typeof formData.vat === 'string' ? parseFloat(formData.vat) || 0 : formData.vat;
+
+        if (basePrice <= 0) {
             setValidationError('El precio debe ser mayor que 0');
             return false;
         }
 
-        if (formData.vat < 0 || formData.vat > 100) {
+        if (vat < 0 || vat > 100) {
             setValidationError('El IVA debe estar entre 0 y 100%');
             return false;
         }
@@ -139,10 +144,17 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
         }
 
         try {
+            // Asegurar que los valores numéricos se envíen como números
+            const dataToSave = {
+                ...formData,
+                basePrice: typeof formData.basePrice === 'string' ? parseFloat(formData.basePrice) || 0 : formData.basePrice,
+                vat: typeof formData.vat === 'string' ? parseFloat(formData.vat) || 0 : formData.vat,
+            };
+
             if (selectedService) {
-                await onUpdate(selectedService.id!, formData);
+                await onUpdate(selectedService.id!, dataToSave);
             } else {
-                await onSave(formData);
+                await onSave(dataToSave);
             }
 
             onClose();
@@ -159,11 +171,6 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
         { value: 'annual', label: 'Anual' },
     ];
 
-    const getRenovationOptions = () => [
-        { value: 'first_day', label: 'Primer día del mes' },
-        { value: 'last_day', label: 'Último día del mes' },
-    ];
-
     return (
         <Dialog
             open={open}
@@ -177,66 +184,77 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
             <DialogTitle>
                 {selectedService ? 'Editar Servicio' : 'Nuevo Servicio'}
             </DialogTitle>
-            <DialogContent>
+
+            <DialogContent sx={{ px: 3, py: 2 }}>
                 {validationError && (
-                    <Box sx={{ color: 'error.main', mb: 2, fontSize: '0.875rem' }}>
+                    <Typography
+                        color="error"
+                        variant="body2"
+                        sx={{ mb: 2, p: 1, bgcolor: 'error.light', borderRadius: 1 }}
+                    >
                         {validationError}
-                    </Box>
+                    </Typography>
                 )}
 
-                <Box
-                    component="form"
-                    sx={{
-                        display: 'grid',
-                        gridTemplateColumns: 'repeat(2, 1fr)',
-                        gap: 2,
-                        mt: 1,
-                    }}
-                >
+                <Box sx={{ display: 'grid', gap: 2, gridTemplateColumns: '1fr 1fr' }}>
                     {/* Nombre del servicio */}
                     <TextField
-                        margin="normal"
-                        required
-                        fullWidth
-                        label="Nombre del Servicio"
+                        label="Nombre del Servicio *"
                         name="name"
                         value={formData.name}
                         onChange={handleInputChange}
+                        fullWidth
+                        variant="outlined"
+                        size="small"
                         sx={{ gridColumn: '1 / span 2' }}
                     />
 
                     {/* Descripción */}
                     <TextField
-                        margin="normal"
-                        required
-                        fullWidth
-                        label="Descripción"
+                        label="Descripción *"
                         name="description"
                         value={formData.description}
                         onChange={handleInputChange}
+                        fullWidth
+                        variant="outlined"
+                        size="small"
                         multiline
                         rows={3}
                         sx={{ gridColumn: '1 / span 2' }}
                     />
 
-                    {/* Precio base */}
+                    {/* Precio */}
                     <TextField
-                        margin="normal"
-                        required
-                        fullWidth
-                        label="Precio Base"
+                        label="Precio Base *"
                         name="basePrice"
                         type="number"
                         value={formData.basePrice}
                         onChange={handleInputChange}
+                        fullWidth
+                        variant="outlined"
+                        size="small"
                         inputProps={{
                             min: 0,
-                            step: 0.01
+                            step: 0.01,
+                            style: {
+                                MozAppearance: 'textfield', // Firefox
+                                WebkitAppearance: 'none', // Chrome/Safari
+                            }
+                        }}
+                        sx={{
+                            '& input[type=number]::-webkit-outer-spin-button': {
+                                WebkitAppearance: 'none',
+                                margin: 0,
+                            },
+                            '& input[type=number]::-webkit-inner-spin-button': {
+                                WebkitAppearance: 'none',
+                                margin: 0,
+                            },
                         }}
                         InputProps={{
                             startAdornment: (
                                 <InputAdornment position="start">
-                                    <EuroIcon fontSize="small" />
+                                    <EuroIcon />
                                 </InputAdornment>
                             ),
                         }}
@@ -244,33 +262,46 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
 
                     {/* IVA */}
                     <TextField
-                        margin="normal"
-                        required
-                        fullWidth
-                        label="IVA"
+                        label="IVA (%)"
                         name="vat"
                         type="number"
                         value={formData.vat}
                         onChange={handleInputChange}
+                        fullWidth
+                        variant="outlined"
+                        size="small"
                         inputProps={{
                             min: 0,
                             max: 100,
-                            step: 0.1
+                            step: 0.01,
+                            style: {
+                                MozAppearance: 'textfield', // Firefox
+                                WebkitAppearance: 'none', // Chrome/Safari
+                            }
+                        }}
+                        sx={{
+                            '& input[type=number]::-webkit-outer-spin-button': {
+                                WebkitAppearance: 'none',
+                                margin: 0,
+                            },
+                            '& input[type=number]::-webkit-inner-spin-button': {
+                                WebkitAppearance: 'none',
+                                margin: 0,
+                            },
                         }}
                         InputProps={{
-                            endAdornment: (
-                                <InputAdornment position="end">
-                                    <PercentIcon fontSize="small" />
+                            startAdornment: (
+                                <InputAdornment position="start">
+                                    <PercentIcon />
                                 </InputAdornment>
                             ),
                         }}
                     />
 
                     {/* Frecuencia */}
-                    <FormControl margin="normal" fullWidth>
-                        <InputLabel id="frequency-label">Frecuencia de Facturación</InputLabel>
+                    <FormControl fullWidth size="small" variant="outlined" sx={{ gridColumn: '1 / span 2' }}>
+                        <InputLabel>Frecuencia de Facturación</InputLabel>
                         <Select
-                            labelId="frequency-label"
                             name="frequency"
                             value={formData.frequency}
                             label="Frecuencia de Facturación"
@@ -284,34 +315,25 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
                         </Select>
                     </FormControl>
 
-                    {/* Renovación */}
-                    <FormControl margin="normal" fullWidth>
-                        <InputLabel id="renovation-label">Día de Renovación</InputLabel>
-                        <Select
-                            labelId="renovation-label"
-                            name="renovation"
-                            value={formData.renovation}
-                            label="Día de Renovación"
-                            onChange={handleInputChange}
-                        >
-                            {getRenovationOptions().map((option) => (
-                                <MenuItem key={option.value} value={option.value}>
-                                    {option.label}
-                                </MenuItem>
-                            ))}
-                        </Select>
-                    </FormControl>
-
-                    {/* Información adicional */}
+                    {/* Información del precio final */}
                     <Box sx={{ gridColumn: '1 / span 2', mt: 2 }}>
                         <Typography variant="body2" color="textSecondary">
-                            <strong>Precio final:</strong> {(formData.basePrice * (1 + formData.vat / 100)).toFixed(2)} € (IVA incluido)
+                            <strong>Precio final:</strong> {(() => {
+                                const price = typeof formData.basePrice === 'string' ? parseFloat(formData.basePrice) || 0 : formData.basePrice;
+                                const vatRate = typeof formData.vat === 'string' ? parseFloat(formData.vat) || 0 : formData.vat;
+                                return (price * (1 + vatRate / 100)).toFixed(2);
+                            })()} € 
+                            {(() => {
+                                const vatRate = typeof formData.vat === 'string' ? parseFloat(formData.vat) || 0 : formData.vat;
+                                return vatRate > 0 ? ' (IVA incluido)' : ' (sin IVA)';
+                            })()}
                         </Typography>
                     </Box>
                 </Box>
             </DialogContent>
-            <DialogActions>
-                <Button onClick={onClose} disabled={loading}>
+
+            <DialogActions sx={{ px: 3, py: 2 }}>
+                <Button onClick={onClose} disabled={loading} color="inherit">
                     Cancelar
                 </Button>
                 <Button
@@ -320,7 +342,7 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
                     disabled={loading}
                     startIcon={loading ? <CircularProgress size={20} /> : null}
                 >
-                    {loading ? 'Guardando...' : 'Guardar'}
+                    {loading ? 'Guardando...' : selectedService ? 'Actualizar' : 'Crear'}
                 </Button>
             </DialogActions>
         </Dialog>

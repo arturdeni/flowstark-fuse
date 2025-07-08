@@ -51,7 +51,7 @@ const HeaderTableCell = styled(TableCell)(({ theme }) => ({
 
 // Tipos para el ordenamiento
 type Order = 'asc' | 'desc';
-type OrderBy = 'name' | 'description' | 'basePrice' | 'vat' | 'frequency' | 'renovation' | 'activeSubscriptions';
+type OrderBy = 'name' | 'description' | 'basePrice' | 'vat' | 'frequency' | 'activeSubscriptions';
 
 interface ServicesTableProps {
     services: Service[];
@@ -95,17 +95,6 @@ export const ServicesTable: React.FC<ServicesTableProps> = ({
         }
     };
 
-    const getRenovationText = (renovation: string) => {
-        switch (renovation) {
-            case 'first_day':
-                return 'Primer día';
-            case 'last_day':
-                return 'Último día';
-            default:
-                return renovation;
-        }
-    };
-
     const formatPrice = (price: number | undefined): string => {
         return typeof price === 'number' ? price.toFixed(2) : '0.00';
     };
@@ -145,8 +134,6 @@ export const ServicesTable: React.FC<ServicesTableProps> = ({
                 return service.vat || 0;
             case 'frequency':
                 return getFrequencyText(service.frequency).toLowerCase();
-            case 'renovation':
-                return getRenovationText(service.renovation).toLowerCase();
             case 'activeSubscriptions':
                 return service.activeSubscriptions || 0;
             default:
@@ -227,12 +214,11 @@ export const ServicesTable: React.FC<ServicesTableProps> = ({
             >
                 <TableHead>
                     <TableRow>
-                        <SortableTableHead id="name" label="Nombre" width="180px" />
-                        <SortableTableHead id="description" label="Descripción" width="180px" />
+                        <SortableTableHead id="name" label="Nombre" width="200px" />
+                        <SortableTableHead id="description" label="Descripción" width="220px" />
                         <SortableTableHead id="basePrice" label="Precio" width="90px" numeric />
                         <SortableTableHead id="vat" label="IVA" width="60px" numeric />
-                        <SortableTableHead id="frequency" label="Frecuencia" width="100px" />
-                        <SortableTableHead id="renovation" label="Renovación" width="100px" />
+                        <SortableTableHead id="frequency" label="Frecuencia" width="120px" />
                         <SortableTableHead id="activeSubscriptions" label="Suscripciones" width="100px" numeric />
                         <HeaderTableCell sx={{ width: '120px', textAlign: 'right' }}>Acciones</HeaderTableCell>
                     </TableRow>
@@ -240,7 +226,7 @@ export const ServicesTable: React.FC<ServicesTableProps> = ({
                 <TableBody>
                     {sortedServices.length === 0 ? (
                         <TableRow>
-                            <CompactTableCell colSpan={8} align="center">
+                            <CompactTableCell colSpan={7} align="center">
                                 No se encontraron servicios
                             </CompactTableCell>
                         </TableRow>
@@ -306,17 +292,6 @@ export const ServicesTable: React.FC<ServicesTableProps> = ({
                                         />
                                     </CompactTableCell>
 
-                                    {/* Renovación */}
-                                    <CompactTableCell>
-                                        <Chip
-                                            label={getRenovationText(service.renovation)}
-                                            size="small"
-                                            variant="outlined"
-                                            color="default"
-                                            sx={{ fontSize: '0.7rem' }}
-                                        />
-                                    </CompactTableCell>
-
                                     {/* Suscripciones activas */}
                                     <CompactTableCell align="center">
                                         <Chip
@@ -367,7 +342,7 @@ export const ServicesTable: React.FC<ServicesTableProps> = ({
                 </TableBody>
             </Table>
             <TablePagination
-                rowsPerPageOptions={[5, 10, 25]}
+                rowsPerPageOptions={[25, 50, 100]}
                 component="div"
                 count={services.length}
                 rowsPerPage={rowsPerPage}

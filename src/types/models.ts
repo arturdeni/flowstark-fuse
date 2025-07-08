@@ -19,6 +19,8 @@ export interface Client {
 	country: string;
 	notes: string;
 	active: boolean;
+	iban: string;
+	bank: string;
 	createdAt?: Date;
 	updatedAt?: Date;
 }
@@ -32,7 +34,6 @@ export interface Service {
 	vat: number;
 	frequency: 'monthly' | 'quarterly' | 'four_monthly' | 'biannual' | 'annual';
 	renovation: 'first_day' | 'last_day'; // Nuevo campo
-	activeSubscriptions?: number;
 	createdAt?: Date;
 	updatedAt?: Date;
 }

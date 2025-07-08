@@ -9,7 +9,6 @@ import Link from '@fuse/core/Link';
 import FuseSvgIcon from '@fuse/core/FuseSvgIcon';
 import { darken } from '@mui/material/styles';
 import { alpha } from '@mui/system/colorManipulator';
-import Tooltip from '@mui/material/Tooltip';
 import clsx from 'clsx';
 import Popover, { PopoverProps } from '@mui/material/Popover/Popover';
 import useUser from '@auth/useUser';
@@ -95,21 +94,6 @@ function UserMenu(props: UserMenuProps) {
 					</Typography>
 				</div>
 				<div className="flex shrink-0 items-center space-x-2">
-					<Tooltip
-						title={
-							<>
-								{user.role?.toString()}
-								{(!user.role || (Array.isArray(user.role) && user.role.length === 0)) && 'Guest'}
-							</>
-						}
-					>
-						<FuseSvgIcon
-							className="info-icon"
-							size={20}
-						>
-							heroicons-outline:information-circle
-						</FuseSvgIcon>
-					</Tooltip>
 					<FuseSvgIcon
 						className="arrow"
 						size={13}
