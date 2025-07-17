@@ -377,7 +377,7 @@ export const ServicesTable: React.FC<ServicesTableProps> = ({
                                                     onDelete(service.id!);
                                                 }}
                                                 sx={{ 
-                                                    color: 'text.secondary',
+                                                    color: 'error.main',
                                                     '&:hover': { backgroundColor: 'action.hover' }
                                                 }}
                                             >

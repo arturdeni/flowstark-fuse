@@ -23,7 +23,6 @@ import {
     Person as PersonIcon,
 } from '@mui/icons-material';
 import { styled } from '@mui/material/styles';
-import { Client } from '../../../../types/models';
 import { ClientWithSubscriptions } from '../hooks/useUsers';
 
 const StyledTableRow = styled(TableRow)(({ theme }) => ({
@@ -418,7 +417,7 @@ export const UsersTable: React.FC<UsersTableProps> = ({
                                                     title="Eliminar"
                                                     sx={{ 
                                                         padding: '4px',
-                                                        color: 'text.secondary',
+                                                        color: 'error.main',
                                                         '&:hover': { backgroundColor: 'action.hover' },
                                                         '&:disabled': { color: 'action.disabled' }
                                                     }}

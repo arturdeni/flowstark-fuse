@@ -54,13 +54,7 @@ export interface Subscription {
 	serviceId: string;
 	startDate: Date;
 	endDate: Date | null;
-	paymentMethod: {
-		type: string;
-		details: Record<string, any>;
-	};
-	renewal: 'monthly' | 'quarterly' | 'biannual' | 'annual';
-	paymentDate: Date;
-	paymentType: 'advance' | 'arrears';
+	paymentType: 'advance' | 'arrears'; // Pago anticipado o vencido
 	paymentHistory: PaymentHistory[];
 	status: 'active' | 'cancelled';
 	createdAt?: Date;

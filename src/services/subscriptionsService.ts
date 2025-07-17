@@ -2,10 +2,12 @@
 import { db } from './firebase/firestore';
 import firebase from 'firebase/compat/app';
 import { Subscription } from '../types/models';
+import { clientsService } from './clientsService';
+import { servicesService } from './servicesService';
 
 export const subscriptionsService = {
-	// Obtener todas las subscripciones con datos de cliente y servicio
-	getAllSubscriptions: async (): Promise<Subscription[]> => {
+	// Obtener todas las suscripciones del usuario actual
+	getAllSubscriptions: async (): Promise<any[]> => {
 		try {
 			const currentUser = firebase.auth().currentUser;
 
@@ -20,40 +22,24 @@ export const subscriptionsService = {
 				.orderBy('startDate', 'desc')
 				.get();
 
-			const subscriptions = await Promise.all(
+			const subscriptionsWithRelations = await Promise.all(
 				querySnapshot.docs.map(async (doc) => {
 					const data = doc.data();
 
-					// Obtener datos del cliente
+					// Obtener información del cliente
 					let clientData = null;
-
-					if (data.clientId) {
-						const clientDoc = await db
-							.collection('users')
-							.doc(currentUser.uid)
-							.collection('clients')
-							.doc(data.clientId)
-							.get();
-
-						if (clientDoc.exists) {
-							clientData = clientDoc.data();
-						}
+					try {
+						clientData = await clientsService.getClientById(data.clientId);
+					} catch (error) {
+						console.warn(`Client not found for subscription ${doc.id}:`, error);
 					}
 
-					// Obtener datos del servicio
+					// Obtener información del servicio
 					let serviceData = null;
-
-					if (data.serviceId) {
-						const serviceDoc = await db
-							.collection('users')
-							.doc(currentUser.uid)
-							.collection('services')
-							.doc(data.serviceId)
-							.get();
-
-						if (serviceDoc.exists) {
-							serviceData = serviceDoc.data();
-						}
+					try {
+						serviceData = await servicesService.getServiceById(data.serviceId);
+					} catch (error) {
+						console.warn(`Service not found for subscription ${doc.id}:`, error);
 					}
 
 					return {
@@ -61,25 +47,24 @@ export const subscriptionsService = {
 						...data,
 						startDate: data.startDate?.toDate(),
 						endDate: data.endDate?.toDate(),
-						paymentDate: data.paymentDate?.toDate(),
 						createdAt: data.createdAt?.toDate(),
 						updatedAt: data.updatedAt?.toDate(),
-						// Agregar información del cliente y servicio para mostrar en la UI
+						// Agregar información del cliente y servicio
 						clientInfo: clientData,
 						serviceInfo: serviceData
 					} as Subscription & { clientInfo: any; serviceInfo: any };
 				})
 			);
 
-			return subscriptions;
+			return subscriptionsWithRelations;
 		} catch (error) {
 			console.error('Error getting subscriptions: ', error);
 			throw error;
 		}
 	},
 
-	// Obtener subscripción por ID
-	getSubscriptionById: async (id: string): Promise<Subscription> => {
+	// Obtener suscripción por ID
+	getSubscriptionById: async (id: string): Promise<Subscription & { clientInfo: any; serviceInfo: any }> => {
 		try {
 			const currentUser = firebase.auth().currentUser;
 
@@ -93,44 +78,17 @@ export const subscriptionsService = {
 			if (docSnap.exists) {
 				const data = docSnap.data();
 
-				// Obtener datos del cliente
-				let clientData = null;
+				// Obtener información del cliente
+				const clientData = await clientsService.getClientById(data.clientId);
 
-				if (data.clientId) {
-					const clientDoc = await db
-						.collection('users')
-						.doc(currentUser.uid)
-						.collection('clients')
-						.doc(data.clientId)
-						.get();
-
-					if (clientDoc.exists) {
-						clientData = clientDoc.data();
-					}
-				}
-
-				// Obtener datos del servicio
-				let serviceData = null;
-
-				if (data.serviceId) {
-					const serviceDoc = await db
-						.collection('users')
-						.doc(currentUser.uid)
-						.collection('services')
-						.doc(data.serviceId)
-						.get();
-
-					if (serviceDoc.exists) {
-						serviceData = serviceDoc.data();
-					}
-				}
+				// Obtener información del servicio
+				const serviceData = await servicesService.getServiceById(data.serviceId);
 
 				return {
 					id: docSnap.id,
 					...data,
 					startDate: data.startDate?.toDate(),
 					endDate: data.endDate?.toDate(),
-					paymentDate: data.paymentDate?.toDate(),
 					createdAt: data.createdAt?.toDate(),
 					updatedAt: data.updatedAt?.toDate(),
 					// Agregar información del cliente y servicio
@@ -194,10 +152,6 @@ export const subscriptionsService = {
 					subscriptionData.endDate instanceof Date
 						? firebase.firestore.Timestamp.fromDate(subscriptionData.endDate)
 						: subscriptionData.endDate,
-				paymentDate:
-					subscriptionData.paymentDate instanceof Date
-						? firebase.firestore.Timestamp.fromDate(subscriptionData.paymentDate)
-						: subscriptionData.paymentDate,
 				createdAt: timestamp,
 				updatedAt: timestamp
 			};
@@ -208,22 +162,19 @@ export const subscriptionsService = {
 				.collection('subscriptions')
 				.add(subscriptionWithDates);
 
-			// Actualizar contador de suscripciones activas en el servicio
-			if (subscriptionData.status === 'active') {
-				await serviceRef.update({
-					activeSubscriptions: firebase.firestore.FieldValue.increment(1)
-				});
-			}
-
-			// Obtener los datos completos
-			return await subscriptionsService.getSubscriptionById(docRef.id);
+			return {
+				id: docRef.id,
+				...subscriptionData,
+				createdAt: timestamp.toDate(),
+				updatedAt: timestamp.toDate()
+			} as Subscription;
 		} catch (error) {
 			console.error('Error creating subscription: ', error);
 			throw error;
 		}
 	},
 
-	// Actualizar subscripción
+	// Actualizar subscripción existente
 	updateSubscription: async (id: string, subscriptionData: Partial<Subscription>): Promise<Subscription> => {
 		try {
 			const currentUser = firebase.auth().currentUser;
@@ -232,55 +183,38 @@ export const subscriptionsService = {
 				throw new Error('No user logged in');
 			}
 
-			const subscriptionRef = db.collection('users').doc(currentUser.uid).collection('subscriptions').doc(id);
+			const timestamp = firebase.firestore.Timestamp.now();
 
-			// Obtener los datos actuales para comparar el estado
-			const currentDoc = await subscriptionRef.get();
+			// Convertir fechas a timestamps de Firestore si existen
+			const updateData: any = {
+				...subscriptionData,
+				updatedAt: timestamp
+			};
 
-			if (!currentDoc.exists) {
-				throw new Error('Subscription not found');
+			if (subscriptionData.startDate) {
+				updateData.startDate =
+					subscriptionData.startDate instanceof Date
+						? firebase.firestore.Timestamp.fromDate(subscriptionData.startDate)
+						: subscriptionData.startDate;
 			}
 
-			const currentData = currentDoc.data();
-			const wasActive = currentData.status === 'active';
-			const willBeActive = subscriptionData.status === 'active';
-
-			// Preparar datos para actualizar
-			const updateData: Record<string, any> = { ...subscriptionData };
-
-			// Eliminar ID si está presente (no se puede actualizar)
-			delete updateData.id;
-			delete updateData.createdAt;
-
-			// Convertir fechas a timestamps de Firestore
-			if (updateData.startDate instanceof Date) {
-				updateData.startDate = firebase.firestore.Timestamp.fromDate(updateData.startDate);
+			if (subscriptionData.endDate) {
+				updateData.endDate =
+					subscriptionData.endDate instanceof Date
+						? firebase.firestore.Timestamp.fromDate(subscriptionData.endDate)
+						: subscriptionData.endDate;
 			}
 
-			if (updateData.endDate instanceof Date) {
-				updateData.endDate = firebase.firestore.Timestamp.fromDate(updateData.endDate);
-			}
+			// Eliminar campos undefined
+			Object.keys(updateData).forEach((key) => {
+				if (updateData[key] === undefined) {
+					delete updateData[key];
+				}
+			});
 
-			if (updateData.paymentDate instanceof Date) {
-				updateData.paymentDate = firebase.firestore.Timestamp.fromDate(updateData.paymentDate);
-			}
+			const docRef = db.collection('users').doc(currentUser.uid).collection('subscriptions').doc(id);
 
-			// Añadir timestamp de actualización
-			updateData.updatedAt = firebase.firestore.Timestamp.now();
-
-			await subscriptionRef.update(updateData);
-
-			// Actualizar el contador de suscripciones activas en el servicio si es necesario
-			if (wasActive !== willBeActive && currentData.serviceId) {
-				const serviceRef = db
-					.collection('users')
-					.doc(currentUser.uid)
-					.collection('services')
-					.doc(currentData.serviceId);
-				await serviceRef.update({
-					activeSubscriptions: firebase.firestore.FieldValue.increment(willBeActive ? 1 : -1)
-				});
-			}
+			await docRef.update(updateData);
 
 			// Obtener los datos actualizados
 			return await subscriptionsService.getSubscriptionById(id);
@@ -293,7 +227,7 @@ export const subscriptionsService = {
 	// Cambiar estado de la subscripción
 	changeSubscriptionStatus: async (
 		id: string,
-		status: 'active' | 'paused' | 'cancelled',
+		status: 'active' | 'cancelled',
 		endDate?: Date
 	): Promise<Subscription> => {
 		try {
@@ -303,67 +237,31 @@ export const subscriptionsService = {
 				throw new Error('No user logged in');
 			}
 
-			const subscriptionRef = db.collection('users').doc(currentUser.uid).collection('subscriptions').doc(id);
-
-			// Obtener los datos actuales
-			const currentDoc = await subscriptionRef.get();
-
-			if (!currentDoc.exists) {
-				throw new Error('Subscription not found');
-			}
-
-			const currentData = currentDoc.data();
-			const currentStatus = currentData.status;
-
-			// Si no hay cambio, no hacer nada
-			if (currentStatus === status) {
-				return await subscriptionsService.getSubscriptionById(id);
-			}
-
-			const updateData: Record<string, any> = {
+			const timestamp = firebase.firestore.Timestamp.now();
+			const updateData: any = {
 				status,
-				updatedAt: firebase.firestore.Timestamp.now()
+				updatedAt: timestamp
 			};
 
-			// Si se cancela, establecer la fecha de finalización
-			if (status === 'cancelled' && endDate) {
+			// Si se proporciona una fecha de fin, agregarla
+			if (endDate) {
 				updateData.endDate = firebase.firestore.Timestamp.fromDate(endDate);
-			} else if (status === 'cancelled' && !endDate) {
-				updateData.endDate = firebase.firestore.Timestamp.now();
 			}
 
-			await subscriptionRef.update(updateData);
+			const docRef = db.collection('users').doc(currentUser.uid).collection('subscriptions').doc(id);
 
-			// Actualizar el contador de suscripciones activas en el servicio
-			if (currentData.serviceId) {
-				const serviceRef = db
-					.collection('users')
-					.doc(currentUser.uid)
-					.collection('services')
-					.doc(currentData.serviceId);
+			await docRef.update(updateData);
 
-				if (currentStatus === 'active' && status !== 'active') {
-					// Si estaba activa y ahora no, decrementar
-					await serviceRef.update({
-						activeSubscriptions: firebase.firestore.FieldValue.increment(-1)
-					});
-				} else if (currentStatus !== 'active' && status === 'active') {
-					// Si no estaba activa y ahora sí, incrementar
-					await serviceRef.update({
-						activeSubscriptions: firebase.firestore.FieldValue.increment(1)
-					});
-				}
-			}
-
+			// Obtener los datos actualizados
 			return await subscriptionsService.getSubscriptionById(id);
 		} catch (error) {
-			console.error(`Error changing status of subscription with ID ${id}: `, error);
+			console.error(`Error updating subscription status with ID ${id}: `, error);
 			throw error;
 		}
 	},
 
 	// Eliminar subscripción
-	deleteSubscription: async (id: string): Promise<{ id: string }> => {
+	deleteSubscription: async (id: string): Promise<void> => {
 		try {
 			const currentUser = firebase.auth().currentUser;
 
@@ -371,154 +269,11 @@ export const subscriptionsService = {
 				throw new Error('No user logged in');
 			}
 
-			const subscriptionRef = db.collection('users').doc(currentUser.uid).collection('subscriptions').doc(id);
+			const docRef = db.collection('users').doc(currentUser.uid).collection('subscriptions').doc(id);
 
-			// Verificar si existe la subscripción
-			const docSnap = await subscriptionRef.get();
-
-			if (!docSnap.exists) {
-				throw new Error('Subscription not found');
-			}
-
-			const subscriptionData = docSnap.data();
-
-			// Si está activa, no permitir la eliminación
-			if (subscriptionData.status === 'active') {
-				throw new Error('Cannot delete active subscription. Change status to cancelled first.');
-			}
-
-			// Decrementar contador de suscripciones activas si es necesario
-			if (subscriptionData.status === 'active' && subscriptionData.serviceId) {
-				const serviceRef = db
-					.collection('users')
-					.doc(currentUser.uid)
-					.collection('services')
-					.doc(subscriptionData.serviceId);
-				await serviceRef.update({
-					activeSubscriptions: firebase.firestore.FieldValue.increment(-1)
-				});
-			}
-
-			// Eliminar la subscripción
-			await subscriptionRef.delete();
-
-			return { id };
+			await docRef.delete();
 		} catch (error) {
 			console.error(`Error deleting subscription with ID ${id}: `, error);
-			throw error;
-		}
-	},
-
-	// Obtener subscripciones por cliente
-	getSubscriptionsByClient: async (clientId: string): Promise<Subscription[]> => {
-		try {
-			const currentUser = firebase.auth().currentUser;
-
-			if (!currentUser) {
-				throw new Error('No user logged in');
-			}
-
-			const querySnapshot = await db
-				.collection('users')
-				.doc(currentUser.uid)
-				.collection('subscriptions')
-				.where('clientId', '==', clientId)
-				.orderBy('startDate', 'desc')
-				.get();
-
-			const subscriptions = await Promise.all(
-				querySnapshot.docs.map(async (doc) => {
-					const data = doc.data();
-
-					// Obtener datos del servicio
-					let serviceData = null;
-
-					if (data.serviceId) {
-						const serviceDoc = await db
-							.collection('users')
-							.doc(currentUser.uid)
-							.collection('services')
-							.doc(data.serviceId)
-							.get();
-
-						if (serviceDoc.exists) {
-							serviceData = serviceDoc.data();
-						}
-					}
-
-					return {
-						id: doc.id,
-						...data,
-						startDate: data.startDate?.toDate(),
-						endDate: data.endDate?.toDate(),
-						paymentDate: data.paymentDate?.toDate(),
-						createdAt: data.createdAt?.toDate(),
-						updatedAt: data.updatedAt?.toDate(),
-						serviceInfo: serviceData
-					} as Subscription & { serviceInfo: any };
-				})
-			);
-
-			return subscriptions;
-		} catch (error) {
-			console.error(`Error getting subscriptions for client ${clientId}: `, error);
-			throw error;
-		}
-	},
-
-	// Obtener subscripciones por servicio
-	getSubscriptionsByService: async (serviceId: string): Promise<Subscription[]> => {
-		try {
-			const currentUser = firebase.auth().currentUser;
-
-			if (!currentUser) {
-				throw new Error('No user logged in');
-			}
-
-			const querySnapshot = await db
-				.collection('users')
-				.doc(currentUser.uid)
-				.collection('subscriptions')
-				.where('serviceId', '==', serviceId)
-				.orderBy('startDate', 'desc')
-				.get();
-
-			const subscriptions = await Promise.all(
-				querySnapshot.docs.map(async (doc) => {
-					const data = doc.data();
-
-					// Obtener datos del cliente
-					let clientData = null;
-
-					if (data.clientId) {
-						const clientDoc = await db
-							.collection('users')
-							.doc(currentUser.uid)
-							.collection('clients')
-							.doc(data.clientId)
-							.get();
-
-						if (clientDoc.exists) {
-							clientData = clientDoc.data();
-						}
-					}
-
-					return {
-						id: doc.id,
-						...data,
-						startDate: data.startDate?.toDate(),
-						endDate: data.endDate?.toDate(),
-						paymentDate: data.paymentDate?.toDate(),
-						createdAt: data.createdAt?.toDate(),
-						updatedAt: data.updatedAt?.toDate(),
-						clientInfo: clientData
-					} as Subscription & { clientInfo: any };
-				})
-			);
-
-			return subscriptions;
-		} catch (error) {
-			console.error(`Error getting subscriptions for service ${serviceId}: `, error);
 			throw error;
 		}
 	}

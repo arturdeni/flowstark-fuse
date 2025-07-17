@@ -62,7 +62,6 @@ export const SubscriptionSearchAndActions: React.FC<SubscriptionSearchAndActions
                 >
                     <MenuItem value="all">Todos</MenuItem>
                     <MenuItem value="active">Activas</MenuItem>
-                    <MenuItem value="paused">Pausadas</MenuItem>
                     <MenuItem value="cancelled">Canceladas</MenuItem>
                 </Select>
             </FormControl>

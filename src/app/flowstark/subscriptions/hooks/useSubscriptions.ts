@@ -1,81 +1,65 @@
 // src/app/flowstark/subscriptions/hooks/useSubscriptions.ts
 import { useState, useEffect } from 'react';
+import { Subscription, Client, Service } from '../../../../types/models';
 import { subscriptionsService } from '../../../../services/subscriptionsService';
 import { clientsService } from '../../../../services/clientsService';
 import { servicesService } from '../../../../services/servicesService';
-import { Subscription, Client, Service } from '../../../../types/models';
 
-// Tipo extendido para incluir la información relacionada
-export type SubscriptionWithRelations = Subscription & {
-  clientInfo?: any;
-  serviceInfo?: any;
-};
-
-export interface UseSubscriptionsReturn {
-  // Estado
-  subscriptions: SubscriptionWithRelations[];
-  filteredSubscriptions: SubscriptionWithRelations[];
-  clients: Client[];
-  services: Service[];
-  searchTerm: string;
-  statusFilter: string;
-  loading: boolean;
-  snackbar: {
-    open: boolean;
-    message: string;
-    severity: 'success' | 'error' | 'warning' | 'info';
-  };
-
-  // Acciones
-  setSearchTerm: (term: string) => void;
-  setStatusFilter: (status: string) => void;
-  refreshData: () => Promise<void>;
-  createSubscription: (
-    subscriptionData: Omit<Subscription, 'id' | 'createdAt' | 'updatedAt'>
-  ) => Promise<void>;
-  updateSubscription: (
-    id: string,
-    subscriptionData: Partial<Subscription>
-  ) => Promise<void>;
-  deleteSubscription: (id: string) => Promise<void>;
-  changeSubscriptionStatus: (
-    id: string,
-    status: 'active' | 'paused' | 'cancelled',
-    endDate?: Date
-  ) => Promise<void>;
-  showSnackbar: (
-    message: string,
-    severity?: 'success' | 'error' | 'warning' | 'info'
-  ) => void;
-  closeSnackbar: () => void;
+// Tipo extendido para incluir información relacionada
+export interface SubscriptionWithRelations extends Subscription {
+  clientInfo?: Client;
+  serviceInfo?: Service;
 }
 
-export const useSubscriptions = (): UseSubscriptionsReturn => {
-  const [subscriptions, setSubscriptions] = useState<
-    SubscriptionWithRelations[]
-  >([]);
-  const [filteredSubscriptions, setFilteredSubscriptions] = useState<
-    SubscriptionWithRelations[]
-  >([]);
+// Hook personalizado para manejar suscripciones
+export const useSubscriptions = () => {
+  const [subscriptions, setSubscriptions] = useState<SubscriptionWithRelations[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
   const [services, setServices] = useState<Service[]>([]);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [loading, setLoading] = useState(false);
+  const [filteredSubscriptions, setFilteredSubscriptions] = useState<SubscriptionWithRelations[]>([]);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [searchTerm, setSearchTerm] = useState<string>('');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'cancelled'>('all');
+
+  // Estados para snackbar
   const [snackbar, setSnackbar] = useState({
     open: false,
     message: '',
-    severity: 'success' as 'success' | 'error' | 'warning' | 'info',
+    severity: 'success' as 'success' | 'error' | 'warning' | 'info'
   });
+
+  // Función para mostrar snackbar
+  const showSnackbar = (message: string, severity: 'success' | 'error' | 'warning' | 'info' = 'success') => {
+    setSnackbar({
+      open: true,
+      message,
+      severity
+    });
+  };
+
+  // Función para cerrar snackbar
+  const closeSnackbar = () => {
+    setSnackbar(prev => ({ ...prev, open: false }));
+  };
+
+  // Función para obtener texto del estado
+  const getStatusText = (status: string): string => {
+    switch (status) {
+      case 'active':
+        return 'activa';
+      case 'cancelled':
+        return 'cancelada';
+      default:
+        return status;
+    }
+  };
 
   // Cargar suscripciones desde Firestore
   const fetchSubscriptions = async () => {
     setLoading(true);
     try {
-      const subscriptionsData =
-        await subscriptionsService.getAllSubscriptions();
+      const subscriptionsData = await subscriptionsService.getAllSubscriptions();
       setSubscriptions(subscriptionsData);
-      setFilteredSubscriptions(subscriptionsData);
     } catch (error) {
       console.error('Error fetching subscriptions:', error);
       showSnackbar(
@@ -201,7 +185,7 @@ export const useSubscriptions = (): UseSubscriptionsReturn => {
   // Cambiar estado de la suscripción
   const changeSubscriptionStatus = async (
     id: string,
-    status: 'active' | 'paused' | 'cancelled',
+    status: 'active' | 'cancelled',
     endDate?: Date
   ) => {
     setLoading(true);
@@ -243,60 +227,26 @@ export const useSubscriptions = (): UseSubscriptionsReturn => {
     }
   };
 
-  // Función auxiliar para obtener texto del estado
-  const getStatusText = (status: string): string => {
-    switch (status) {
-      case 'active':
-        return 'Activa';
-      case 'paused':
-        return 'Pausada';
-      case 'cancelled':
-        return 'Cancelada';
-      default:
-        return status;
-    }
-  };
-
-  // Mostrar notificación
-  const showSnackbar = (
-    message: string,
-    severity: 'success' | 'error' | 'warning' | 'info' = 'success'
-  ) => {
-    setSnackbar({
-      open: true,
-      message,
-      severity,
-    });
-  };
-
-  // Cerrar notificación
-  const closeSnackbar = () => {
-    setSnackbar({
-      ...snackbar,
-      open: false,
-    });
-  };
-
   return {
     // Estado
     subscriptions,
-    filteredSubscriptions,
     clients,
     services,
+    filteredSubscriptions,
+    loading,
     searchTerm,
     statusFilter,
-    loading,
     snackbar,
 
     // Acciones
     setSearchTerm,
     setStatusFilter,
+    showSnackbar,
+    closeSnackbar,
     refreshData,
     createSubscription,
     updateSubscription,
-    deleteSubscription,
     changeSubscriptionStatus,
-    showSnackbar,
-    closeSnackbar,
+    deleteSubscription,
   };
 };
