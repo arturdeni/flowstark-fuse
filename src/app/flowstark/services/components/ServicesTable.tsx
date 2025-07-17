@@ -51,7 +51,7 @@ const HeaderTableCell = styled(TableCell)(({ theme }) => ({
 
 // Tipos para el ordenamiento
 type Order = 'asc' | 'desc';
-type OrderBy = 'name' | 'description' | 'basePrice' | 'vat' | 'frequency' | 'activeSubscriptions';
+type OrderBy = 'name' | 'description' | 'basePrice' | 'vat' | 'retention' | 'pvp' | 'frequency' | 'activeSubscriptions';
 
 interface ServicesTableProps {
     services: Service[];
@@ -99,6 +99,21 @@ export const ServicesTable: React.FC<ServicesTableProps> = ({
         return typeof price === 'number' ? price.toFixed(2) : '0.00';
     };
 
+    // Función para calcular el PVP (Precio de Venta al Público)
+    const calculatePVP = (service: Service): number => {
+        const basePrice = service.basePrice || 0;
+        const vat = service.vat || 0;
+        const retention = service.retention || 0;
+        
+        // Precio con IVA
+        const priceWithVat = basePrice * (1 + vat / 100);
+        
+        // Precio final con retención (la retención se resta)
+        const finalPrice = priceWithVat * (1 - retention / 100);
+        
+        return finalPrice;
+    };
+
     // Función de comparación para el ordenamiento
     const descendingComparator = <T,>(a: T, b: T, orderBy: keyof T) => {
         if (b[orderBy] < a[orderBy]) {
@@ -132,10 +147,14 @@ export const ServicesTable: React.FC<ServicesTableProps> = ({
                 return service.basePrice || 0;
             case 'vat':
                 return service.vat || 0;
+            case 'retention':
+                return service.retention || 0;
+            case 'pvp':
+                return calculatePVP(service);
             case 'frequency':
                 return getFrequencyText(service.frequency).toLowerCase();
             case 'activeSubscriptions':
-                return service.activeSubscriptions || 0;
+                return (service as any).activeSubscriptions || 0;
             default:
                 return '';
         }
@@ -214,10 +233,12 @@ export const ServicesTable: React.FC<ServicesTableProps> = ({
             >
                 <TableHead>
                     <TableRow>
-                        <SortableTableHead id="name" label="Nombre" width="200px" />
-                        <SortableTableHead id="description" label="Descripción" width="220px" />
-                        <SortableTableHead id="basePrice" label="Precio" width="90px" numeric />
+                        <SortableTableHead id="name" label="Nombre" width="180px" />
+                        <SortableTableHead id="description" label="Descripción" width="200px" />
+                        <SortableTableHead id="basePrice" label="Precio Base" width="90px" numeric />
                         <SortableTableHead id="vat" label="IVA" width="60px" numeric />
+                        <SortableTableHead id="retention" label="Retención" width="80px" numeric />
+                        <SortableTableHead id="pvp" label="PVP" width="90px" numeric />
                         <SortableTableHead id="frequency" label="Frecuencia" width="120px" />
                         <SortableTableHead id="activeSubscriptions" label="Suscripciones" width="100px" numeric />
                         <HeaderTableCell sx={{ width: '120px', textAlign: 'right' }}>Acciones</HeaderTableCell>
@@ -226,15 +247,20 @@ export const ServicesTable: React.FC<ServicesTableProps> = ({
                 <TableBody>
                     {sortedServices.length === 0 ? (
                         <TableRow>
-                            <CompactTableCell colSpan={7} align="center">
-                                No se encontraron servicios
+                            <CompactTableCell colSpan={9} align="center">
+                                <Typography variant="body2" color="textSecondary">
+                                    No hay servicios disponibles
+                                </Typography>
                             </CompactTableCell>
                         </TableRow>
                     ) : (
                         sortedServices
                             .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
                             .map((service) => (
-                                <StyledTableRow key={service.id}>
+                                <StyledTableRow
+                                    key={service.id}
+                                    sx={{ cursor: 'pointer' }}
+                                >
                                     {/* Nombre */}
                                     <CompactTableCell>
                                         <Typography
@@ -243,8 +269,7 @@ export const ServicesTable: React.FC<ServicesTableProps> = ({
                                             sx={{
                                                 overflow: 'hidden',
                                                 textOverflow: 'ellipsis',
-                                                whiteSpace: 'nowrap',
-                                                lineHeight: 1.2
+                                                whiteSpace: 'nowrap'
                                             }}
                                             title={service.name}
                                         >
@@ -256,6 +281,7 @@ export const ServicesTable: React.FC<ServicesTableProps> = ({
                                     <CompactTableCell>
                                         <Typography
                                             variant="body2"
+                                            color="textSecondary"
                                             sx={{
                                                 overflow: 'hidden',
                                                 textOverflow: 'ellipsis',
@@ -263,11 +289,11 @@ export const ServicesTable: React.FC<ServicesTableProps> = ({
                                             }}
                                             title={service.description}
                                         >
-                                            {service.description}
+                                            {service.description || '-'}
                                         </Typography>
                                     </CompactTableCell>
 
-                                    {/* Precio */}
+                                    {/* Precio Base */}
                                     <CompactTableCell align="right">
                                         <Typography variant="body2" fontWeight="medium">
                                             {formatPrice(service.basePrice)} €
@@ -277,7 +303,21 @@ export const ServicesTable: React.FC<ServicesTableProps> = ({
                                     {/* IVA */}
                                     <CompactTableCell align="right">
                                         <Typography variant="body2">
-                                            {service.vat}%
+                                            {service.vat || 0}%
+                                        </Typography>
+                                    </CompactTableCell>
+
+                                    {/* Retención */}
+                                    <CompactTableCell align="right">
+                                        <Typography variant="body2">
+                                            {service.retention || 0}%
+                                        </Typography>
+                                    </CompactTableCell>
+
+                                    {/* PVP (Precio de Venta al Público) */}
+                                    <CompactTableCell align="right">
+                                        <Typography variant="body2" fontWeight="bold">
+                                            {formatPrice(calculatePVP(service))} €
                                         </Typography>
                                     </CompactTableCell>
 
@@ -293,15 +333,23 @@ export const ServicesTable: React.FC<ServicesTableProps> = ({
                                     </CompactTableCell>
 
                                     {/* Suscripciones activas */}
-                                    <CompactTableCell align="center">
+                                    <CompactTableCell align="right">
                                         <Chip
-                                            label={service.activeSubscriptions || 0}
+                                            label={(service as any).activeSubscriptions || 0}
                                             size="small"
-                                            variant="outlined"
-                                            color="default"
-                                            sx={{
+                                            variant="filled"
+                                            color={(service as any).activeSubscriptions > 0 ? 'primary' : 'default'}
+                                            sx={{ 
+                                                fontSize: '0.75rem',
+                                                fontWeight: 'bold',
                                                 minWidth: '28px',
-                                                fontSize: '0.7rem'
+                                                height: '24px',
+                                                borderRadius: '12px',
+                                                backgroundColor: (service as any).activeSubscriptions > 0 ? 'primary.main' : 'grey.400',
+                                                color: 'white',
+                                                '& .MuiChip-label': {
+                                                    padding: '0 8px'
+                                                }
                                             }}
                                         />
                                     </CompactTableCell>
@@ -311,28 +359,29 @@ export const ServicesTable: React.FC<ServicesTableProps> = ({
                                         <Box sx={{ display: 'flex', gap: 0.5, justifyContent: 'flex-end' }}>
                                             <IconButton
                                                 size="small"
-                                                onClick={() => onEdit(service)}
-                                                disabled={loading}
-                                                title="Editar"
-                                                sx={{ padding: '4px' }}
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    onEdit(service);
+                                                }}
+                                                sx={{ 
+                                                    color: 'text.secondary',
+                                                    '&:hover': { backgroundColor: 'action.hover' }
+                                                }}
                                             >
                                                 <EditIcon fontSize="small" />
                                             </IconButton>
                                             <IconButton
                                                 size="small"
-                                                onClick={() => service.id && onDelete(service.id)}
-                                                disabled={loading || (service.activeSubscriptions && service.activeSubscriptions > 0)}
-                                                title="Eliminar"
-                                                sx={{ padding: '4px' }}
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    onDelete(service.id!);
+                                                }}
+                                                sx={{ 
+                                                    color: 'text.secondary',
+                                                    '&:hover': { backgroundColor: 'action.hover' }
+                                                }}
                                             >
                                                 <DeleteIcon fontSize="small" />
-                                            </IconButton>
-                                            <IconButton
-                                                size="small"
-                                                title="Más opciones"
-                                                sx={{ padding: '4px' }}
-                                            >
-                                                <MoreVertIcon fontSize="small" />
                                             </IconButton>
                                         </Box>
                                     </CompactTableCell>
@@ -341,6 +390,8 @@ export const ServicesTable: React.FC<ServicesTableProps> = ({
                     )}
                 </TableBody>
             </Table>
+
+            {/* Paginación */}
             <TablePagination
                 rowsPerPageOptions={[25, 50, 100]}
                 component="div"
@@ -351,7 +402,7 @@ export const ServicesTable: React.FC<ServicesTableProps> = ({
                 onRowsPerPageChange={onRowsPerPageChange}
                 labelRowsPerPage="Filas por página:"
                 labelDisplayedRows={({ from, to, count }) =>
-                    `${from}-${to} de ${count}`
+                    `${from}-${to} de ${count !== -1 ? count : `más de ${to}`}`
                 }
             />
         </TableContainer>

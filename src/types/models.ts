@@ -32,8 +32,9 @@ export interface Service {
 	description: string;
 	basePrice: number;
 	vat: number;
+	retention: number;
 	frequency: 'monthly' | 'quarterly' | 'four_monthly' | 'biannual' | 'annual';
-	renovation: 'first_day' | 'last_day'; // Nuevo campo
+	renovation: 'first_day' | 'last_day';
 	createdAt?: Date;
 	updatedAt?: Date;
 }
@@ -59,8 +60,9 @@ export interface Subscription {
 	};
 	renewal: 'monthly' | 'quarterly' | 'biannual' | 'annual';
 	paymentDate: Date;
+	paymentType: 'advance' | 'arrears';
 	paymentHistory: PaymentHistory[];
-	status: 'active' | 'paused' | 'cancelled';
+	status: 'active' | 'cancelled';
 	createdAt?: Date;
 	updatedAt?: Date;
 }

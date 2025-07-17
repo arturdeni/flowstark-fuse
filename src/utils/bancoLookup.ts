@@ -41,6 +41,7 @@ const BANCOS_ESPANA: Record<string, BancoInfo> = {
 	'0122': { codigo: '0122', nombre: 'Citibank', nombreCompleto: 'Citibank España, S.A.' },
 	'0152': { codigo: '0152', nombre: 'Barclays', nombreCompleto: 'Barclays Bank PLC' },
 	'0073': { codigo: '0073', nombre: 'OpenBank', nombreCompleto: 'Openbank, S.A.' },
+	'6714': { codigo: '6714', nombre: 'Revolut Bank', nombreCompleto: 'Revolut Bank UAB, Sucursal en España' },
 
 	// Cooperativas de crédito principales
 	'3007': { codigo: '3007', nombre: 'Caja Rural de Aragón', nombreCompleto: 'Caja Rural de Aragón, S.C.C.' },

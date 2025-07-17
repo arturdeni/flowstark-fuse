@@ -1,19 +1,24 @@
 // src/app/flowstark/dashboard/Dashboard.tsx
 import React from 'react';
-import { Typography, Box, Button } from '@mui/material';
-import { Refresh as RefreshIcon } from '@mui/icons-material';
+import {
+  Typography,
+  Box,
+  Button,
+  Alert,
+  CircularProgress,
+  Fade,
+} from '@mui/material';
+import {
+  Refresh as RefreshIcon,
+} from '@mui/icons-material';
 import { styled } from '@mui/material/styles';
 import FusePageSimple from '@fuse/core/FusePageSimple';
 
 import { useDashboard } from './hooks/useDashboard';
-import {
-  DashboardSummaryCards,
-  DashboardCharts,
-  ServicePopularityCard,
-  ActivityAndRenewalsCards,
-  LoadingState,
-  ErrorState,
-} from './components';
+import { DashboardMetricsCards } from './components/DashboardMetricsCards';
+import { DashboardCharts } from './components/DashboardCharts';
+import { DashboardRecentActivity } from './components/DashboardRecentActivity';
+import { DashboardServicePopularity } from './components/DashboardServicePopularity';
 
 const Root = styled(FusePageSimple)(({ theme }) => ({
   '& .FusePageSimple-header': {
@@ -28,7 +33,6 @@ const Root = styled(FusePageSimple)(({ theme }) => ({
 }));
 
 function Dashboard() {
-  // Hook personalizado con toda la lógica del dashboard
   const {
     metrics,
     monthlyData,
@@ -40,116 +44,87 @@ function Dashboard() {
     refreshData,
   } = useDashboard();
 
-  // Mostrar estado de error
-  if (error && !loading) {
-    return (
-      <Root
-        header={
-          <div className="p-6">
-            <Typography variant="h4" component="h1" fontWeight="bold">
-              Dashboard
-            </Typography>
-            <Typography variant="subtitle1" color="textSecondary">
-              Bienvenido a Flowstark - Gestión de suscripciones
-            </Typography>
-          </div>
-        }
-        content={
-          <div className="p-6">
-            <ErrorState error={error} onRetry={refreshData} />
-          </div>
-        }
-      />
-    );
-  }
-
-  // Mostrar estado de carga inicial
-  if (loading && metrics.totalSubscriptions === 0) {
-    return (
-      <Root
-        header={
-          <div className="p-6">
-            <Typography variant="h4" component="h1" fontWeight="bold">
-              Dashboard
-            </Typography>
-            <Typography variant="subtitle1" color="textSecondary">
-              Bienvenido a Flowstark - Gestión de suscripciones
-            </Typography>
-          </div>
-        }
-        content={
-          <div className="p-6">
-            <LoadingState />
-          </div>
-        }
-      />
-    );
-  }
+  const handleRefresh = async () => {
+    await refreshData();
+  };
 
   return (
     <Root
       header={
-        <div className="p-6">
-          <Box display="flex" justifyContent="space-between" alignItems="center">
-            <Box>
-              <Typography variant="h4" component="h1" fontWeight="bold">
-                Dashboard
-              </Typography>
-              <Typography variant="subtitle1" color="textSecondary">
-                Bienvenido a Flowstark - Gestión de suscripciones
-              </Typography>
-            </Box>
+        <Box className="p-6">
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Typography variant="h4" component="h1" gutterBottom>
+              Dashboard
+            </Typography>
             <Button
               variant="outlined"
-              startIcon={<RefreshIcon />}
-              onClick={refreshData}
+              startIcon={loading ? <CircularProgress size={20} /> : <RefreshIcon />}
+              onClick={handleRefresh}
               disabled={loading}
+              sx={{ minWidth: 120 }}
             >
-              {loading ? 'Actualizando...' : 'Actualizar'}
+              {loading ? 'Cargando...' : 'Actualizar'}
             </Button>
           </Box>
-        </div>
+          {error && (
+            <Alert severity="error" sx={{ mt: 2 }}>
+              {error}
+            </Alert>
+          )}
+        </Box>
       }
       content={
-        <div className="p-6">
-          {/* Tarjetas de resumen */}
-          <DashboardSummaryCards metrics={metrics} />
+        <Box className="p-6">
+          <Fade in={!loading} timeout={500}>
+            <Box>
+              {/* Tarjetas de métricas principales */}
+              <DashboardMetricsCards
+                metrics={metrics}
+                loading={loading}
+              />
 
-          {/* Gráficos principales */}
-          <DashboardCharts monthlyData={monthlyData} metrics={metrics} />
+              {/* Gráficos principales */}
+              <DashboardCharts
+                monthlyData={monthlyData}
+                metrics={metrics}
+              />
 
-          {/* Servicios más populares y actividad reciente */}
-          <Box sx={{ display: 'flex', gap: 3, mb: 4 }}>
-            <Box sx={{ flex: 1 }}>
-              <ServicePopularityCard services={servicePopularity} />
+              {/* Popularidad de servicios */}
+              <Box sx={{ mb: 4 }}>
+                <DashboardServicePopularity
+                  servicePopularity={servicePopularity}
+                  loading={loading}
+                />
+              </Box>
+
+              {/* Actividad reciente y próximas renovaciones */}
+              <DashboardRecentActivity
+                recentActivity={recentActivity}
+                upcomingRenewals={upcomingRenewals}
+                loading={loading}
+              />
             </Box>
-          </Box>
+          </Fade>
 
-          {/* Actividad reciente y renovaciones próximas */}
-          <ActivityAndRenewalsCards
-            recentActivity={recentActivity}
-            upcomingRenewals={upcomingRenewals}
-          />
-
-          {/* Indicador de carga durante actualizaciones */}
-          {loading && (
+          {/* Indicador de carga inicial */}
+          {loading && metrics.totalSubscriptions === 0 && (
             <Box
-              position="fixed"
-              bottom={16}
-              right={16}
-              bgcolor="background.paper"
-              borderRadius={1}
-              p={2}
-              boxShadow={3}
-              display="flex"
-              alignItems="center"
-              gap={1}
+              sx={{
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+                height: 400
+              }}
             >
-              <RefreshIcon sx={{ animation: 'spin 1s linear infinite' }} />
-              <Typography variant="body2">Actualizando datos...</Typography>
+              <Box sx={{ textAlign: 'center' }}>
+                <CircularProgress size={48} sx={{ mb: 2 }} />
+                <Typography variant="h6" color="textSecondary">
+                  Cargando datos del dashboard...
+                </Typography>
+              </Box>
             </Box>
           )}
-        </div>
+        </Box>
       }
     />
   );

@@ -5,11 +5,9 @@ import { clientsService } from '../../../../services/clientsService';
 import { servicesService } from '../../../../services/servicesService';
 import { Subscription, Client, Service } from '../../../../types/models';
 
-// Tipos para las métricas del dashboard
 export interface DashboardMetrics {
   totalSubscriptions: number;
   activeSubscriptions: number;
-  pausedSubscriptions: number;
   cancelledSubscriptions: number;
   totalClients: number;
   activeClients: number;
@@ -18,6 +16,7 @@ export interface DashboardMetrics {
   monthlyRevenue: number;
   averageSubscriptionValue: number;
   pendingRenewals: number;
+  growthRate: number; // Nuevo: tasa de crecimiento mensual
 }
 
 export interface MonthlyData {
@@ -26,20 +25,19 @@ export interface MonthlyData {
   revenue: number;
   newSubscriptions: number;
   cancelledSubscriptions: number;
+  activeSubscriptions: number;
 }
 
 export interface ServicePopularity {
-  id: string;
   name: string;
-  subscribers: number;
-  percentage: number;
+  subscriptions: number;
   revenue: number;
-  category: string;
+  percentage: number;
 }
 
 export interface RecentActivity {
   id: string;
-  type: 'new_subscription' | 'renewal' | 'cancellation' | 'payment' | 'new_client';
+  type: 'new_subscription' | 'cancellation' | 'new_client' | 'renewal';
   clientName: string;
   serviceName?: string;
   date: Date;
@@ -73,7 +71,6 @@ export const useDashboard = (): UseDashboardReturn => {
   const [metrics, setMetrics] = useState<DashboardMetrics>({
     totalSubscriptions: 0,
     activeSubscriptions: 0,
-    pausedSubscriptions: 0,
     cancelledSubscriptions: 0,
     totalClients: 0,
     activeClients: 0,
@@ -82,6 +79,7 @@ export const useDashboard = (): UseDashboardReturn => {
     monthlyRevenue: 0,
     averageSubscriptionValue: 0,
     pendingRenewals: 0,
+    growthRate: 0,
   });
 
   const [monthlyData, setMonthlyData] = useState<MonthlyData[]>([]);
@@ -98,30 +96,42 @@ export const useDashboard = (): UseDashboardReturn => {
     services: Service[]
   ): DashboardMetrics => {
     const activeSubscriptions = subscriptions.filter(s => s.status === 'active');
-    const pausedSubscriptions = subscriptions.filter(s => s.status === 'paused');
     const cancelledSubscriptions = subscriptions.filter(s => s.status === 'cancelled');
     const activeClients = clients.filter(c => c.active !== false);
-    const activeServices = services.filter(s => s.active !== false);
+    const activeServices = services.filter(s => (s as any).active !== false);
 
     // Calcular ingresos mensuales basado en suscripciones activas
     const monthlyRevenue = activeSubscriptions.reduce((total, subscription) => {
       const service = services.find(s => s.id === subscription.serviceId);
 
       if (service) {
+        // Calcular PVP del servicio
+        const basePrice = service.basePrice || 0;
+        const vat = service.vat || 0;
+        const retention = (service as any).retention || 0;
+        
+        // Precio con IVA
+        const priceWithVat = basePrice * (1 + vat / 100);
+        // Precio final con retención
+        const finalPrice = priceWithVat * (1 - retention / 100);
+
         // Convertir a ingresos mensuales según la frecuencia
-        let monthlyAmount = service.basePrice;
+        let monthlyAmount = finalPrice;
         switch (subscription.renewal) {
           case 'quarterly':
-            monthlyAmount = service.basePrice / 3;
+            monthlyAmount = finalPrice / 3;
             break;
           case 'biannual':
-            monthlyAmount = service.basePrice / 6;
+            monthlyAmount = finalPrice / 6;
             break;
           case 'annual':
-            monthlyAmount = service.basePrice / 12;
+            monthlyAmount = finalPrice / 12;
+            break;
+          case 'four_monthly':
+            monthlyAmount = finalPrice / 4;
             break;
           default:
-            monthlyAmount = service.basePrice;
+            monthlyAmount = finalPrice;
         }
         return total + monthlyAmount;
       }
@@ -134,32 +144,48 @@ export const useDashboard = (): UseDashboardReturn => {
       ? monthlyRevenue / activeSubscriptions.length 
       : 0;
 
-    // Calcular renovaciones pendientes del próximo mes
-    const nextMonth = new Date();
-    nextMonth.setMonth(nextMonth.getMonth() + 1);
+    // Calcular próximas renovaciones (próximos 30 días)
+    const now = new Date();
+    const thirtyDaysFromNow = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+    
     const pendingRenewals = activeSubscriptions.filter(subscription => {
       const nextPayment = calculateNextPaymentDate(subscription);
-      return nextPayment && nextPayment <= nextMonth;
+      return nextPayment && nextPayment <= thirtyDaysFromNow;
     }).length;
+
+    // Calcular tasa de crecimiento (últimos 3 meses)
+    const threeMonthsAgo = new Date();
+    threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
+    
+    const recentSubscriptions = subscriptions.filter(s => 
+      s.createdAt && new Date(s.createdAt) >= threeMonthsAgo
+    );
+    const recentCancellations = subscriptions.filter(s => 
+      s.status === 'cancelled' && s.endDate && new Date(s.endDate) >= threeMonthsAgo
+    );
+    
+    const growthRate = recentSubscriptions.length > 0 
+      ? ((recentSubscriptions.length - recentCancellations.length) / recentSubscriptions.length) * 100
+      : 0;
 
     return {
       totalSubscriptions: subscriptions.length,
       activeSubscriptions: activeSubscriptions.length,
-      pausedSubscriptions: pausedSubscriptions.length,
       cancelledSubscriptions: cancelledSubscriptions.length,
       totalClients: clients.length,
       activeClients: activeClients.length,
       totalServices: services.length,
       activeServices: activeServices.length,
-      monthlyRevenue: Math.round(monthlyRevenue * 100) / 100,
-      averageSubscriptionValue: Math.round(averageSubscriptionValue * 100) / 100,
+      monthlyRevenue,
+      averageSubscriptionValue,
       pendingRenewals,
+      growthRate,
     };
   };
 
   // Función para calcular la próxima fecha de pago
   const calculateNextPaymentDate = (subscription: Subscription): Date | null => {
-    if (!subscription.paymentDate || subscription.status !== 'active') return null;
+    if (!subscription.paymentDate) return null;
 
     const lastPayment = new Date(subscription.paymentDate);
     const nextPayment = new Date(lastPayment);
@@ -171,79 +197,106 @@ export const useDashboard = (): UseDashboardReturn => {
       case 'quarterly':
         nextPayment.setMonth(nextPayment.getMonth() + 3);
         break;
+      case 'four_monthly':
+        nextPayment.setMonth(nextPayment.getMonth() + 4);
+        break;
       case 'biannual':
         nextPayment.setMonth(nextPayment.getMonth() + 6);
         break;
       case 'annual':
         nextPayment.setFullYear(nextPayment.getFullYear() + 1);
         break;
+      default:
+        return null;
     }
 
     return nextPayment;
   };
 
-  // Función para generar datos mensuales de los últimos 6 meses
-  const generateMonthlyData = (subscriptions: Subscription[], services: Service[]): MonthlyData[] => {
+  // Función para calcular datos mensuales de los últimos 12 meses
+  const calculateMonthlyData = (
+    subscriptions: Subscription[],
+    services: Service[]
+  ): MonthlyData[] => {
     const months = [];
     const now = new Date();
 
-    for (let i = 5; i >= 0; i--) {
-      const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const monthName = date.toLocaleDateString('es-ES', { month: 'short' });
+    for (let i = 11; i >= 0; i--) {
+      const monthDate = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const nextMonth = new Date(now.getFullYear(), now.getMonth() - i + 1, 1);
       
-      // Filtrar suscripciones activas en ese mes
-      const monthSubscriptions = subscriptions.filter(s => {
-        const startDate = new Date(s.startDate);
-        const endDate = s.endDate ? new Date(s.endDate) : new Date();
-        return startDate <= date && endDate >= date && s.status === 'active';
+      const monthName = monthDate.toLocaleDateString('es-ES', { 
+        month: 'short',
+        year: '2-digit'
       });
 
+      // Suscripciones creadas en este mes
+      const newSubscriptions = subscriptions.filter(s => 
+        s.createdAt && 
+        new Date(s.createdAt) >= monthDate && 
+        new Date(s.createdAt) < nextMonth
+      ).length;
+
+      // Suscripciones canceladas en este mes
+      const cancelledSubscriptions = subscriptions.filter(s => 
+        s.status === 'cancelled' &&
+        s.endDate && 
+        new Date(s.endDate) >= monthDate && 
+        new Date(s.endDate) < nextMonth
+      ).length;
+
+      // Suscripciones activas al final del mes
+      const activeSubscriptions = subscriptions.filter(s => {
+        const createdBefore = !s.createdAt || new Date(s.createdAt) < nextMonth;
+        const notCancelledOrCancelledAfter = s.status !== 'cancelled' || 
+          (s.endDate && new Date(s.endDate) >= nextMonth);
+        return createdBefore && notCancelledOrCancelledAfter;
+      }).length;
+
       // Calcular ingresos del mes
-      const revenue = monthSubscriptions.reduce((total, subscription) => {
-        const service = services.find(s => s.id === subscription.serviceId);
+      const monthRevenue = subscriptions
+        .filter(s => s.status === 'active')
+        .reduce((total, subscription) => {
+          const service = services.find(srv => srv.id === subscription.serviceId);
 
-        if (service) {
-          let monthlyAmount = service.basePrice;
-          switch (subscription.renewal) {
-            case 'quarterly':
-              monthlyAmount = service.basePrice / 3;
-              break;
-            case 'biannual':
-              monthlyAmount = service.basePrice / 6;
-              break;
-            case 'annual':
-              monthlyAmount = service.basePrice / 12;
-              break;
+          if (service) {
+            // Calcular PVP
+            const basePrice = service.basePrice || 0;
+            const vat = service.vat || 0;
+            const retention = (service as any).retention || 0;
+            
+            const priceWithVat = basePrice * (1 + vat / 100);
+            const finalPrice = priceWithVat * (1 - retention / 100);
+
+            // Solo contar si la suscripción estaba activa en este mes
+            const wasActiveInMonth = subscription.createdAt && 
+              new Date(subscription.createdAt) < nextMonth &&
+              (subscription.status !== 'cancelled' || 
+               !subscription.endDate || 
+               new Date(subscription.endDate) >= monthDate);
+
+            if (wasActiveInMonth) {
+              // Convertir a ingresos mensuales
+              switch (subscription.renewal) {
+                case 'quarterly': return total + (finalPrice / 3);
+                case 'four_monthly': return total + (finalPrice / 4);
+                case 'biannual': return total + (finalPrice / 6);
+                case 'annual': return total + (finalPrice / 12);
+                default: return total + finalPrice;
+              }
+            }
           }
-          return total + monthlyAmount;
-        }
 
-        return total;
-      }, 0);
-
-      // Contar nuevas suscripciones del mes
-      const newSubscriptions = subscriptions.filter(s => {
-        const startDate = new Date(s.startDate);
-        return startDate.getMonth() === date.getMonth() && 
-               startDate.getFullYear() === date.getFullYear();
-      }).length;
-
-      // Contar cancelaciones del mes
-      const cancelledSubscriptions = subscriptions.filter(s => {
-        if (!s.endDate) return false;
-
-        const endDate = new Date(s.endDate);
-        return endDate.getMonth() === date.getMonth() && 
-               endDate.getFullYear() === date.getFullYear() &&
-               s.status === 'cancelled';
-      }).length;
+          return total;
+        }, 0);
 
       months.push({
         month: monthName,
-        subscriptions: monthSubscriptions.length,
-        revenue: Math.round(revenue * 100) / 100,
+        subscriptions: activeSubscriptions,
+        revenue: monthRevenue,
         newSubscriptions,
         cancelledSubscriptions,
+        activeSubscriptions,
       });
     }
 
@@ -255,84 +308,82 @@ export const useDashboard = (): UseDashboardReturn => {
     subscriptions: Subscription[],
     services: Service[]
   ): ServicePopularity[] => {
-    const activeSubscriptions = subscriptions.filter(s => s.status === 'active');
-    
     const serviceStats = services.map(service => {
-      const serviceSubscriptions = activeSubscriptions.filter(s => s.serviceId === service.id);
-      const subscribers = serviceSubscriptions.length;
-      const percentage = activeSubscriptions.length > 0 
-        ? Math.round((subscribers / activeSubscriptions.length) * 100) 
-        : 0;
+      const serviceSubscriptions = subscriptions.filter(s => 
+        s.serviceId === service.id && s.status === 'active'
+      );
+
+      // Calcular PVP del servicio
+      const basePrice = service.basePrice || 0;
+      const vat = service.vat || 0;
+      const retention = (service as any).retention || 0;
       
-      // Calcular ingresos mensuales del servicio
+      const priceWithVat = basePrice * (1 + vat / 100);
+      const finalPrice = priceWithVat * (1 - retention / 100);
+
       const revenue = serviceSubscriptions.reduce((total, subscription) => {
-        let monthlyAmount = service.basePrice;
         switch (subscription.renewal) {
-          case 'quarterly':
-            monthlyAmount = service.basePrice / 3;
-            break;
-          case 'biannual':
-            monthlyAmount = service.basePrice / 6;
-            break;
-          case 'annual':
-            monthlyAmount = service.basePrice / 12;
-            break;
+          case 'quarterly': return total + (finalPrice / 3);
+          case 'four_monthly': return total + (finalPrice / 4);
+          case 'biannual': return total + (finalPrice / 6);
+          case 'annual': return total + (finalPrice / 12);
+          default: return total + finalPrice;
         }
-        return total + monthlyAmount;
       }, 0);
 
       return {
-        id: service.id!,
         name: service.name,
-        subscribers,
-        percentage,
-        revenue: Math.round(revenue * 100) / 100,
-        category: service.category,
+        subscriptions: serviceSubscriptions.length,
+        revenue,
+        percentage: 0, // Se calculará después
       };
     });
 
+    const totalSubscriptions = serviceStats.reduce((sum, s) => sum + s.subscriptions, 0);
+    
     return serviceStats
-      .filter(s => s.subscribers > 0)
-      .sort((a, b) => b.subscribers - a.subscribers)
+      .map(stat => ({
+        ...stat,
+        percentage: totalSubscriptions > 0 ? (stat.subscriptions / totalSubscriptions) * 100 : 0
+      }))
+      .sort((a, b) => b.subscriptions - a.subscriptions)
       .slice(0, 5); // Top 5 servicios
   };
 
-  // Función para generar actividad reciente
-  const generateRecentActivity = (
+  // Función para calcular actividad reciente
+  const calculateRecentActivity = (
     subscriptions: Subscription[],
     clients: Client[]
   ): RecentActivity[] => {
     const activities: RecentActivity[] = [];
-
-    // Actividad de suscripciones (últimos 30 días)
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
+    // Actividad de suscripciones
     subscriptions.forEach(subscription => {
       const client = clients.find(c => c.id === subscription.clientId);
+      const clientName = client ? 
+        `${client.firstName} ${client.lastName}`.trim() || client.fiscalName || 'Cliente' 
+        : 'Cliente';
 
-      if (!client) return;
-
-      const clientName = `${client.firstName} ${client.lastName}`;
-
-      // Nueva suscripción
-      if (new Date(subscription.startDate) >= thirtyDaysAgo) {
+      // Nuevas suscripciones
+      if (subscription.createdAt && new Date(subscription.createdAt) >= thirtyDaysAgo) {
         activities.push({
-          id: `sub-${subscription.id}`,
+          id: `new-${subscription.id}`,
           type: 'new_subscription',
           clientName,
-          serviceName: subscription.serviceInfo?.name || 'Servicio',
-          date: new Date(subscription.startDate),
+          serviceName: (subscription as any).serviceInfo?.name || 'Servicio',
+          date: new Date(subscription.createdAt),
         });
       }
 
-      // Cancelación
+      // Cancelaciones
       if (subscription.endDate && new Date(subscription.endDate) >= thirtyDaysAgo && subscription.status === 'cancelled') {
         activities.push({
           id: `cancel-${subscription.id}`,
           type: 'cancellation',
           clientName,
-          serviceName: subscription.serviceInfo?.name || 'Servicio',
+          serviceName: (subscription as any).serviceInfo?.name || 'Servicio',
           date: new Date(subscription.endDate),
         });
       }
@@ -341,10 +392,11 @@ export const useDashboard = (): UseDashboardReturn => {
     // Actividad de nuevos clientes
     clients.forEach(client => {
       if (client.registeredDate && new Date(client.registeredDate) >= thirtyDaysAgo) {
+        const clientName = `${client.firstName} ${client.lastName}`.trim() || client.fiscalName || 'Cliente';
         activities.push({
           id: `client-${client.id}`,
           type: 'new_client',
-          clientName: `${client.firstName} ${client.lastName}`,
+          clientName,
           date: new Date(client.registeredDate),
         });
       }
@@ -376,71 +428,66 @@ export const useDashboard = (): UseDashboardReturn => {
       const service = services.find(s => s.id === subscription.serviceId);
 
       if (client && service) {
+        // Calcular PVP del servicio
+        const basePrice = service.basePrice || 0;
+        const vat = service.vat || 0;
+        const retention = (service as any).retention || 0;
+        
+        const priceWithVat = basePrice * (1 + vat / 100);
+        const finalPrice = priceWithVat * (1 - retention / 100);
+
+        const clientName = `${client.firstName} ${client.lastName}`.trim() || client.fiscalName || 'Cliente';
+
         renewals.push({
           id: `renewal-${subscription.id}`,
-          clientName: `${client.firstName} ${client.lastName}`,
+          clientName,
           serviceName: service.name,
           date: nextPayment,
-          amount: service.basePrice,
+          amount: finalPrice,
           subscriptionId: subscription.id!,
         });
       }
     });
 
-    return renewals
-      .sort((a, b) => a.date.getTime() - b.date.getTime())
-      .slice(0, 10); // Próximas 10 renovaciones
+    return renewals.sort((a, b) => a.date.getTime() - b.date.getTime());
   };
 
-  // Cargar todos los datos del dashboard
-  const loadDashboardData = async () => {
+  // Función principal para cargar todos los datos
+  const fetchDashboardData = async () => {
     setLoading(true);
     setError(null);
-    
+
     try {
-      const [subscriptionsData, clientsData, servicesData] = await Promise.all([
+      const [subscriptions, clients, services] = await Promise.all([
         subscriptionsService.getAllSubscriptions(),
         clientsService.getAllClients(),
         servicesService.getAllServices(),
       ]);
 
-      // Calcular métricas
-      const calculatedMetrics = calculateMetrics(subscriptionsData, clientsData, servicesData);
+      const calculatedMetrics = calculateMetrics(subscriptions, clients, services);
+      const calculatedMonthlyData = calculateMonthlyData(subscriptions, services);
+      const calculatedServicePopularity = calculateServicePopularity(subscriptions, services);
+      const calculatedRecentActivity = calculateRecentActivity(subscriptions, clients);
+      const calculatedUpcomingRenewals = calculateUpcomingRenewals(subscriptions, clients, services);
+
       setMetrics(calculatedMetrics);
+      setMonthlyData(calculatedMonthlyData);
+      setServicePopularity(calculatedServicePopularity);
+      setRecentActivity(calculatedRecentActivity);
+      setUpcomingRenewals(calculatedUpcomingRenewals);
 
-      // Generar datos mensuales
-      const monthlyStats = generateMonthlyData(subscriptionsData, servicesData);
-      setMonthlyData(monthlyStats);
-
-      // Calcular popularidad de servicios
-      const serviceStats = calculateServicePopularity(subscriptionsData, servicesData);
-      setServicePopularity(serviceStats);
-
-      // Generar actividad reciente
-      const recentActivities = generateRecentActivity(subscriptionsData, clientsData);
-      setRecentActivity(recentActivities);
-
-      // Calcular próximas renovaciones
-      const renewals = calculateUpcomingRenewals(subscriptionsData, clientsData, servicesData);
-      setUpcomingRenewals(renewals);
-
-    } catch (error) {
-      console.error('Error loading dashboard data:', error);
+    } catch (err) {
+      console.error('Error fetching dashboard data:', err);
       setError('Error al cargar los datos del dashboard');
     } finally {
       setLoading(false);
     }
   };
 
-  // Cargar datos al inicializar
+  // Cargar datos al montar el componente
   useEffect(() => {
-    loadDashboardData();
+    fetchDashboardData();
   }, []);
-
-  // Función para refrescar datos
-  const refreshData = async () => {
-    await loadDashboardData();
-  };
 
   return {
     metrics,
@@ -450,6 +497,6 @@ export const useDashboard = (): UseDashboardReturn => {
     upcomingRenewals,
     loading,
     error,
-    refreshData,
+    refreshData: fetchDashboardData,
   };
 };

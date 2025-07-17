@@ -7,11 +7,8 @@ import {
     CardContent,
     Box,
     Divider,
-    IconButton,
+    Typography,
 } from '@mui/material';
-import {
-    MoreVert as MoreVertIcon,
-} from '@mui/icons-material';
 import {
     LineChart,
     Line,
@@ -26,6 +23,8 @@ import {
     Tooltip,
     Legend,
     ResponsiveContainer,
+    AreaChart,
+    Area,
 } from 'recharts';
 import { MonthlyData, DashboardMetrics } from '../hooks/useDashboard';
 
@@ -38,98 +37,166 @@ export const DashboardCharts: React.FC<DashboardChartsProps> = ({
     monthlyData,
     metrics,
 }) => {
-    // Datos para el gráfico de estado de suscripciones
+    // Datos para el gráfico de estado de suscripciones (sin pausadas)
     const statusData = [
         { name: 'Activas', value: metrics.activeSubscriptions, color: '#4CAF50' },
-        { name: 'Pausadas', value: metrics.pausedSubscriptions, color: '#FF9800' },
         { name: 'Canceladas', value: metrics.cancelledSubscriptions, color: '#F44336' },
-    ].filter(item => item.value > 0); // Solo mostrar estados que tengan valores
+    ].filter(item => item.value > 0);
 
-    // Datos para el gráfico de barras (nuevas vs canceladas)
+    // Datos para el gráfico de evolución de suscripciones
     const subscriptionEvolutionData = monthlyData.map(month => ({
         month: month.month,
         nuevas: month.newSubscriptions,
         canceladas: month.cancelledSubscriptions,
+        activas: month.activeSubscriptions,
     }));
+
+    // Datos para el gráfico de ingresos
+    const revenueData = monthlyData.map(month => ({
+        month: month.month,
+        ingresos: month.revenue,
+    }));
+
+    // Función para formatear moneda
+    const formatCurrency = (value: number) => {
+        return `${value.toFixed(0)}€`;
+    };
+
+    // Función para formatear tooltips
+    const CustomTooltip = ({ active, payload, label }: any) => {
+        if (active && payload && payload.length) {
+            return (
+                <Box sx={{ 
+                    bgcolor: 'background.paper', 
+                    p: 1, 
+                    border: 1, 
+                    borderColor: 'divider',
+                    borderRadius: 1,
+                    boxShadow: 2
+                }}>
+                    <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+                        {label}
+                    </Typography>
+                    {payload.map((entry: any, index: number) => (
+                        <Typography key={index} variant="body2" sx={{ color: entry.color }}>
+                            {entry.name}: {entry.name.includes('ingresos') ? formatCurrency(entry.value) : entry.value}
+                        </Typography>
+                    ))}
+                </Box>
+            );
+        }
+
+        return null;
+    };
 
     return (
         <Grid container spacing={3} sx={{ mb: 4 }}>
-            <Grid item xs={12} lg={6}>
-                <Card elevation={1}>
-                    <CardHeader
-                        title="Ingresos Mensuales"
-                        subheader="Evolución de los últimos 6 meses"
-                        action={
-                            <IconButton>
-                                <MoreVertIcon />
-                            </IconButton>
-                        }
+            {/* Gráfico de estado de suscripciones */}
+            <Grid item xs={12} md={6}>
+                <Card>
+                    <CardHeader 
+                        title="Estado de Suscripciones" 
+                        titleTypographyProps={{ variant: 'h6' }}
                     />
                     <Divider />
                     <CardContent>
-                        <Box height={300}>
+                        <Box sx={{ height: 300 }}>
                             <ResponsiveContainer width="100%" height="100%">
-                                <LineChart
-                                    data={monthlyData}
-                                    margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
-                                >
-                                    <CartesianGrid strokeDasharray="3 3" />
-                                    <XAxis dataKey="month" />
-                                    <YAxis />
-                                    <Tooltip
-                                        formatter={(value) => [`${value} €`, 'Ingresos']}
-                                        labelFormatter={(label) => `Mes: ${label}`}
-                                    />
-                                    <Legend />
-                                    <Line
-                                        type="monotone"
-                                        dataKey="revenue"
-                                        name="Ingresos"
-                                        stroke="#0A74DA"
-                                        activeDot={{ r: 8 }}
-                                        strokeWidth={2}
-                                    />
-                                </LineChart>
+                                <PieChart>
+                                    <Pie
+                                        data={statusData}
+                                        cx="50%"
+                                        cy="50%"
+                                        innerRadius={60}
+                                        outerRadius={100}
+                                        paddingAngle={5}
+                                        dataKey="value"
+                                        label={({ name, value, percent }) => 
+                                            `${name}: ${value} (${(percent * 100).toFixed(0)}%)`
+                                        }
+                                    >
+                                        {statusData.map((entry, index) => (
+                                            <Cell key={`cell-${index}`} fill={entry.color} />
+                                        ))}
+                                    </Pie>
+                                    <Tooltip content={<CustomTooltip />} />
+                                </PieChart>
                             </ResponsiveContainer>
                         </Box>
                     </CardContent>
                 </Card>
             </Grid>
 
-            <Grid item xs={12} lg={6}>
-                <Card elevation={1}>
-                    <CardHeader
-                        title="Suscripciones Activas"
-                        subheader="Evolución mensual"
-                        action={
-                            <IconButton>
-                                <MoreVertIcon />
-                            </IconButton>
-                        }
+            {/* Gráfico de evolución de ingresos */}
+            <Grid item xs={12} md={6}>
+                <Card>
+                    <CardHeader 
+                        title="Evolución de Ingresos Mensuales" 
+                        titleTypographyProps={{ variant: 'h6' }}
                     />
                     <Divider />
                     <CardContent>
-                        <Box height={300}>
+                        <Box sx={{ height: 300 }}>
                             <ResponsiveContainer width="100%" height="100%">
-                                <LineChart
-                                    data={monthlyData}
-                                    margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
-                                >
+                                <AreaChart data={revenueData}>
+                                    <CartesianGrid strokeDasharray="3 3" />
+                                    <XAxis dataKey="month" />
+                                    <YAxis tickFormatter={formatCurrency} />
+                                    <Tooltip content={<CustomTooltip />} />
+                                    <Area 
+                                        type="monotone" 
+                                        dataKey="ingresos" 
+                                        stroke="#2196F3" 
+                                        fill="#2196F3" 
+                                        fillOpacity={0.3}
+                                        strokeWidth={2}
+                                    />
+                                </AreaChart>
+                            </ResponsiveContainer>
+                        </Box>
+                    </CardContent>
+                </Card>
+            </Grid>
+
+            {/* Gráfico de evolución de suscripciones */}
+            <Grid item xs={12} md={8}>
+                <Card>
+                    <CardHeader 
+                        title="Evolución de Suscripciones" 
+                        titleTypographyProps={{ variant: 'h6' }}
+                    />
+                    <Divider />
+                    <CardContent>
+                        <Box sx={{ height: 350 }}>
+                            <ResponsiveContainer width="100%" height="100%">
+                                <LineChart data={subscriptionEvolutionData}>
                                     <CartesianGrid strokeDasharray="3 3" />
                                     <XAxis dataKey="month" />
                                     <YAxis />
-                                    <Tooltip
-                                        formatter={(value) => [`${value}`, 'Suscripciones']}
-                                        labelFormatter={(label) => `Mes: ${label}`}
-                                    />
+                                    <Tooltip content={<CustomTooltip />} />
                                     <Legend />
-                                    <Line
-                                        type="monotone"
-                                        dataKey="subscriptions"
+                                    <Line 
+                                        type="monotone" 
+                                        dataKey="activas" 
+                                        stroke="#4CAF50" 
+                                        strokeWidth={3}
                                         name="Suscripciones Activas"
-                                        stroke="#82ca9d"
-                                        activeDot={{ r: 8 }}
+                                    />
+                                    <Line 
+                                        type="monotone" 
+                                        dataKey="nuevas" 
+                                        stroke="#2196F3" 
                                         strokeWidth={2}
+                                        strokeDasharray="5 5"
+                                        name="Nuevas Suscripciones"
+                                    />
+                                    <Line 
+                                        type="monotone" 
+                                        dataKey="canceladas" 
+                                        stroke="#F44336" 
+                                        strokeWidth={2}
+                                        strokeDasharray="5 5"
+                                        name="Cancelaciones"
                                     />
                                 </LineChart>
                             </ResponsiveContainer>
@@ -137,85 +204,36 @@ export const DashboardCharts: React.FC<DashboardChartsProps> = ({
                     </CardContent>
                 </Card>
             </Grid>
-            <Grid item xs={12} md={6}>
-                <Card elevation={1} sx={{ height: '100%' }}>
-                    <CardHeader
-                        title="Estado de Suscripciones"
-                        subheader="Distribución actual"
-                        action={
-                            <IconButton>
-                                <MoreVertIcon />
-                            </IconButton>
-                        }
-                    />
-                    <Divider />
-                    <CardContent>
-                        <Box height={300} display="flex" justifyContent="center">
-                            {statusData.length > 0 ? (
-                                <ResponsiveContainer width="100%" height="100%">
-                                    <PieChart>
-                                        <Pie
-                                            data={statusData}
-                                            cx="50%"
-                                            cy="50%"
-                                            labelLine={false}
-                                            label={({ name, percent }) =>
-                                                `${name}: ${(percent * 100).toFixed(0)}%`
-                                            }
-                                            outerRadius={80}
-                                            fill="#8884d8"
-                                            dataKey="value"
-                                        >
-                                            {statusData.map((entry, index) => (
-                                                <Cell key={`cell-${index}`} fill={entry.color} />
-                                            ))}
-                                        </Pie>
-                                        <Tooltip formatter={(value) => [`${value} suscripciones`, '']} />
-                                        <Legend />
-                                    </PieChart>
-                                </ResponsiveContainer>
-                            ) : (
-                                <Box
-                                    display="flex"
-                                    alignItems="center"
-                                    justifyContent="center"
-                                    height="100%"
-                                    color="text.secondary"
-                                >
-                                    No hay datos para mostrar
-                                </Box>
-                            )}
-                        </Box>
-                    </CardContent>
-                </Card>
-            </Grid>
 
-            <Grid item xs={12} md={6}>
-                <Card elevation={1}>
-                    <CardHeader
-                        title="Evolución de Suscripciones"
-                        subheader="Nuevas vs Canceladas por mes"
-                        action={
-                            <IconButton>
-                                <MoreVertIcon />
-                            </IconButton>
-                        }
+            {/* Gráfico de comparación mensual (barras) */}
+            <Grid item xs={12} md={4}>
+                <Card>
+                    <CardHeader 
+                        title="Nuevas vs Canceladas" 
+                        titleTypographyProps={{ variant: 'h6' }}
                     />
                     <Divider />
                     <CardContent>
-                        <Box height={300}>
+                        <Box sx={{ height: 350 }}>
                             <ResponsiveContainer width="100%" height="100%">
-                                <BarChart
-                                    data={subscriptionEvolutionData}
-                                    margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
-                                >
+                                <BarChart data={subscriptionEvolutionData.slice(-6)}> {/* Últimos 6 meses */}
                                     <CartesianGrid strokeDasharray="3 3" />
                                     <XAxis dataKey="month" />
                                     <YAxis />
-                                    <Tooltip />
+                                    <Tooltip content={<CustomTooltip />} />
                                     <Legend />
-                                    <Bar dataKey="nuevas" name="Nuevas" fill="#4CAF50" />
-                                    <Bar dataKey="canceladas" name="Canceladas" fill="#F44336" />
+                                    <Bar 
+                                        dataKey="nuevas" 
+                                        fill="#4CAF50" 
+                                        name="Nuevas"
+                                        radius={[2, 2, 0, 0]}
+                                    />
+                                    <Bar 
+                                        dataKey="canceladas" 
+                                        fill="#F44336" 
+                                        name="Canceladas"
+                                        radius={[2, 2, 0, 0]}
+                                    />
                                 </BarChart>
                             </ResponsiveContainer>
                         </Box>

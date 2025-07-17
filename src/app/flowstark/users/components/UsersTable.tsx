@@ -19,7 +19,6 @@ import {
 import {
     Edit as EditIcon,
     Delete as DeleteIcon,
-    MoreVert as MoreVertIcon,
     Business as BusinessIcon,
     Person as PersonIcon,
 } from '@mui/icons-material';
@@ -137,60 +136,57 @@ export const UsersTable: React.FC<UsersTableProps> = ({
     };
 
     const descendingComparator = <T,>(a: T, b: T, orderBy: keyof T) => {
-        let aVal: any;
-        let bVal: any;
-
-        if (orderBy === 'name') {
-            aVal = getDisplayName(a as any).toLowerCase();
-            bVal = getDisplayName(b as any).toLowerCase();
-        } else if (orderBy === 'paymentMethod') {
-            aVal = getPaymentMethodText((a as any).paymentMethod);
-            bVal = getPaymentMethodText((b as any).paymentMethod);
-        } else if (orderBy === 'subscriptions') {
-            aVal = (a as any).subscriptionCount || 0;
-            bVal = (b as any).subscriptionCount || 0;
-        } else {
-            aVal = a[orderBy];
-            bVal = b[orderBy];
-        }
-
-        if (bVal < aVal) {
+        if (b[orderBy] < a[orderBy]) {
             return -1;
         }
 
-        if (bVal > aVal) {
+        if (b[orderBy] > a[orderBy]) {
             return 1;
         }
 
         return 0;
     };
 
-    // Función estable para ordenar
-    const stableSort = <T,>(array: readonly T[], comparator: (a: T, b: T) => number) => {
-        const stabilizedThis = array.map((el, index) => [el, index] as [T, number]);
-        stabilizedThis.sort((a, b) => {
-            const order = comparator(a[0], b[0]);
-
-            if (order !== 0) {
-                return order;
-            }
-
-            return a[1] - b[1];
-        });
-        return stabilizedThis.map((el) => el[0]);
+    // Función para obtener el valor de ordenamiento
+    const getOrderValue = (user: ClientWithSubscriptions, orderBy: OrderBy): string | number | Date => {
+        switch (orderBy) {
+            case 'name':
+                return getDisplayName(user).toLowerCase();
+            case 'email':
+                return (user.email || '').toLowerCase();
+            case 'phone':
+                return (user.phone || '').toLowerCase();
+            case 'paymentMethod':
+                return getPaymentMethodText(user.paymentMethod).toLowerCase();
+            case 'registeredDate':
+                return user.registeredDate || new Date(0);
+            case 'subscriptions':
+                return user.subscriptionCount || 0;
+            default:
+                return '';
+        }
     };
 
-    // Memoización de datos ordenados
-    const sortedUsers = useMemo(() => {
-        return stableSort(users, getComparator(order, orderBy));
-    }, [users, order, orderBy]);
-
-    // Manejar el ordenamiento
+    // Función para manejar el click en el header para ordenar
     const handleRequestSort = (property: OrderBy) => {
         const isAsc = orderBy === property && order === 'asc';
         setOrder(isAsc ? 'desc' : 'asc');
         setOrderBy(property);
     };
+
+    // Ordenar los usuarios
+    const sortedUsers = useMemo(() => {
+        const comparator = getComparator(order, orderBy);
+        const usersWithOrderValue = users.map(user => ({
+            ...user,
+            orderValue: getOrderValue(user, orderBy)
+        }));
+
+        return usersWithOrderValue.sort((a, b) => comparator(
+            { [orderBy]: a.orderValue },
+            { [orderBy]: b.orderValue }
+        ));
+    }, [users, order, orderBy]);
 
     // Componente para cabeceras ordenables
     const SortableTableHead = ({
@@ -255,7 +251,7 @@ export const UsersTable: React.FC<UsersTableProps> = ({
                         <SortableTableHead id="paymentMethod" label="Pago" width="85px" />
                         <SortableTableHead id="registeredDate" label="Alta" width="70px" />
                         <SortableTableHead id="subscriptions" label="Suscripciones" width="65px" numeric />
-                        <HeaderTableCell sx={{ width: '120px', textAlign: 'right' }}>Acciones</HeaderTableCell>
+                        <HeaderTableCell sx={{ width: '90px', textAlign: 'right' }}>Acciones</HeaderTableCell>
                     </TableRow>
                 </TableHead>
                 <TableBody>
@@ -308,37 +304,26 @@ export const UsersTable: React.FC<UsersTableProps> = ({
                                                         sx={{
                                                             overflow: 'hidden',
                                                             textOverflow: 'ellipsis',
-                                                            whiteSpace: 'nowrap',
-                                                            lineHeight: 1.2,
+                                                            whiteSpace: 'nowrap'
                                                         }}
                                                         title={displayName}
                                                     >
                                                         {displayName}
                                                     </Typography>
                                                     
-                                                    {/* DNI/CIF */}
-                                                    {clientType === 'particular' && user.idNumber && (
+                                                    {clientType === 'empresa' && user.fiscalName && user.fiscalName !== user.firstName && (
                                                         <Typography
                                                             variant="caption"
                                                             color="textSecondary"
                                                             sx={{
-                                                                fontSize: '0.7rem',
-                                                                lineHeight: 1
+                                                                display: 'block',
+                                                                overflow: 'hidden',
+                                                                textOverflow: 'ellipsis',
+                                                                whiteSpace: 'nowrap'
                                                             }}
+                                                            title={user.fiscalName}
                                                         >
-                                                            DNI: {user.idNumber}
-                                                        </Typography>
-                                                    )}
-                                                    {clientType === 'empresa' && user.taxId && (
-                                                        <Typography
-                                                            variant="caption"
-                                                            color="textSecondary"
-                                                            sx={{
-                                                                fontSize: '0.7rem',
-                                                                lineHeight: 1
-                                                            }}
-                                                        >
-                                                            CIF: {user.taxId}
+                                                            {user.fiscalName}
                                                         </Typography>
                                                     )}
                                                 </Box>
@@ -356,7 +341,7 @@ export const UsersTable: React.FC<UsersTableProps> = ({
                                                 }}
                                                 title={user.email}
                                             >
-                                                {user.email || '-'}
+                                                {user.email}
                                             </Typography>
                                         </CompactTableCell>
 
@@ -367,9 +352,17 @@ export const UsersTable: React.FC<UsersTableProps> = ({
                                             </Typography>
                                         </CompactTableCell>
 
-                                        {/* Método de pago */}
+                                        {/* Método de Pago */}
                                         <CompactTableCell>
-                                            <Typography variant="body2">
+                                            <Typography
+                                                variant="body2"
+                                                sx={{
+                                                    overflow: 'hidden',
+                                                    textOverflow: 'ellipsis',
+                                                    whiteSpace: 'nowrap'
+                                                }}
+                                                title={paymentMethodText}
+                                            >
                                                 {paymentMethodText}
                                             </Typography>
                                         </CompactTableCell>
@@ -381,30 +374,40 @@ export const UsersTable: React.FC<UsersTableProps> = ({
                                             </Typography>
                                         </CompactTableCell>
 
-                                        {/* Número de suscripciones */}
+                                        {/* Suscripciones */}
                                         <CompactTableCell align="right">
                                             <Chip
                                                 label={user.subscriptionCount || 0}
-                                                color={user.subscriptionCount > 0 ? 'primary' : 'default'}
                                                 size="small"
-                                                variant="outlined"
-                                                sx={{
+                                                variant="filled"
+                                                color={user.subscriptionCount > 0 ? 'primary' : 'default'}
+                                                sx={{ 
                                                     fontSize: '0.75rem',
-                                                    height: '20px',
-                                                    minWidth: '28px'
+                                                    fontWeight: 'bold',
+                                                    minWidth: '28px',
+                                                    height: '24px',
+                                                    borderRadius: '12px',
+                                                    backgroundColor: user.subscriptionCount > 0 ? 'primary.main' : 'grey.400',
+                                                    color: 'white',
+                                                    '& .MuiChip-label': {
+                                                        padding: '0 8px'
+                                                    }
                                                 }}
                                             />
                                         </CompactTableCell>
 
-                                        {/* Acciones */}
+                                        {/* Acciones - Quitado el botón "Más opciones" */}
                                         <CompactTableCell align="right">
                                             <Box sx={{ display: 'flex', gap: 0.5, justifyContent: 'flex-end' }}>
                                                 <IconButton
                                                     size="small"
                                                     onClick={() => onEdit(user)}
-                                                    disabled={loading}
                                                     title="Editar"
-                                                    sx={{ padding: '4px' }}
+                                                    sx={{ 
+                                                        padding: '4px',
+                                                        color: 'text.secondary',
+                                                        '&:hover': { backgroundColor: 'action.hover' }
+                                                    }}
                                                 >
                                                     <EditIcon fontSize="small" />
                                                 </IconButton>
@@ -413,16 +416,14 @@ export const UsersTable: React.FC<UsersTableProps> = ({
                                                     onClick={() => user.id && onDelete(user.id)}
                                                     disabled={loading || user.subscriptionCount > 0}
                                                     title="Eliminar"
-                                                    sx={{ padding: '4px' }}
+                                                    sx={{ 
+                                                        padding: '4px',
+                                                        color: 'text.secondary',
+                                                        '&:hover': { backgroundColor: 'action.hover' },
+                                                        '&:disabled': { color: 'action.disabled' }
+                                                    }}
                                                 >
                                                     <DeleteIcon fontSize="small" />
-                                                </IconButton>
-                                                <IconButton
-                                                    size="small"
-                                                    title="Más opciones"
-                                                    sx={{ padding: '4px' }}
-                                                >
-                                                    <MoreVertIcon fontSize="small" />
                                                 </IconButton>
                                             </Box>
                                         </CompactTableCell>

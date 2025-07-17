@@ -17,6 +17,7 @@ import {
   SubscriptionsTable,
   SubscriptionForm,
   DeleteConfirmDialog,
+  CancelSubscriptionDialog,
 } from './components';
 
 const Root = styled(FusePageSimple)(({ theme }) => ({
@@ -36,9 +37,11 @@ function Subscriptions() {
   const [selectedSubscription, setSelectedSubscription] = useState<SubscriptionWithRelations | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false);
   const [subscriptionToDelete, setSubscriptionToDelete] = useState<string | null>(null);
+  const [subscriptionToCancel, setSubscriptionToCancel] = useState<SubscriptionWithRelations | null>(null);
   const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [rowsPerPage, setRowsPerPage] = useState(25);
 
   // Hook personalizado con toda la lógica de suscripciones
   const {
@@ -88,13 +91,28 @@ function Subscriptions() {
     setSelectedSubscription(null);
   };
 
-  const handleChangeStatus = async (id: string, newStatus: 'active' | 'paused' | 'cancelled') => {
-    try {
-      await changeSubscriptionStatus(id, newStatus);
-    } catch (error) {
-      // Error handling is done in the hook
-      console.error('Error changing subscription status:', error);
+  // Manejador para cancelar suscripciones
+  const handleCancelClick = (subscription: SubscriptionWithRelations) => {
+    setSubscriptionToCancel(subscription);
+    setCancelConfirmOpen(true);
+  };
+
+  // Confirmar cancelación con fecha de finalización
+  const handleConfirmCancel = async (endDate: Date) => {
+    if (subscriptionToCancel) {
+      try {
+        await changeSubscriptionStatus(subscriptionToCancel.id!, 'cancelled', endDate);
+      } finally {
+        setCancelConfirmOpen(false);
+        setSubscriptionToCancel(null);
+      }
     }
+  };
+
+  // Cancelar el diálogo de cancelación
+  const handleCancelCancel = () => {
+    setCancelConfirmOpen(false);
+    setSubscriptionToCancel(null);
   };
 
   const handleDeleteClick = (id: string) => {
@@ -152,7 +170,7 @@ function Subscriptions() {
             onPageChange={handleChangePage}
             onRowsPerPageChange={handleChangeRowsPerPage}
             onEdit={handleOpenForm}
-            onChangeStatus={handleChangeStatus}
+            onCancel={handleCancelClick} // 👈 Nuevo manejador
             onDelete={handleDeleteClick}
           />
 
@@ -174,6 +192,15 @@ function Subscriptions() {
             loading={loading}
             onConfirm={handleConfirmDelete}
             onCancel={handleCancelDelete}
+          />
+
+          {/* Diálogo de confirmación para cancelar suscripciones */}
+          <CancelSubscriptionDialog
+            open={cancelConfirmOpen}
+            loading={loading}
+            subscriptionName={subscriptionToCancel?.serviceInfo?.name}
+            onConfirm={handleConfirmCancel}
+            onCancel={handleCancelCancel}
           />
 
           {/* Snackbar para notificaciones */}

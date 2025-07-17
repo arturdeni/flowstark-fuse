@@ -4,3 +4,4 @@ export { SubscriptionSearchAndActions } from './SubscriptionSearchAndActions';
 export { SubscriptionsTable } from './SubscriptionsTable';
 export { SubscriptionForm } from './SubscriptionForm';
 export { DeleteConfirmDialog } from './DeleteConfirmDialog';
+export { CancelSubscriptionDialog } from './CancelSubscriptionDialog';

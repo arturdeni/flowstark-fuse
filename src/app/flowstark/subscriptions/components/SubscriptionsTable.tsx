@@ -1,5 +1,5 @@
 // src/app/flowstark/subscriptions/components/SubscriptionsTable.tsx
-import React from 'react';
+import React, { useState, useMemo } from 'react';
 import {
     Table,
     TableBody,
@@ -8,6 +8,7 @@ import {
     TableHead,
     TableRow,
     TablePagination,
+    TableSortLabel,
     Paper,
     IconButton,
     Chip,
@@ -18,8 +19,6 @@ import {
 import {
     Edit as EditIcon,
     Delete as DeleteIcon,
-    Pause as PauseIcon,
-    PlayArrow as PlayArrowIcon,
     Cancel as CancelIcon,
 } from '@mui/icons-material';
 import { styled } from '@mui/material/styles';
@@ -37,6 +36,23 @@ const StyledTableRow = styled(TableRow)(({ theme }) => ({
     },
 }));
 
+// Estilos personalizados para las celdas (consistente con otras tablas)
+const CompactTableCell = styled(TableCell)(({ theme }) => ({
+    padding: '8px 12px',
+    fontSize: '0.875rem',
+}));
+
+const HeaderTableCell = styled(TableCell)(({ theme }) => ({
+    padding: '12px 12px',
+    fontSize: '0.875rem',
+    fontWeight: 600,
+    backgroundColor: theme.palette.grey[50],
+}));
+
+// Tipos para el ordenamiento
+type Order = 'asc' | 'desc';
+type OrderBy = 'client' | 'service' | 'renewal' | 'paymentMethod' | 'status' | 'startDate' | 'endDate' | 'pvp';
+
 interface SubscriptionsTableProps {
     subscriptions: SubscriptionWithRelations[];
     loading: boolean;
@@ -45,7 +61,7 @@ interface SubscriptionsTableProps {
     onPageChange: (event: unknown, newPage: number) => void;
     onRowsPerPageChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
     onEdit: (subscription: SubscriptionWithRelations) => void;
-    onChangeStatus: (id: string, status: 'active' | 'paused' | 'cancelled') => void;
+    onCancel: (subscription: SubscriptionWithRelations) => void;
     onDelete: (id: string) => void;
 }
 
@@ -57,15 +73,17 @@ export const SubscriptionsTable: React.FC<SubscriptionsTableProps> = ({
     onPageChange,
     onRowsPerPageChange,
     onEdit,
-    onChangeStatus,
+    onCancel,
     onDelete,
 }) => {
-    const getStatusChip = (status: 'active' | 'paused' | 'cancelled') => {
+    // Estado para el ordenamiento
+    const [order, setOrder] = useState<Order>('asc');
+    const [orderBy, setOrderBy] = useState<OrderBy>('client');
+
+    const getStatusChip = (status: 'active' | 'cancelled') => {
         switch (status) {
             case 'active':
                 return <Chip label="Activa" color="success" size="small" />;
-            case 'paused':
-                return <Chip label="Pausada" color="warning" size="small" />;
             case 'cancelled':
                 return <Chip label="Cancelada" color="error" size="small" />;
             default:
@@ -89,6 +107,8 @@ export const SubscriptionsTable: React.FC<SubscriptionsTableProps> = ({
                 return 'Mensual';
             case 'quarterly':
                 return 'Trimestral';
+            case 'four_monthly':
+                return 'Cuatrimestral';
             case 'biannual':
                 return 'Semestral';
             case 'annual':
@@ -96,6 +116,29 @@ export const SubscriptionsTable: React.FC<SubscriptionsTableProps> = ({
             default:
                 return renewal;
         }
+    };
+
+    // Función para calcular el PVP de la suscripción
+    const calculateSubscriptionPVP = (subscription: SubscriptionWithRelations): number => {
+        const service = subscription.serviceInfo;
+
+        if (!service) return 0;
+        
+        const basePrice = service.basePrice || 0;
+        const vat = service.vat || 0;
+        const retention = service.retention || 0;
+        
+        // Precio con IVA
+        const priceWithVat = basePrice * (1 + vat / 100);
+        
+        // Precio final con retención (la retención se resta)
+        const finalPrice = priceWithVat * (1 - retention / 100);
+        
+        return finalPrice;
+    };
+
+    const formatPrice = (price: number): string => {
+        return price.toFixed(2);
     };
 
     const getPaymentMethodText = (method: string): string => {
@@ -110,10 +153,119 @@ export const SubscriptionsTable: React.FC<SubscriptionsTableProps> = ({
                 return 'Efectivo';
             case 'direct_debit':
                 return 'Domiciliación';
+            case 'card':
+                return 'Tarjeta';
+            case 'transfer':
+                return 'Transferencia';
             default:
                 return method;
         }
     };
+
+    // Función para obtener el nombre completo del cliente
+    const getClientDisplayName = (subscription: SubscriptionWithRelations): string => {
+        if (!subscription.clientInfo) return 'Cliente no disponible';
+        
+        const { firstName, lastName, fiscalName } = subscription.clientInfo;
+        
+        // Si tiene fiscalName, es una empresa
+        if (fiscalName) {
+            return firstName || fiscalName;
+        }
+        
+        // Si no, es un particular
+        return `${firstName || ''} ${lastName || ''}`.trim();
+    };
+
+    // Función de comparación para el ordenamiento
+    const descendingComparator = <T,>(a: T, b: T, orderBy: keyof T) => {
+        if (b[orderBy] < a[orderBy]) {
+            return -1;
+        }
+
+        if (b[orderBy] > a[orderBy]) {
+            return 1;
+        }
+
+        return 0;
+    };
+
+    const getComparator = <Key extends keyof any>(
+        order: Order,
+        orderBy: Key,
+    ): ((a: Record<Key, number | string | Date>, b: Record<Key, number | string | Date>) => number) => {
+        return order === 'desc'
+            ? (a, b) => descendingComparator(a, b, orderBy)
+            : (a, b) => -descendingComparator(a, b, orderBy);
+    };
+
+    // Función para obtener el valor de ordenamiento
+    const getOrderValue = (subscription: SubscriptionWithRelations, orderBy: OrderBy): string | number | Date => {
+        switch (orderBy) {
+            case 'client':
+                return getClientDisplayName(subscription).toLowerCase();
+            case 'service':
+                return (subscription.serviceInfo?.name || '').toLowerCase();
+            case 'renewal':
+                return getRenewalText(subscription.renewal).toLowerCase();
+            case 'paymentMethod':
+                return getPaymentMethodText(subscription.paymentMethod?.type || '').toLowerCase();
+            case 'status':
+                return subscription.status;
+            case 'startDate':
+                return subscription.startDate || new Date(0);
+            case 'endDate':
+                return subscription.endDate || new Date(0);
+            case 'pvp':
+                return calculateSubscriptionPVP(subscription);
+            default:
+                return '';
+        }
+    };
+
+    // Función para manejar el click en el header para ordenar
+    const handleRequestSort = (property: OrderBy) => {
+        const isAsc = orderBy === property && order === 'asc';
+        setOrder(isAsc ? 'desc' : 'asc');
+        setOrderBy(property);
+    };
+
+    // Ordenar las suscripciones
+    const sortedSubscriptions = useMemo(() => {
+        const comparator = getComparator(order, orderBy);
+        const subscriptionsWithOrderValue = subscriptions.map(subscription => ({
+            ...subscription,
+            orderValue: getOrderValue(subscription, orderBy)
+        }));
+
+        return subscriptionsWithOrderValue.sort((a, b) => comparator(
+            { [orderBy]: a.orderValue },
+            { [orderBy]: b.orderValue }
+        ));
+    }, [subscriptions, order, orderBy]);
+
+    // Componente para el header ordenable
+    const SortableTableHead = ({ id, label, numeric = false, width }: {
+        id: OrderBy;
+        label: string;
+        numeric?: boolean;
+        width?: string;
+    }) => (
+        <HeaderTableCell align={numeric ? 'right' : 'left'} sx={{ width }}>
+            <TableSortLabel
+                active={orderBy === id}
+                direction={orderBy === id ? order : 'asc'}
+                onClick={() => handleRequestSort(id)}
+                sx={{
+                    '& .MuiTableSortLabel-icon': {
+                        fontSize: '1rem',
+                    },
+                }}
+            >
+                {label}
+            </TableSortLabel>
+        </HeaderTableCell>
+    );
 
     if (loading && subscriptions.length === 0) {
         return (
@@ -124,121 +276,205 @@ export const SubscriptionsTable: React.FC<SubscriptionsTableProps> = ({
     }
 
     return (
-        <TableContainer component={Paper}>
-            <Table sx={{ minWidth: 650 }} aria-label="tabla de suscripciones">
+        <TableContainer
+            component={Paper}
+            sx={{
+                width: '100%',
+                overflowX: 'auto',
+                '& .MuiTable-root': {
+                    minWidth: 'auto'
+                }
+            }}
+        >
+            <Table
+                size="small"
+                aria-label="tabla de suscripciones"
+                sx={{
+                    tableLayout: 'fixed',
+                    width: '100%'
+                }}
+            >
                 <TableHead>
                     <TableRow>
-                        <TableCell>Cliente</TableCell>
-                        <TableCell>Servicio</TableCell>
-                        <TableCell>Frecuencia</TableCell>
-                        <TableCell>Método de Pago</TableCell>
-                        <TableCell>Estado</TableCell>
-                        <TableCell>Inicio</TableCell>
-                        <TableCell>Fin</TableCell>
-                        <TableCell align="right">Acciones</TableCell>
+                        <SortableTableHead id="client" label="Cliente" width="160px" />
+                        <SortableTableHead id="service" label="Servicio" width="140px" />
+                        <SortableTableHead id="renewal" label="Frecuencia" width="90px" />
+                        <SortableTableHead id="paymentMethod" label="Método de Pago" width="110px" />
+                        <SortableTableHead id="pvp" label="PVP" width="80px" numeric />
+                        <SortableTableHead id="status" label="Estado" width="80px" />
+                        <SortableTableHead id="startDate" label="Fecha de Alta" width="90px" />
+                        <SortableTableHead id="endDate" label="Fin" width="80px" />
+                        <HeaderTableCell sx={{ width: '120px', textAlign: 'right' }}>Acciones</HeaderTableCell>
                     </TableRow>
                 </TableHead>
                 <TableBody>
-                    {subscriptions.length === 0 ? (
+                    {sortedSubscriptions.length === 0 ? (
                         <TableRow>
-                            <TableCell colSpan={8} align="center">
-                                No se encontraron suscripciones
-                            </TableCell>
+                            <CompactTableCell colSpan={9} align="center">
+                                <Typography variant="body2" color="textSecondary">
+                                    No se encontraron suscripciones
+                                </Typography>
+                            </CompactTableCell>
                         </TableRow>
                     ) : (
-                        subscriptions
+                        sortedSubscriptions
                             .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
                             .map((subscription) => (
                                 <StyledTableRow key={subscription.id}>
-                                    <TableCell>
+                                    {/* Cliente */}
+                                    <CompactTableCell>
                                         <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-                                            <Typography variant="body2" fontWeight="bold">
-                                                {subscription.clientInfo?.firstName}{' '}
-                                                {subscription.clientInfo?.lastName}
+                                            <Typography
+                                                variant="body2"
+                                                fontWeight="medium"
+                                                sx={{
+                                                    overflow: 'hidden',
+                                                    textOverflow: 'ellipsis',
+                                                    whiteSpace: 'nowrap'
+                                                }}
+                                                title={getClientDisplayName(subscription)}
+                                            >
+                                                {getClientDisplayName(subscription)}
                                             </Typography>
-                                            <Typography variant="caption" color="textSecondary">
-                                                {subscription.clientInfo?.email}
+                                            <Typography
+                                                variant="caption"
+                                                color="textSecondary"
+                                                sx={{
+                                                    overflow: 'hidden',
+                                                    textOverflow: 'ellipsis',
+                                                    whiteSpace: 'nowrap'
+                                                }}
+                                                title={subscription.clientInfo?.email}
+                                            >
+                                                {subscription.clientInfo?.email || '-'}
                                             </Typography>
                                         </Box>
-                                    </TableCell>
-                                    <TableCell>{subscription.serviceInfo?.name}</TableCell>
-                                    <TableCell>{getRenewalText(subscription.renewal)}</TableCell>
-                                    <TableCell>
-                                        {getPaymentMethodText(subscription.paymentMethod?.type)}
-                                    </TableCell>
-                                    <TableCell>{getStatusChip(subscription.status)}</TableCell>
-                                    <TableCell>{formatDate(subscription.startDate)}</TableCell>
-                                    <TableCell>{formatDate(subscription.endDate)}</TableCell>
-                                    <TableCell align="right">
-                                        <IconButton
-                                            size="small"
-                                            onClick={() => onEdit(subscription)}
-                                            disabled={loading}
-                                            title="Editar"
+                                    </CompactTableCell>
+
+                                    {/* Servicio */}
+                                    <CompactTableCell>
+                                        <Typography
+                                            variant="body2"
+                                            sx={{
+                                                overflow: 'hidden',
+                                                textOverflow: 'ellipsis',
+                                                whiteSpace: 'nowrap'
+                                            }}
+                                            title={subscription.serviceInfo?.name}
                                         >
-                                            <EditIcon fontSize="small" />
-                                        </IconButton>
+                                            {subscription.serviceInfo?.name || '-'}
+                                        </Typography>
+                                    </CompactTableCell>
 
-                                        {subscription.status === 'active' && (
-                                            <IconButton
-                                                size="small"
-                                                onClick={() =>
-                                                    onChangeStatus(subscription.id!, 'paused')
-                                                }
-                                                disabled={loading}
-                                                title="Pausar"
-                                            >
-                                                <PauseIcon fontSize="small" />
-                                            </IconButton>
-                                        )}
+                                    {/* Frecuencia */}
+                                    <CompactTableCell>
+                                        <Typography variant="body2">
+                                            {getRenewalText(subscription.renewal)}
+                                        </Typography>
+                                    </CompactTableCell>
 
-                                        {subscription.status === 'paused' && (
-                                            <IconButton
-                                                size="small"
-                                                onClick={() =>
-                                                    onChangeStatus(subscription.id!, 'active')
-                                                }
-                                                disabled={loading}
-                                                title="Activar"
-                                            >
-                                                <PlayArrowIcon fontSize="small" />
-                                            </IconButton>
-                                        )}
+                                    {/* Método de Pago */}
+                                    <CompactTableCell>
+                                        <Typography
+                                            variant="body2"
+                                            sx={{
+                                                overflow: 'hidden',
+                                                textOverflow: 'ellipsis',
+                                                whiteSpace: 'nowrap'
+                                            }}
+                                            title={getPaymentMethodText(subscription.paymentMethod?.type)}
+                                        >
+                                            {getPaymentMethodText(subscription.paymentMethod?.type)}
+                                        </Typography>
+                                    </CompactTableCell>
 
-                                        {(subscription.status === 'active' ||
-                                            subscription.status === 'paused') && (
+                                    {/* PVP */}
+                                    <CompactTableCell align="right">
+                                        <Typography variant="body2" fontWeight="bold">
+                                            {formatPrice(calculateSubscriptionPVP(subscription))} €
+                                        </Typography>
+                                    </CompactTableCell>
+
+                                    {/* Estado */}
+                                    <CompactTableCell>
+                                        {getStatusChip(subscription.status)}
+                                    </CompactTableCell>
+
+                                    {/* Fecha de Alta (antes "Fecha de Inicio") */}
+                                    <CompactTableCell>
+                                        <Typography variant="body2">
+                                            {formatDate(subscription.startDate)}
+                                        </Typography>
+                                    </CompactTableCell>
+
+                                    {/* Fecha de Fin */}
+                                    <CompactTableCell>
+                                        <Typography variant="body2">
+                                            {formatDate(subscription.endDate)}
+                                        </Typography>
+                                    </CompactTableCell>
+
+                                    {/* Acciones - Solo editar y cancelar, sin pausar */}
+                                    <CompactTableCell align="right">
+                                        <Box sx={{ display: 'flex', gap: 0.5, justifyContent: 'flex-end' }}>
+                                            {/* Solo se puede editar si está activa */}
+                                            {subscription.status === 'active' && (
                                                 <IconButton
                                                     size="small"
-                                                    onClick={() =>
-                                                        onChangeStatus(subscription.id!, 'cancelled')
-                                                    }
+                                                    onClick={() => onEdit(subscription)}
                                                     disabled={loading}
-                                                    title="Cancelar"
+                                                    title="Editar"
+                                                    sx={{ 
+                                                        color: 'text.secondary',
+                                                        '&:hover': { backgroundColor: 'action.hover' }
+                                                    }}
+                                                >
+                                                    <EditIcon fontSize="small" />
+                                                </IconButton>
+                                            )}
+
+                                            {/* Solo se puede cancelar si está activa */}
+                                            {subscription.status === 'active' && (
+                                                <IconButton
+                                                    size="small"
+                                                    onClick={() => onCancel(subscription)}
+                                                    disabled={loading}
+                                                    title="Cancelar suscripción"
+                                                    sx={{ 
+                                                        color: 'text.secondary',
+                                                        '&:hover': { backgroundColor: 'action.hover' }
+                                                    }}
                                                 >
                                                     <CancelIcon fontSize="small" />
                                                 </IconButton>
                                             )}
 
-                                        <IconButton
-                                            size="small"
-                                            onClick={() =>
-                                                subscription.id && onDelete(subscription.id)
-                                            }
-                                            disabled={
-                                                loading || subscription.status === 'active'
-                                            }
-                                            title="Eliminar"
-                                        >
-                                            <DeleteIcon fontSize="small" />
-                                        </IconButton>
-                                    </TableCell>
+                                            {/* Solo se puede eliminar si está cancelada */}
+                                            {subscription.status === 'cancelled' && (
+                                                <IconButton
+                                                    size="small"
+                                                    onClick={() =>
+                                                        subscription.id && onDelete(subscription.id)
+                                                    }
+                                                    disabled={loading}
+                                                    title="Eliminar"
+                                                    sx={{ 
+                                                        color: 'text.secondary',
+                                                        '&:hover': { backgroundColor: 'action.hover' }
+                                                    }}
+                                                >
+                                                    <DeleteIcon fontSize="small" />
+                                                </IconButton>
+                                            )}
+                                        </Box>
+                                    </CompactTableCell>
                                 </StyledTableRow>
                             ))
                     )}
                 </TableBody>
             </Table>
             <TablePagination
-                rowsPerPageOptions={[5, 10, 25]}
+                rowsPerPageOptions={[25, 50, 100]}
                 component="div"
                 count={subscriptions.length}
                 rowsPerPage={rowsPerPage}
@@ -246,7 +482,9 @@ export const SubscriptionsTable: React.FC<SubscriptionsTableProps> = ({
                 onPageChange={onPageChange}
                 onRowsPerPageChange={onRowsPerPageChange}
                 labelRowsPerPage="Filas por página:"
-                labelDisplayedRows={({ from, to, count }) => `${from}-${to} de ${count}`}
+                labelDisplayedRows={({ from, to, count }) =>
+                    `${from}-${to} de ${count !== -1 ? count : `más de ${to}`}`
+                }
             />
         </TableContainer>
     );
