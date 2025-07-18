@@ -31,8 +31,9 @@ export interface Service {
 	name: string;
 	description: string;
 	basePrice: number;
+	finalPrice?: number; // Campo opcional para compatibilidad
 	vat: number;
-	retention: number;
+	retention?: number; // Campo opcional para compatibilidad
 	frequency: 'monthly' | 'quarterly' | 'four_monthly' | 'biannual' | 'annual';
 	renovation: 'first_day' | 'last_day';
 	createdAt?: Date;
@@ -55,8 +56,10 @@ export interface Subscription {
 	startDate: Date;
 	endDate: Date | null;
 	paymentType: 'advance' | 'arrears'; // Pago anticipado o vencido
+	paymentDate?: Date; // Nueva: Fecha de cobro calculada automáticamente
 	paymentHistory: PaymentHistory[];
-	status: 'active' | 'cancelled';
+	status: 'active' | 'expired' | 'ending'; // Estados actualizados
+	renewal?: 'monthly' | 'quarterly' | 'four_monthly' | 'biannual' | 'annual'; // Frecuencia de renovación
 	createdAt?: Date;
 	updatedAt?: Date;
 }

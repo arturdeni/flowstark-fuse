@@ -4,25 +4,26 @@ import {
     Box,
     TextField,
     Button,
-    InputAdornment,
     FormControl,
     InputLabel,
     Select,
     MenuItem,
+    InputAdornment,
+    IconButton,
 } from '@mui/material';
 import { SelectChangeEvent } from '@mui/material/Select';
 import {
-    Add as AddIcon,
     Search as SearchIcon,
+    Add as AddIcon,
     Refresh as RefreshIcon,
 } from '@mui/icons-material';
 
 interface SubscriptionSearchAndActionsProps {
     searchTerm: string;
-    statusFilter: string;
+    statusFilter: 'all' | 'active' | 'expired' | 'ending';
     loading: boolean;
-    onSearchChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-    onStatusFilterChange: (e: SelectChangeEvent) => void;
+    onSearchChange: (term: string) => void;
+    onStatusFilterChange: (status: 'all' | 'active' | 'expired' | 'ending') => void;
     onAddNew: () => void;
     onRefresh: () => void;
 }
@@ -36,14 +37,31 @@ export const SubscriptionSearchAndActions: React.FC<SubscriptionSearchAndActions
     onAddNew,
     onRefresh,
 }) => {
+    const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        onSearchChange(event.target.value);
+    };
+
+    const handleStatusFilterChange = (event: SelectChangeEvent<string>) => {
+        onStatusFilterChange(event.target.value as 'all' | 'active' | 'expired' | 'ending');
+    };
+
     return (
-        <Box sx={{ display: 'flex', mb: 3 }}>
+        <Box 
+            sx={{ 
+                display: 'flex', 
+                gap: 2, 
+                alignItems: 'center', 
+                mb: 3,
+                flexWrap: 'wrap'
+            }}
+        >
+            {/* Campo de búsqueda */}
             <TextField
-                variant="outlined"
                 placeholder="Buscar suscripciones..."
                 value={searchTerm}
-                onChange={onSearchChange}
-                sx={{ mr: 2, flexGrow: 1 }}
+                onChange={handleSearchChange}
+                size="small"
+                sx={{ flexGrow: 1, minWidth: 200 }}
                 InputProps={{
                     startAdornment: (
                         <InputAdornment position="start">
@@ -52,37 +70,42 @@ export const SubscriptionSearchAndActions: React.FC<SubscriptionSearchAndActions
                     ),
                 }}
             />
-            <FormControl variant="outlined" sx={{ minWidth: 120, mr: 2 }}>
+
+            {/* Filtro de estado */}
+            <FormControl size="small" sx={{ minWidth: 140 }}>
                 <InputLabel id="status-filter-label">Estado</InputLabel>
                 <Select
                     labelId="status-filter-label"
                     value={statusFilter}
-                    onChange={onStatusFilterChange}
                     label="Estado"
+                    onChange={handleStatusFilterChange}
                 >
                     <MenuItem value="all">Todos</MenuItem>
                     <MenuItem value="active">Activas</MenuItem>
-                    <MenuItem value="cancelled">Canceladas</MenuItem>
+                    <MenuItem value="ending">Finaliza</MenuItem>
+                    <MenuItem value="expired">Caducadas</MenuItem>
                 </Select>
             </FormControl>
+
+            {/* Botón de actualizar */}
+            <IconButton
+                onClick={onRefresh}
+                disabled={loading}
+                title="Actualizar datos"
+                size="small"
+            >
+                <RefreshIcon />
+            </IconButton>
+
+            {/* Botón de nueva suscripción */}
             <Button
                 variant="contained"
-                color="primary"
                 startIcon={<AddIcon />}
                 onClick={onAddNew}
                 disabled={loading}
-                sx={{ mr: 1 }}
+                size="small"
             >
                 Nueva Suscripción
-            </Button>
-            <Button
-                variant="outlined"
-                color="primary"
-                startIcon={<RefreshIcon />}
-                onClick={onRefresh}
-                disabled={loading}
-            >
-                Actualizar
             </Button>
         </Box>
     );

@@ -14,6 +14,8 @@ import {
     MenuItem,
     InputAdornment,
     CircularProgress,
+    Alert,
+    Typography,
 } from '@mui/material';
 import { SelectChangeEvent } from '@mui/material/Select';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFnsV3';
@@ -24,6 +26,7 @@ import {
     Person as PersonIcon,
     Inventory as InventoryIcon,
     CalendarToday as CalendarIcon,
+    Payment as PaymentIcon,
 } from '@mui/icons-material';
 import { Subscription, Client, Service } from '../../../../types/models';
 import { SubscriptionWithRelations } from '../hooks/useSubscriptions';
@@ -42,7 +45,6 @@ interface SubscriptionFormProps {
 interface FormData {
     clientId: string;
     serviceId: string;
-    status: 'active' | 'cancelled';
     startDate: Date;
     endDate: Date | null;
     paymentType: 'advance' | 'arrears';
@@ -62,10 +64,9 @@ export const SubscriptionForm: React.FC<SubscriptionFormProps> = ({
     const [formData, setFormData] = useState<FormData>({
         clientId: '',
         serviceId: '',
-        status: 'active',
         startDate: new Date(),
         endDate: null,
-        paymentType: 'advance', // Por defecto pago anticipado
+        paymentType: 'advance',
         paymentHistory: [],
     });
 
@@ -77,7 +78,6 @@ export const SubscriptionForm: React.FC<SubscriptionFormProps> = ({
             setFormData({
                 clientId: selectedSubscription.clientId,
                 serviceId: selectedSubscription.serviceId,
-                status: selectedSubscription.status,
                 startDate: selectedSubscription.startDate,
                 endDate: selectedSubscription.endDate,
                 paymentType: selectedSubscription.paymentType || 'advance',
@@ -87,7 +87,6 @@ export const SubscriptionForm: React.FC<SubscriptionFormProps> = ({
             setFormData({
                 clientId: '',
                 serviceId: '',
-                status: 'active',
                 startDate: new Date(),
                 endDate: null,
                 paymentType: 'advance',
@@ -100,7 +99,7 @@ export const SubscriptionForm: React.FC<SubscriptionFormProps> = ({
 
     const handleInputChange = (
         e: React.ChangeEvent<HTMLInputElement | { name?: string; value: unknown }> |
-            SelectChangeEvent<string | 'active' | 'cancelled'>
+            SelectChangeEvent<string>
     ) => {
         const { name, value } = e.target as { name: string; value: string };
 
@@ -128,6 +127,12 @@ export const SubscriptionForm: React.FC<SubscriptionFormProps> = ({
             return false;
         }
 
+        // Validar que la fecha de fin sea posterior a la fecha de inicio
+        if (formData.endDate && formData.startDate && formData.endDate <= formData.startDate) {
+            setValidationError('La fecha de finalización debe ser posterior a la fecha de inicio');
+            return false;
+        }
+
         return true;
     };
 
@@ -148,6 +153,7 @@ export const SubscriptionForm: React.FC<SubscriptionFormProps> = ({
 
             const subscriptionData = {
                 ...formData,
+                status: 'active' as const, // Siempre crear como activa
                 paymentHistory,
             };
 
@@ -161,6 +167,17 @@ export const SubscriptionForm: React.FC<SubscriptionFormProps> = ({
         } catch (error) {
             console.error('Error saving subscription:', error);
         }
+    };
+
+    // Función para obtener el nombre completo del cliente
+    const getClientDisplayName = (client: Client): string => {
+        return `${client.firstName} ${client.lastName} - ${client.email}`;
+    };
+
+    // Función para obtener información del servicio
+    const getServiceDisplayName = (service: Service): string => {
+        const price = service.finalPrice || service.basePrice || 0;
+        return `${service.name} - ${price.toFixed(2)}€`;
     };
 
     return (
@@ -181,132 +198,147 @@ export const SubscriptionForm: React.FC<SubscriptionFormProps> = ({
                 <DialogContent>
                     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, pt: 2 }}>
                         {validationError && (
-                            <Box sx={{ p: 2, bgcolor: 'error.light', borderRadius: 1 }}>
-                                <Typography color="error" variant="body2">
-                                    {validationError}
-                                </Typography>
-                            </Box>
+                            <Alert severity="error">
+                                {validationError}
+                            </Alert>
                         )}
 
-                        {/* Cliente */}
-                        <FormControl fullWidth required>
-                            <InputLabel id="client-select-label">Cliente</InputLabel>
-                            <Select
-                                labelId="client-select-label"
-                                name="clientId"
-                                value={formData.clientId}
-                                label="Cliente"
-                                onChange={handleInputChange}
-                                startAdornment={
-                                    <InputAdornment position="start">
-                                        <PersonIcon />
-                                    </InputAdornment>
-                                }
-                            >
-                                {clients.map((client) => (
-                                    <MenuItem key={client.id} value={client.id}>
-                                        {`${client.firstName} ${client.lastName} - ${client.email}`}
-                                    </MenuItem>
-                                ))}
-                            </Select>
-                        </FormControl>
+                        {/* Información básica */}
+                        <Box>
+                            <Typography variant="h6" gutterBottom>
+                                Información básica
+                            </Typography>
+                            
+                            <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 2 }}>
+                                {/* Cliente */}
+                                <FormControl fullWidth required>
+                                    <InputLabel id="client-select-label">Cliente</InputLabel>
+                                    <Select
+                                        labelId="client-select-label"
+                                        name="clientId"
+                                        value={formData.clientId}
+                                        label="Cliente"
+                                        onChange={handleInputChange}
+                                        startAdornment={
+                                            <InputAdornment position="start">
+                                                <PersonIcon />
+                                            </InputAdornment>
+                                        }
+                                    >
+                                        {clients.map((client) => (
+                                            <MenuItem key={client.id} value={client.id}>
+                                                {getClientDisplayName(client)}
+                                            </MenuItem>
+                                        ))}
+                                    </Select>
+                                </FormControl>
 
-                        {/* Servicio */}
-                        <FormControl fullWidth required>
-                            <InputLabel id="service-select-label">Servicio</InputLabel>
-                            <Select
-                                labelId="service-select-label"
-                                name="serviceId"
-                                value={formData.serviceId}
-                                label="Servicio"
-                                onChange={handleInputChange}
-                                startAdornment={
-                                    <InputAdornment position="start">
-                                        <InventoryIcon />
-                                    </InputAdornment>
-                                }
-                            >
-                                {services.map((service) => (
-                                    <MenuItem key={service.id} value={service.id}>
-                                        {`${service.name} - €${service.basePrice}`}
-                                    </MenuItem>
-                                ))}
-                            </Select>
-                        </FormControl>
-
-                        <Box sx={{ display: 'flex', gap: 2 }}>
-                            {/* Fecha de inicio */}
-                            <DatePicker
-                                label="Fecha de inicio"
-                                value={formData.startDate}
-                                onChange={(date) => handleDateChange('startDate', date)}
-                                format="dd/MM/yyyy"
-                                sx={{ flex: 1 }}
-                                slotProps={{
-                                    textField: {
-                                        required: true,
-                                        InputProps: {
-                                            startAdornment: (
-                                                <InputAdornment position="start">
-                                                    <CalendarIcon />
-                                                </InputAdornment>
-                                            ),
-                                        },
-                                    },
-                                }}
-                            />
-
-                            {/* Fecha de fin */}
-                            <DatePicker
-                                label="Fecha de fin (opcional)"
-                                value={formData.endDate}
-                                onChange={(date) => handleDateChange('endDate', date)}
-                                format="dd/MM/yyyy"
-                                sx={{ flex: 1 }}
-                                slotProps={{
-                                    textField: {
-                                        InputProps: {
-                                            startAdornment: (
-                                                <InputAdornment position="start">
-                                                    <CalendarIcon />
-                                                </InputAdornment>
-                                            ),
-                                        },
-                                    },
-                                }}
-                            />
+                                {/* Servicio */}
+                                <FormControl fullWidth required>
+                                    <InputLabel id="service-select-label">Servicio</InputLabel>
+                                    <Select
+                                        labelId="service-select-label"
+                                        name="serviceId"
+                                        value={formData.serviceId}
+                                        label="Servicio"
+                                        onChange={handleInputChange}
+                                        startAdornment={
+                                            <InputAdornment position="start">
+                                                <InventoryIcon />
+                                            </InputAdornment>
+                                        }
+                                    >
+                                        {services.map((service) => (
+                                            <MenuItem key={service.id} value={service.id}>
+                                                {getServiceDisplayName(service)}
+                                            </MenuItem>
+                                        ))}
+                                    </Select>
+                                </FormControl>
+                            </Box>
                         </Box>
 
-                        <Box sx={{ display: 'flex', gap: 2 }}>
-                            {/* Tipo de pago */}
-                            <FormControl fullWidth required sx={{ flex: 1 }}>
-                                <InputLabel id="payment-type-select-label">Tipo de pago</InputLabel>
+                        {/* Configuración de pagos */}
+                        <Box>
+                            <Typography variant="h6" gutterBottom>
+                                Configuración de pagos
+                            </Typography>
+                            
+                            <FormControl fullWidth required>
+                                <InputLabel id="payment-type-select-label">Tipo de Pago</InputLabel>
                                 <Select
                                     labelId="payment-type-select-label"
                                     name="paymentType"
                                     value={formData.paymentType}
-                                    label="Tipo de pago"
+                                    label="Tipo de Pago"
                                     onChange={handleInputChange}
+                                    startAdornment={
+                                        <InputAdornment position="start">
+                                            <PaymentIcon />
+                                        </InputAdornment>
+                                    }
                                 >
-                                    <MenuItem value="advance">Pago anticipado</MenuItem>
-                                    <MenuItem value="arrears">Pago vencido</MenuItem>
+                                    <MenuItem value="advance">Anticipado (se cobra antes del servicio)</MenuItem>
+                                    <MenuItem value="arrears">Vencido (se cobra después del servicio)</MenuItem>
                                 </Select>
                             </FormControl>
+                        </Box>
 
-                            {/* Estado */}
-                            <FormControl fullWidth required sx={{ flex: 1 }}>
-                                <InputLabel id="status-select-label">Estado</InputLabel>
-                                <Select
-                                    labelId="status-select-label"
-                                    name="status"
-                                    value={formData.status}
-                                    label="Estado"
-                                    onChange={handleInputChange}
-                                >
-                                    <MenuItem value="active">Activa</MenuItem>
-                                    <MenuItem value="cancelled">Cancelada</MenuItem>
-                                </Select>
-                            </FormControl>
+                        {/* Fechas */}
+                        <Box>
+                            <Typography variant="h6" gutterBottom>
+                                Fechas de la suscripción
+                            </Typography>
+                            
+                            <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 2 }}>
+                                {/* Fecha de inicio */}
+                                <DatePicker
+                                    label="Fecha de Inicio *"
+                                    value={formData.startDate}
+                                    onChange={(date) => handleDateChange('startDate', date)}
+                                    slotProps={{
+                                        textField: {
+                                            variant: 'outlined',
+                                            size: 'small',
+                                            fullWidth: true,
+                                            required: true,
+                                            InputProps: {
+                                                startAdornment: (
+                                                    <InputAdornment position="start">
+                                                        <CalendarIcon />
+                                                    </InputAdornment>
+                                                ),
+                                            }
+                                        }
+                                    }}
+                                />
+
+                                {/* Fecha de fin */}
+                                <DatePicker
+                                    label="Fecha de Finalización (Opcional)"
+                                    value={formData.endDate}
+                                    onChange={(date) => handleDateChange('endDate', date)}
+                                    minDate={formData.startDate}
+                                    slotProps={{
+                                        textField: {
+                                            variant: 'outlined',
+                                            size: 'small',
+                                            fullWidth: true,
+                                            InputProps: {
+                                                startAdornment: (
+                                                    <InputAdornment position="start">
+                                                        <CalendarIcon />
+                                                    </InputAdornment>
+                                                ),
+                                            }
+                                        }
+                                    }}
+                                />
+                            </Box>
+                            
+                            <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+                                Si no especificas fecha de finalización, la suscripción permanecerá activa indefinidamente.
+                            </Typography>
                         </Box>
                     </Box>
                 </DialogContent>

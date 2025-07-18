@@ -27,8 +27,13 @@ export const servicesService = {
 					...data,
 					// Asegúrate de que basePrice sea un número
 					basePrice: typeof data.basePrice === 'string' ? parseFloat(data.basePrice) : data.basePrice || 0,
+					// Asegúrate de que finalPrice sea un número
+					finalPrice:
+						typeof data.finalPrice === 'string' ? parseFloat(data.finalPrice) : data.finalPrice || 0,
 					// Asegúrate de que vat sea un número
 					vat: typeof data.vat === 'string' ? parseFloat(data.vat) : data.vat || 21,
+					// Asegúrate de que retention sea un número
+					retention: typeof data.retention === 'string' ? parseFloat(data.retention) : data.retention || 0,
 					createdAt: data.createdAt?.toDate(),
 					updatedAt: data.updatedAt?.toDate()
 				} as Service;

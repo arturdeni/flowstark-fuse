@@ -51,7 +51,7 @@ const HeaderTableCell = styled(TableCell)(({ theme }) => ({
 
 // Tipos para el ordenamiento
 type Order = 'asc' | 'desc';
-type OrderBy = 'name' | 'description' | 'basePrice' | 'vat' | 'retention' | 'pvp' | 'frequency' | 'activeSubscriptions';
+type OrderBy = 'name' | 'description' | 'basePrice' | 'vat' | 'retention' | 'finalPrice' | 'frequency' | 'activeSubscriptions';
 
 interface ServicesTableProps {
     services: Service[];
@@ -99,18 +99,18 @@ export const ServicesTable: React.FC<ServicesTableProps> = ({
         return typeof price === 'number' ? price.toFixed(2) : '0.00';
     };
 
-    // Función para calcular el PVP (Precio de Venta al Público)
+    // Función para calcular el Precio Final
     const calculatePVP = (service: Service): number => {
         const basePrice = service.basePrice || 0;
         const vat = service.vat || 0;
         const retention = service.retention || 0;
-        
+
         // Precio con IVA
         const priceWithVat = basePrice * (1 + vat / 100);
-        
+
         // Precio final con retención (la retención se resta)
         const finalPrice = priceWithVat * (1 - retention / 100);
-        
+
         return finalPrice;
     };
 
@@ -149,8 +149,8 @@ export const ServicesTable: React.FC<ServicesTableProps> = ({
                 return service.vat || 0;
             case 'retention':
                 return service.retention || 0;
-            case 'pvp':
-                return calculatePVP(service);
+            case 'finalPrice':
+                return service.finalPrice || calculatePVP(service);
             case 'frequency':
                 return getFrequencyText(service.frequency).toLowerCase();
             case 'activeSubscriptions':
@@ -238,7 +238,7 @@ export const ServicesTable: React.FC<ServicesTableProps> = ({
                         <SortableTableHead id="basePrice" label="Precio Base" width="90px" numeric />
                         <SortableTableHead id="vat" label="IVA" width="60px" numeric />
                         <SortableTableHead id="retention" label="Retención" width="80px" numeric />
-                        <SortableTableHead id="pvp" label="PVP" width="90px" numeric />
+                        <SortableTableHead id="finalPrice" label="Precio Final" width="90px" numeric />
                         <SortableTableHead id="frequency" label="Frecuencia" width="120px" />
                         <SortableTableHead id="activeSubscriptions" label="Suscripciones" width="100px" numeric />
                         <HeaderTableCell sx={{ width: '120px', textAlign: 'right' }}>Acciones</HeaderTableCell>
@@ -295,8 +295,8 @@ export const ServicesTable: React.FC<ServicesTableProps> = ({
 
                                     {/* Precio Base */}
                                     <CompactTableCell align="right">
-                                        <Typography variant="body2" fontWeight="medium">
-                                            {formatPrice(service.basePrice)} €
+                                        <Typography variant="body2" fontWeight="bold">
+                                            {formatPrice(service.finalPrice || calculatePVP(service))} €
                                         </Typography>
                                     </CompactTableCell>
 
@@ -314,7 +314,7 @@ export const ServicesTable: React.FC<ServicesTableProps> = ({
                                         </Typography>
                                     </CompactTableCell>
 
-                                    {/* PVP (Precio de Venta al Público) */}
+                                    {/* Precio Final */}
                                     <CompactTableCell align="right">
                                         <Typography variant="body2" fontWeight="bold">
                                             {formatPrice(calculatePVP(service))} €
@@ -339,7 +339,7 @@ export const ServicesTable: React.FC<ServicesTableProps> = ({
                                             size="small"
                                             variant="filled"
                                             color={(service as any).activeSubscriptions > 0 ? 'primary' : 'default'}
-                                            sx={{ 
+                                            sx={{
                                                 fontSize: '0.75rem',
                                                 fontWeight: 'bold',
                                                 minWidth: '28px',
@@ -363,7 +363,7 @@ export const ServicesTable: React.FC<ServicesTableProps> = ({
                                                     e.stopPropagation();
                                                     onEdit(service);
                                                 }}
-                                                sx={{ 
+                                                sx={{
                                                     color: 'text.secondary',
                                                     '&:hover': { backgroundColor: 'action.hover' }
                                                 }}
@@ -376,7 +376,7 @@ export const ServicesTable: React.FC<ServicesTableProps> = ({
                                                     e.stopPropagation();
                                                     onDelete(service.id!);
                                                 }}
-                                                sx={{ 
+                                                sx={{
                                                     color: 'error.main',
                                                     '&:hover': { backgroundColor: 'action.hover' }
                                                 }}

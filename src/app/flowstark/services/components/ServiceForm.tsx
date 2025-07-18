@@ -1,4 +1,3 @@
-// src/app/flowstark/services/components/ServiceForm.tsx
 import React, { useState, useEffect } from 'react';
 import {
     Dialog,
@@ -15,6 +14,8 @@ import {
     InputAdornment,
     CircularProgress,
     Typography,
+    Alert,
+    Divider,
 } from '@mui/material';
 import { SelectChangeEvent } from '@mui/material/Select';
 import {
@@ -36,9 +37,11 @@ interface FormData {
     name: string;
     description: string;
     basePrice: number | string;
+    finalPrice: number | string;
     vat: number | string;
     retention: number | string;
     frequency: 'monthly' | 'quarterly' | 'four_monthly' | 'biannual' | 'annual';
+    renovation: 'first_day' | 'last_day';
 }
 
 export const ServiceForm: React.FC<ServiceFormProps> = ({
@@ -53,12 +56,15 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
         name: '',
         description: '',
         basePrice: 0,
+        finalPrice: 0,
         vat: 21,
         retention: 0,
         frequency: 'monthly',
+        renovation: 'first_day',
     });
 
     const [validationError, setValidationError] = useState<string>('');
+    const [isUpdatingPrice, setIsUpdatingPrice] = useState(false);
 
     // Actualizar formulario cuando cambie el servicio seleccionado
     useEffect(() => {
@@ -67,48 +73,128 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
                 name: selectedService.name || '',
                 description: selectedService.description || '',
                 basePrice: selectedService.basePrice || 0,
+                finalPrice: (selectedService as any).finalPrice || 0,
                 vat: selectedService.vat || 21,
-                retention: selectedService.retention || 0,
+                retention: (selectedService as any).retention || 0,
                 frequency: selectedService.frequency || 'monthly',
+                renovation: selectedService.renovation || 'first_day',
             });
         } else {
             setFormData({
                 name: '',
                 description: '',
                 basePrice: 0,
+                finalPrice: 0,
                 vat: 21,
                 retention: 0,
                 frequency: 'monthly',
+                renovation: 'first_day',
             });
         }
 
         setValidationError('');
     }, [selectedService, open]);
 
+    // Función para calcular precio final basado en precio base
+    const calculateFinalPriceFromBase = (basePrice: number, vat: number, retention: number): number => {
+        const priceWithVat = basePrice * (1 + vat / 100);
+        const finalPrice = priceWithVat * (1 - retention / 100);
+        return finalPrice;
+    };
+
+    // Función para calcular precio base basado en precio final
+    const calculateBasePriceFromFinal = (finalPrice: number, vat: number, retention: number): number => {
+        const divisor = (1 + vat / 100) * (1 - retention / 100);
+        return divisor !== 0 ? finalPrice / divisor : 0;
+    };
+
     const handleInputChange = (
         e: React.ChangeEvent<HTMLInputElement | { name?: string; value: unknown }> |
             SelectChangeEvent<string>
     ) => {
+        if (isUpdatingPrice) return; // Evitar loops infinitos
+        
         const { name, value } = e.target as { name: string; value: string | number };
 
-        // Convertir valores numéricos
         let processedValue: string | number = value;
 
-        if (name === 'basePrice' || name === 'vat' || name === 'retention') {
+        if (name === 'basePrice' || name === 'finalPrice' || name === 'vat' || name === 'retention') {
+            // Permitir valores vacíos temporalmente - NO convertir a 0 inmediatamente
             if (value === '' || value === null || value === undefined) {
                 processedValue = '';
             } else {
-                processedValue = parseFloat(value as string) || 0;
+                // Limitar a máximo 2 decimales solo si hay un valor válido
+                const numValue = parseFloat(value as string);
+
+                if (!isNaN(numValue)) {
+                    processedValue = Math.round(numValue * 100) / 100;
+                } else {
+                    processedValue = '';
+                }
             }
         }
 
-        setFormData({
+        // Calcular el precio complementario dinámicamente solo si tenemos valores válidos
+        setIsUpdatingPrice(true);
+        
+        const newFormData = {
             ...formData,
             [name]: processedValue
-        });
+        };
+
+        // Solo calcular si tenemos valores numéricos válidos
+        const getNumericValue = (val: string | number): number => {
+            if (val === '' || val === null || val === undefined) return 0;
+
+            const num = typeof val === 'string' ? parseFloat(val) : val;
+            return isNaN(num) ? 0 : num;
+        };
+
+        // Si cambió el precio base, calcular el precio final (solo si basePrice no está vacío)
+        if ((name === 'basePrice' || name === 'vat' || name === 'retention') && 
+            newFormData.basePrice !== '') {
+            
+            const basePrice = getNumericValue(newFormData.basePrice);
+            const vat = getNumericValue(newFormData.vat);
+            const retention = getNumericValue(newFormData.retention);
+            
+            if (basePrice > 0) {
+                const calculatedFinalPrice = calculateFinalPriceFromBase(basePrice, vat, retention);
+                newFormData.finalPrice = Math.round(calculatedFinalPrice * 100) / 100;
+            }
+        }
+        
+        // Si cambió el precio final, calcular el precio base (solo si finalPrice no está vacío)
+        if (name === 'finalPrice' && newFormData.finalPrice !== '') {
+            const finalPrice = getNumericValue(newFormData.finalPrice);
+            const vat = getNumericValue(newFormData.vat);
+            const retention = getNumericValue(newFormData.retention);
+            
+            if (finalPrice > 0) {
+                const calculatedBasePrice = calculateBasePriceFromFinal(finalPrice, vat, retention);
+                newFormData.basePrice = Math.round(calculatedBasePrice * 100) / 100;
+            }
+        }
+
+        setFormData(newFormData);
+        setIsUpdatingPrice(false);
 
         if (validationError) {
             setValidationError('');
+        }
+    };
+
+    // Manejar cuando el usuario sale del campo (convertir vacíos a 0)
+    const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+        const { name, value } = e.target;
+        
+        if (name === 'basePrice' || name === 'finalPrice' || name === 'vat' || name === 'retention') {
+            if (value === '' || value === null || value === undefined) {
+                setFormData(prev => ({
+                    ...prev,
+                    [name]: 0
+                }));
+            }
         }
     };
 
@@ -118,12 +204,23 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
             return false;
         }
 
-        const basePrice = typeof formData.basePrice === 'string' ? parseFloat(formData.basePrice) || 0 : formData.basePrice;
-        const vat = typeof formData.vat === 'string' ? parseFloat(formData.vat) || 0 : formData.vat;
-        const retention = typeof formData.retention === 'string' ? parseFloat(formData.retention) || 0 : formData.retention;
+        // Convertir valores vacíos a 0 para validación
+        const basePrice = formData.basePrice === '' ? 0 : 
+            typeof formData.basePrice === 'string' ? parseFloat(formData.basePrice) || 0 : formData.basePrice;
+        const finalPrice = formData.finalPrice === '' ? 0 : 
+            typeof formData.finalPrice === 'string' ? parseFloat(formData.finalPrice) || 0 : formData.finalPrice;
+        const vat = formData.vat === '' ? 0 : 
+            typeof formData.vat === 'string' ? parseFloat(formData.vat) || 0 : formData.vat;
+        const retention = formData.retention === '' ? 0 : 
+            typeof formData.retention === 'string' ? parseFloat(formData.retention) || 0 : formData.retention;
 
         if (basePrice <= 0) {
-            setValidationError('El precio debe ser mayor que 0');
+            setValidationError('El precio base debe ser mayor que 0');
+            return false;
+        }
+
+        if (finalPrice <= 0) {
+            setValidationError('El precio final debe ser mayor que 0');
             return false;
         }
 
@@ -146,11 +243,17 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
         }
 
         try {
+            // Convertir valores vacíos a 0 antes de guardar
             const dataToSave = {
                 ...formData,
-                basePrice: typeof formData.basePrice === 'string' ? parseFloat(formData.basePrice) || 0 : formData.basePrice,
-                vat: typeof formData.vat === 'string' ? parseFloat(formData.vat) || 0 : formData.vat,
-                retention: typeof formData.retention === 'string' ? parseFloat(formData.retention) || 0 : formData.retention,
+                basePrice: formData.basePrice === '' ? 0 : 
+                    typeof formData.basePrice === 'string' ? parseFloat(formData.basePrice) || 0 : formData.basePrice,
+                finalPrice: formData.finalPrice === '' ? 0 : 
+                    typeof formData.finalPrice === 'string' ? parseFloat(formData.finalPrice) || 0 : formData.finalPrice,
+                vat: formData.vat === '' ? 0 : 
+                    typeof formData.vat === 'string' ? parseFloat(formData.vat) || 0 : formData.vat,
+                retention: formData.retention === '' ? 0 : 
+                    typeof formData.retention === 'string' ? parseFloat(formData.retention) || 0 : formData.retention,
             };
 
             if (selectedService?.id) {
@@ -165,189 +268,270 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
         }
     };
 
-    // Función para calcular precio final
-    const calculateFinalPrice = (): number => {
-        const basePrice = typeof formData.basePrice === 'string' ? parseFloat(formData.basePrice) || 0 : formData.basePrice;
-        const vat = typeof formData.vat === 'string' ? parseFloat(formData.vat) || 0 : formData.vat;
-        const retention = typeof formData.retention === 'string' ? parseFloat(formData.retention) || 0 : formData.retention;
+    const formatNumberValue = (value: number | string): number | string => {
+        if (value === '' || value === null || value === undefined) return '';
 
-        const priceWithVat = basePrice * (1 + vat / 100);
-        const finalPrice = priceWithVat * (1 - retention / 100);
-
-        return finalPrice;
+        const numValue = typeof value === 'string' ? parseFloat(value) || 0 : value;
+        return Math.round(numValue * 100) / 100; // Máximo 2 decimales
     };
 
     return (
-        <Dialog
-            open={open}
-            onClose={onClose}
-            maxWidth="md"
+        <Dialog 
+            open={open} 
+            onClose={onClose} 
+            maxWidth="md" 
             fullWidth
             PaperProps={{
-                sx: { borderRadius: 2 }
+                sx: { minHeight: '600px' }
             }}
         >
             <DialogTitle>
-                {selectedService ? 'Editar Servicio' : 'Añadir Nuevo Servicio'}
+                {selectedService ? 'Editar Servicio' : 'Nuevo Servicio'}
             </DialogTitle>
 
-            <DialogContent sx={{ pt: 2 }}>
+            <DialogContent dividers>
                 {validationError && (
-                    <Box sx={{ mb: 2, p: 2, bgcolor: 'error.light', borderRadius: 1 }}>
-                        <Typography color="error" variant="body2">
-                            {validationError}
-                        </Typography>
-                    </Box>
+                    <Alert severity="error" sx={{ mb: 2 }}>
+                        {validationError}
+                    </Alert>
                 )}
 
-                <Box
-                    sx={{
-                        display: 'grid',
-                        gridTemplateColumns: 'repeat(2, 1fr)',
-                        gap: 2,
-                        mt: 1
-                    }}
-                >
-                    {/* Nombre */}
-                    <TextField
-                        label="Nombre del Servicio"
-                        name="name"
-                        value={formData.name}
-                        onChange={handleInputChange}
-                        fullWidth
-                        variant="outlined"
-                        size="small"
-                        required
-                        sx={{ gridColumn: '1 / span 2' }}
-                    />
-
-                    {/* Descripción - Campo mejorado con redimensionado automático */}
-                    <TextField
-                        label="Descripción"
-                        name="description"
-                        value={formData.description}
-                        onChange={handleInputChange}
-                        fullWidth
-                        variant="outlined"
-                        size="medium"
-                        multiline
-                        minRows={1}
-                        maxRows={8}
-                        sx={{
-                            gridColumn: '1 / span 2',
-                            '& .MuiInputBase-root': {
-                                lineHeight: 1.5,
-                            }
-                        }}
-                        placeholder="Describe las características y detalles del servicio..."
-                    />
-
-                    {/* Precio Base */}
-                    <TextField
-                        label="Precio Base"
-                        name="basePrice"
-                        type="number"
-                        value={formData.basePrice}
-                        onChange={handleInputChange}
-                        variant="outlined"
-                        size="small"
-                        required
-                        InputProps={{
-                            startAdornment: (
-                                <InputAdornment position="start">
-                                    <EuroIcon fontSize="small" />
-                                </InputAdornment>
-                            ),
-                        }}
-                        inputProps={{
-                            min: 0,
-                            step: 0.01,
-                        }}
-                    />
-
-                    {/* Frecuencia de Facturación */}
-                    <FormControl variant="outlined" size="small" required>
-                        <InputLabel id="frequency-select-label">Frecuencia de Facturación</InputLabel>
-                        <Select
-                            labelId="frequency-select-label"
-                            name="frequency"
-                            value={formData.frequency}
-                            label="Frecuencia de Facturación"
+                {/* Información básica */}
+                <Box sx={{ mb: 3 }}>
+                    <Typography variant="h6" gutterBottom>
+                        Información básica
+                    </Typography>
+                    
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                        <TextField
+                            label="Nombre del servicio"
+                            name="name"
+                            value={formData.name}
                             onChange={handleInputChange}
-                        >
-                            <MenuItem value="monthly">Mensual</MenuItem>
-                            <MenuItem value="quarterly">Trimestral</MenuItem>
-                            <MenuItem value="four_monthly">Cuatrimestral</MenuItem>
-                            <MenuItem value="biannual">Semestral</MenuItem>
-                            <MenuItem value="annual">Anual</MenuItem>
-                        </Select>
-                    </FormControl>
+                            variant="outlined"
+                            size="small"
+                            required
+                            fullWidth
+                        />
 
-                    {/* IVA */}
-                    <TextField
-                        label="IVA"
-                        name="vat"
-                        type="number"
-                        value={formData.vat}
-                        onChange={handleInputChange}
-                        variant="outlined"
-                        size="small"
-                        required
-                        InputProps={{
-                            endAdornment: (
-                                <InputAdornment position="end">
-                                    <PercentIcon fontSize="small" />
-                                </InputAdornment>
-                            ),
-                        }}
-                        inputProps={{
-                            min: 0,
-                            max: 100,
-                            step: 0.1,
-                        }}
-                    />
-
-                    {/* Retención */}
-                    <TextField
-                        label="Retención"
-                        name="retention"
-                        type="number"
-                        value={formData.retention}
-                        onChange={handleInputChange}
-                        variant="outlined"
-                        size="small"
-                        InputProps={{
-                            endAdornment: (
-                                <InputAdornment position="end">
-                                    <PercentIcon fontSize="small" />
-                                </InputAdornment>
-                            ),
-                        }}
-                        inputProps={{
-                            min: 0,
-                            max: 100,
-                            step: 0.1,
-                        }}
-                    />
+                        <TextField
+                            label="Descripción"
+                            name="description"
+                            value={formData.description}
+                            onChange={handleInputChange}
+                            variant="outlined"
+                            size="medium"
+                            multiline
+                            rows={3}
+                            fullWidth
+                        />
+                    </Box>
                 </Box>
 
-                {/* Cálculo del precio final */}
-                <Box sx={{ mt: 3, p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
-                    <Typography variant="subtitle2" gutterBottom>
-                        Cálculo del precio:
+                <Divider sx={{ my: 3 }} />
+
+                {/* Precios */}
+                <Box sx={{ mb: 3 }}>
+                    <Typography variant="h6" gutterBottom>
+                        Configuración de precios
                     </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                        • Precio base: {typeof formData.basePrice === 'string' ? parseFloat(formData.basePrice) || 0 : formData.basePrice}.00 €
+                    
+                    <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 2, mb: 2 }}>
+                        <TextField
+                            label="Precio Base"
+                            name="basePrice"
+                            type="number"
+                            value={formData.basePrice}
+                            onChange={handleInputChange}
+                            onBlur={handleBlur}
+                            variant="outlined"
+                            size="small"
+                            required
+                            InputProps={{
+                                endAdornment: (
+                                    <InputAdornment position="end">
+                                        <EuroIcon fontSize="small" />
+                                    </InputAdornment>
+                                ),
+                            }}
+                            inputProps={{
+                                min: 0,
+                                step: 0.01,
+                                style: { 
+                                    MozAppearance: 'textfield' // Firefox
+                                }
+                            }}
+                            sx={{
+                                '& input[type=number]::-webkit-outer-spin-button': {
+                                    '-webkit-appearance': 'none',
+                                    margin: 0,
+                                },
+                                '& input[type=number]::-webkit-inner-spin-button': {
+                                    '-webkit-appearance': 'none',
+                                    margin: 0,
+                                },
+                            }}
+                        />
+
+                        <TextField
+                            label="Precio Final"
+                            name="finalPrice"
+                            type="number"
+                            value={formatNumberValue(formData.finalPrice)}
+                            onChange={handleInputChange}
+                            onBlur={handleBlur}
+                            variant="outlined"
+                            size="small"
+                            required
+                            InputProps={{
+                                endAdornment: (
+                                    <InputAdornment position="end">
+                                        <EuroIcon fontSize="small" />
+                                    </InputAdornment>
+                                ),
+                            }}
+                            inputProps={{
+                                min: 0,
+                                step: 0.01,
+                                style: { 
+                                    MozAppearance: 'textfield' // Firefox
+                                }
+                            }}
+                            sx={{
+                                '& input[type=number]::-webkit-outer-spin-button': {
+                                    '-webkit-appearance': 'none',
+                                    margin: 0,
+                                },
+                                '& input[type=number]::-webkit-inner-spin-button': {
+                                    '-webkit-appearance': 'none',
+                                    margin: 0,
+                                },
+                                '& .MuiOutlinedInput-root': {
+                                    backgroundColor: 'rgba(25, 118, 210, 0.04)',
+                                    '&:hover': {
+                                        backgroundColor: 'rgba(25, 118, 210, 0.08)',
+                                    },
+                                }
+                            }}
+                        />
+                    </Box>
+
+                    <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 2 }}>
+                        <TextField
+                            label="IVA"
+                            name="vat"
+                            type="number"
+                            value={formData.vat}
+                            onChange={handleInputChange}
+                            onBlur={handleBlur}
+                            variant="outlined"
+                            size="small"
+                            required
+                            InputProps={{
+                                endAdornment: (
+                                    <InputAdornment position="end">
+                                        <PercentIcon fontSize="small" />
+                                    </InputAdornment>
+                                ),
+                            }}
+                            inputProps={{
+                                min: 0,
+                                max: 100,
+                                step: 0.1,
+                                style: { 
+                                    MozAppearance: 'textfield' // Firefox
+                                }
+                            }}
+                            sx={{
+                                '& input[type=number]::-webkit-outer-spin-button': {
+                                    '-webkit-appearance': 'none',
+                                    margin: 0,
+                                },
+                                '& input[type=number]::-webkit-inner-spin-button': {
+                                    '-webkit-appearance': 'none',
+                                    margin: 0,
+                                },
+                            }}
+                        />
+
+                        <TextField
+                            label="Retención"
+                            name="retention"
+                            type="number"
+                            value={formData.retention}
+                            onChange={handleInputChange}
+                            onBlur={handleBlur}
+                            variant="outlined"
+                            size="small"
+                            InputProps={{
+                                endAdornment: (
+                                    <InputAdornment position="end">
+                                        <PercentIcon fontSize="small" />
+                                    </InputAdornment>
+                                ),
+                            }}
+                            inputProps={{
+                                min: 0,
+                                max: 100,
+                                step: 0.1,
+                                style: { 
+                                    MozAppearance: 'textfield' // Firefox
+                                }
+                            }}
+                            sx={{
+                                '& input[type=number]::-webkit-outer-spin-button': {
+                                    '-webkit-appearance': 'none',
+                                    margin: 0,
+                                },
+                                '& input[type=number]::-webkit-inner-spin-button': {
+                                    '-webkit-appearance': 'none',
+                                    margin: 0,
+                                },
+                            }}
+                        />
+                    </Box>
+                </Box>
+
+                <Divider sx={{ my: 3 }} />
+
+                {/* Configuración de facturación */}
+                <Box sx={{ mb: 3 }}>
+                    <Typography variant="h6" gutterBottom>
+                        Configuración de facturación
                     </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                        • Con IVA ({typeof formData.vat === 'string' ? parseFloat(formData.vat) || 0 : formData.vat}%): {(
-                            (typeof formData.basePrice === 'string' ? parseFloat(formData.basePrice) || 0 : formData.basePrice) *
-                            (1 + (typeof formData.vat === 'string' ? parseFloat(formData.vat) || 0 : formData.vat) / 100)
-                        ).toFixed(2)} €
-                    </Typography>
-                    <Typography variant="body1" fontWeight="bold" color="primary">
-                        Precio final (PVP): {calculateFinalPrice().toFixed(2)} €
-                    </Typography>
+                    
+                    <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 2 }}>
+                        <FormControl size="small" required>
+                            <InputLabel id="frequency-select-label">Frecuencia de Renovación</InputLabel>
+                            <Select
+                                labelId="frequency-select-label"
+                                name="frequency"
+                                value={formData.frequency}
+                                label="Frecuencia de Renovación"
+                                onChange={handleInputChange}
+                            >
+                                <MenuItem value="monthly">Mensual</MenuItem>
+                                <MenuItem value="quarterly">Trimestral</MenuItem>
+                                <MenuItem value="four_monthly">Cuatrimestral</MenuItem>
+                                <MenuItem value="biannual">Semestral</MenuItem>
+                                <MenuItem value="annual">Anual</MenuItem>
+                            </Select>
+                        </FormControl>
+
+                        <FormControl size="small">
+                            <InputLabel id="renovation-select-label">Día de Renovación</InputLabel>
+                            <Select
+                                labelId="renovation-select-label"
+                                name="renovation"
+                                value={formData.renovation}
+                                label="Día de Renovación"
+                                onChange={handleInputChange}
+                            >
+                                <MenuItem value="first_day">Primer día del período</MenuItem>
+                                <MenuItem value="last_day">Último día del período</MenuItem>
+                            </Select>
+                        </FormControl>
+                    </Box>
                 </Box>
             </DialogContent>
 

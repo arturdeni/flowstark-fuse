@@ -45,33 +45,33 @@ function Subscriptions() {
 
   // Hook personalizado con toda la lógica de suscripciones
   const {
-    subscriptions,
-    filteredSubscriptions,
+    subscriptions: filteredSubscriptions,
     clients,
     services,
+    loading,
     searchTerm,
     statusFilter,
-    loading,
     snackbar,
     setSearchTerm,
     setStatusFilter,
-    refreshData,
     createSubscription,
     updateSubscription,
+    cancelSubscription,
     deleteSubscription,
-    changeSubscriptionStatus,
+    refreshData,
     closeSnackbar,
   } = useSubscriptions();
 
-  // Manejadores de eventos de UI
-  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchTerm(e.target.value);
+  // Handlers para búsqueda y filtros
+  const handleSearchChange = (term: string) => {
+    setSearchTerm(term);
   };
 
-  const handleStatusFilterChange = (e: SelectChangeEvent) => {
-    setStatusFilter(e.target.value as string);
+  const handleStatusFilterChange = (status: 'all' | 'active' | 'expired' | 'ending') => {
+    setStatusFilter(status);
   };
 
+  // Handlers para paginación
   const handleChangePage = (event: unknown, newPage: number) => {
     setPage(newPage);
   };
@@ -81,6 +81,7 @@ function Subscriptions() {
     setPage(0);
   };
 
+  // Handlers para formulario
   const handleOpenForm = (subscription: SubscriptionWithRelations | null = null) => {
     setSelectedSubscription(subscription);
     setFormOpen(true);
@@ -91,17 +92,16 @@ function Subscriptions() {
     setSelectedSubscription(null);
   };
 
-  // Manejador para cancelar suscripciones
+  // Handlers para cancelar suscripciones
   const handleCancelClick = (subscription: SubscriptionWithRelations) => {
     setSubscriptionToCancel(subscription);
     setCancelConfirmOpen(true);
   };
 
-  // Confirmar cancelación con fecha de finalización
-  const handleConfirmCancel = async (endDate: Date) => {
+  const handleConfirmCancel = async () => {
     if (subscriptionToCancel) {
       try {
-        await changeSubscriptionStatus(subscriptionToCancel.id!, 'cancelled', endDate);
+        await cancelSubscription(subscriptionToCancel.id!);
       } finally {
         setCancelConfirmOpen(false);
         setSubscriptionToCancel(null);
@@ -109,12 +109,12 @@ function Subscriptions() {
     }
   };
 
-  // Cancelar el diálogo de cancelación
   const handleCancelCancel = () => {
     setCancelConfirmOpen(false);
     setSubscriptionToCancel(null);
   };
 
+  // Handlers para eliminar suscripciones
   const handleDeleteClick = (id: string) => {
     setSubscriptionToDelete(id);
     setDeleteConfirmOpen(true);
@@ -148,7 +148,7 @@ function Subscriptions() {
       content={
         <Box className="p-6">
           {/* Tarjetas de resumen */}
-          <SubscriptionSummaryCards subscriptions={subscriptions} />
+          <SubscriptionSummaryCards subscriptions={filteredSubscriptions} />
 
           {/* Barra de búsqueda, filtro y acciones */}
           <SubscriptionSearchAndActions
@@ -170,7 +170,7 @@ function Subscriptions() {
             onPageChange={handleChangePage}
             onRowsPerPageChange={handleChangeRowsPerPage}
             onEdit={handleOpenForm}
-            onCancel={handleCancelClick} // 👈 Nuevo manejador
+            onCancel={handleCancelClick}
             onDelete={handleDeleteClick}
           />
 
