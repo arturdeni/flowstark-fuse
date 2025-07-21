@@ -296,7 +296,7 @@ export const ServicesTable: React.FC<ServicesTableProps> = ({
                                     {/* Precio Base */}
                                     <CompactTableCell align="right">
                                         <Typography variant="body2" fontWeight="bold">
-                                            {formatPrice(service.finalPrice || calculatePVP(service))} €
+                                            {formatPrice(service.basePrice)} €
                                         </Typography>
                                     </CompactTableCell>
 

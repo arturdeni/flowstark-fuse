@@ -204,7 +204,8 @@ export const SubscriptionsTable: React.FC<SubscriptionsTableProps> = ({
     // Función para verificar si se puede eliminar
     const canDelete = (subscription: SubscriptionWithRelations): boolean => {
         const status = getSubscriptionStatus(subscription);
-        return status !== 'active';
+        // No se puede eliminar si está en estado "ending" (finalizando)
+        return status !== 'ending';
     };
 
     // Función de comparación para ordenamiento
@@ -258,23 +259,30 @@ export const SubscriptionsTable: React.FC<SubscriptionsTableProps> = ({
         setOrderBy(property);
     };
 
-    // Calcular suscripciones ordenadas y paginadas
+    // Ordenar los datos
     const sortedSubscriptions = useMemo(() => {
-        const sorted = [...safeSubscriptions].sort(getComparator(order, orderBy));
-        return sorted.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
-    }, [safeSubscriptions, order, orderBy, page, rowsPerPage]);
+        return safeSubscriptions.slice().sort(getComparator(order, orderBy));
+    }, [safeSubscriptions, order, orderBy]);
+
+    // Paginar los datos ordenados
+    const paginatedSubscriptions = useMemo(() => {
+        const startIndex = page * rowsPerPage;
+        return sortedSubscriptions.slice(startIndex, startIndex + rowsPerPage);
+    }, [sortedSubscriptions, page, rowsPerPage]);
 
     // Componente para headers ordenables
     const SortableTableHead = ({
         id,
         label,
-        numeric = false
+        numeric = false,
+        width,
     }: {
         id: OrderBy;
         label: string;
         numeric?: boolean;
+        width?: string;
     }) => (
-        <HeaderTableCell align={numeric ? 'right' : 'left'}>
+        <HeaderTableCell align={numeric ? 'right' : 'left'} sx={{ width }}>
             <TableSortLabel
                 active={orderBy === id}
                 direction={orderBy === id ? order : 'asc'}
@@ -299,22 +307,38 @@ export const SubscriptionsTable: React.FC<SubscriptionsTableProps> = ({
     }
 
     return (
-        <TableContainer component={Paper} sx={{ width: '100%', overflowX: 'auto' }}>
-            <Table size="small" aria-label="tabla de suscripciones">
+        <TableContainer
+            component={Paper}
+            sx={{
+                width: '100%',
+                overflowX: 'auto',
+                '& .MuiTable-root': {
+                    minWidth: 'auto'
+                }
+            }}
+        >
+            <Table
+                size="small"
+                aria-label="tabla de suscripciones"
+                sx={{
+                    tableLayout: 'fixed',
+                    width: '100%'
+                }}
+            >
                 <TableHead>
                     <TableRow>
-                        <SortableTableHead id="client" label="Cliente" />
-                        <SortableTableHead id="service" label="Servicio" />
-                        <SortableTableHead id="frequency" label="Frecuencia" />
-                        <SortableTableHead id="paymentDate" label="Fecha de Cobro" />
-                        <SortableTableHead id="paymentType" label="Tipo de Pago" />
-                        <SortableTableHead id="status" label="Estado" />
-                        <SortableTableHead id="finalPrice" label="Precio Final" numeric />
-                        <HeaderTableCell>Acciones</HeaderTableCell>
+                        <SortableTableHead id="client" label="Cliente" width="180px" />
+                        <SortableTableHead id="service" label="Servicio" width="150px" />
+                        <SortableTableHead id="frequency" label="Frecuencia" width="120px" />
+                        <SortableTableHead id="paymentDate" label="Fecha de Cobro" width="120px" />
+                        <SortableTableHead id="paymentType" label="Tipo de Pago" width="120px" />
+                        <SortableTableHead id="status" label="Estado" width="100px" />
+                        <SortableTableHead id="finalPrice" label="Precio Final" width="100px" numeric />
+                        <HeaderTableCell sx={{ width: '120px', textAlign: 'right' }}>Acciones</HeaderTableCell>
                     </TableRow>
                 </TableHead>
                 <TableBody>
-                    {safeSubscriptions.length === 0 ? (
+                    {paginatedSubscriptions.length === 0 ? (
                         <TableRow>
                             <CompactTableCell colSpan={8} align="center">
                                 <Typography variant="body2" color="text.secondary">
@@ -323,8 +347,7 @@ export const SubscriptionsTable: React.FC<SubscriptionsTableProps> = ({
                             </CompactTableCell>
                         </TableRow>
                     ) : (
-                        sortedSubscriptions.map((subscription) => {
-                            const showDeleteButton = canDelete(subscription);
+                        paginatedSubscriptions.map((subscription) => {
                             const subscriptionStatus = getSubscriptionStatus(subscription);
 
                             return (
@@ -361,15 +384,11 @@ export const SubscriptionsTable: React.FC<SubscriptionsTableProps> = ({
                                         </Typography>
                                     </CompactTableCell>
 
-                                    {/* Tipo de Pago */}
+                                    {/* Tipo de Pago - CAMBIO: de Chip a Typography */}
                                     <CompactTableCell>
-                                        <Chip
-                                            label={getPaymentTypeText(subscription.paymentType || 'advance')}
-                                            size="small"
-                                            variant="outlined"
-                                            color={subscription.paymentType === 'advance' ? 'primary' : 'secondary'}
-                                            sx={{ fontSize: '0.7rem' }}
-                                        />
+                                        <Typography variant="body2" color="text.primary">
+                                            {getPaymentTypeText(subscription.paymentType || 'advance')}
+                                        </Typography>
                                     </CompactTableCell>
 
                                     {/* Estado */}
@@ -384,32 +403,58 @@ export const SubscriptionsTable: React.FC<SubscriptionsTableProps> = ({
                                         </Typography>
                                     </CompactTableCell>
 
-                                    {/* Acciones */}
-                                    <CompactTableCell>
-                                        <Box sx={{ display: 'flex', gap: 0.5 }}>
-                                            <IconButton
-                                                size="small"
-                                                onClick={() => onEdit(subscription)}
-                                                title="Editar suscripción"
-                                            >
-                                                <EditIcon fontSize="small" />
-                                            </IconButton>
-
+                                    {/* Acciones - CORREGIDO: lógica según estado */}
+                                    <CompactTableCell align="right">
+                                        <Box sx={{ display: 'flex', gap: 0.5, justifyContent: 'flex-end' }}>
+                                            {/* Suscripciones ACTIVAS: Editar + Cancelar */}
                                             {subscriptionStatus === 'active' && (
-                                                <IconButton
-                                                    size="small"
-                                                    onClick={() => onCancel(subscription)}
-                                                    title="Cancelar suscripción"
-                                                >
-                                                    <CancelIcon fontSize="small" />
-                                                </IconButton>
+                                                <>
+                                                    <IconButton
+                                                        size="small"
+                                                        onClick={() => onEdit(subscription)}
+                                                        title="Editar suscripción"
+                                                    >
+                                                        <EditIcon fontSize="small" />
+                                                    </IconButton>
+                                                    <IconButton
+                                                        size="small"
+                                                        onClick={() => onCancel(subscription)}
+                                                        title="Cancelar suscripción"
+                                                        color="warning"
+                                                    >
+                                                        <CancelIcon fontSize="small" />
+                                                    </IconButton>
+                                                </>
                                             )}
 
-                                            {showDeleteButton && (
+                                            {/* Suscripciones FINALIZAN: Editar + Cancelar */}
+                                            {subscriptionStatus === 'ending' && (
+                                                <>
+                                                    <IconButton
+                                                        size="small"
+                                                        onClick={() => onEdit(subscription)}
+                                                        title="Editar suscripción"
+                                                    >
+                                                        <EditIcon fontSize="small" />
+                                                    </IconButton>
+                                                    <IconButton
+                                                        size="small"
+                                                        onClick={() => onCancel(subscription)}
+                                                        title="Cancelar suscripción"
+                                                        color="warning"
+                                                    >
+                                                        <CancelIcon fontSize="small" />
+                                                    </IconButton>
+                                                </>
+                                            )}
+
+                                            {/* Suscripciones CADUCADAS: Solo Eliminar */}
+                                            {subscriptionStatus === 'expired' && (
                                                 <IconButton
                                                     size="small"
                                                     onClick={() => onDelete(subscription.id!)}
                                                     title="Eliminar suscripción"
+                                                    color="error"
                                                 >
                                                     <DeleteIcon fontSize="small" />
                                                 </IconButton>
@@ -425,7 +470,7 @@ export const SubscriptionsTable: React.FC<SubscriptionsTableProps> = ({
 
             {/* Paginación */}
             <TablePagination
-                rowsPerPageOptions={[10, 25, 50]}
+                rowsPerPageOptions={[25, 50, 100]}
                 component="div"
                 count={safeSubscriptions.length}
                 rowsPerPage={rowsPerPage}
