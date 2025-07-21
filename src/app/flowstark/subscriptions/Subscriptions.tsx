@@ -17,6 +17,7 @@ import {
   SubscriptionForm,
   DeleteConfirmDialog,
   CancelSubscriptionDialog,
+  SubscriptionDetailModal,
 } from './components';
 
 const Root = styled(FusePageSimple)(({ theme }) => ({
@@ -41,6 +42,10 @@ function Subscriptions() {
   const [subscriptionToCancel, setSubscriptionToCancel] = useState<SubscriptionWithRelations | null>(null);
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(25);
+
+  // Estado para el modal de detalles
+  const [detailModalOpen, setDetailModalOpen] = useState(false);
+  const [subscriptionToView, setSubscriptionToView] = useState<SubscriptionWithRelations | null>(null);
 
   // Hook personalizado con toda la lógica de suscripciones
   const {
@@ -98,7 +103,7 @@ function Subscriptions() {
   };
 
   const handleConfirmCancel = async (endDate: Date) => {
-    if (subscriptionToCancel && subscriptionToCancel.id) {
+    if (subscriptionToCancel?.id) {
       try {
         await cancelSubscription(subscriptionToCancel.id, endDate);
       } finally {
@@ -135,6 +140,17 @@ function Subscriptions() {
     setSubscriptionToDelete(null);
   };
 
+  // Manejadores para el modal de detalles
+  const handleViewDetail = (subscription: SubscriptionWithRelations) => {
+    setSubscriptionToView(subscription);
+    setDetailModalOpen(true);
+  };
+
+  const handleCloseDetailModal = () => {
+    setDetailModalOpen(false);
+    setSubscriptionToView(null);
+  };
+
   return (
     <Root
       header={
@@ -147,9 +163,11 @@ function Subscriptions() {
       content={
         <Box className="p-6">
           {/* Tarjetas de resumen */}
-          <SubscriptionSummaryCards subscriptions={filteredSubscriptions} />
+          <SubscriptionSummaryCards 
+            subscriptions={filteredSubscriptions}
+          />
 
-          {/* Barra de búsqueda, filtros y acciones */}
+          {/* Barra de búsqueda y filtros */}
           <SubscriptionSearchAndActions
             searchTerm={searchTerm}
             statusFilter={statusFilter}
@@ -171,6 +189,7 @@ function Subscriptions() {
             onEdit={handleOpenForm}
             onCancel={handleCancelClick}
             onDelete={handleDeleteClick}
+            onViewDetail={handleViewDetail}
           />
 
           {/* Formulario para añadir/editar suscripción */}
@@ -183,6 +202,13 @@ function Subscriptions() {
             onClose={handleCloseForm}
             onSave={createSubscription}
             onUpdate={updateSubscription}
+          />
+
+          {/* Modal para ver detalles de la suscripción */}
+          <SubscriptionDetailModal
+            open={detailModalOpen}
+            subscription={subscriptionToView}
+            onClose={handleCloseDetailModal}
           />
 
           {/* Diálogo de confirmación para eliminar */}

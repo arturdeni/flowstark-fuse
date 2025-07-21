@@ -19,7 +19,7 @@ import {
 import {
     Edit as EditIcon,
     Delete as DeleteIcon,
-    MoreVert as MoreVertIcon,
+    Visibility as VisibilityIcon,
 } from '@mui/icons-material';
 import { styled } from '@mui/material/styles';
 import { Service } from '../../../../types/models';
@@ -62,6 +62,7 @@ interface ServicesTableProps {
     onRowsPerPageChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
     onEdit: (service: Service) => void;
     onDelete: (id: string) => void;
+    onViewDetail: (service: Service) => void; // Nueva prop
 }
 
 export const ServicesTable: React.FC<ServicesTableProps> = ({
@@ -73,6 +74,7 @@ export const ServicesTable: React.FC<ServicesTableProps> = ({
     onRowsPerPageChange,
     onEdit,
     onDelete,
+    onViewDetail, // Nueva prop
 }) => {
     // Estado para el ordenamiento
     const [order, setOrder] = useState<Order>('asc');
@@ -96,26 +98,56 @@ export const ServicesTable: React.FC<ServicesTableProps> = ({
     };
 
     const formatPrice = (price: number | undefined): string => {
-        return typeof price === 'number' ? price.toFixed(2) : '0.00';
+        return typeof price === 'number' ?
+            `${price.toFixed(2)}€` :
+            'No definido';
     };
 
-    // Función para calcular el Precio Final
-    const calculatePVP = (service: Service): number => {
-        const basePrice = service.basePrice || 0;
-        const vat = service.vat || 0;
-        const retention = service.retention || 0;
-
-        // Precio con IVA
-        const priceWithVat = basePrice * (1 + vat / 100);
-
-        // Precio final con retención (la retención se resta)
-        const finalPrice = priceWithVat * (1 - retention / 100);
-
-        return finalPrice;
+    const formatPercentage = (percentage: number | undefined): string => {
+        return typeof percentage === 'number' ?
+            `${percentage.toFixed(2)}%` :
+            'No definido';
     };
 
-    // Función de comparación para el ordenamiento
-    const descendingComparator = <T,>(a: T, b: T, orderBy: keyof T) => {
+    // Función para manejar el ordenamiento
+    const handleRequestSort = (property: OrderBy) => {
+        const isAsc = orderBy === property && order === 'asc';
+        setOrder(isAsc ? 'desc' : 'asc');
+        setOrderBy(property);
+    };
+
+    // Función auxiliar para obtener valores comparables
+    const getOrderValue = (service: Service, orderBy: OrderBy): any => {
+        switch (orderBy) {
+            case 'name':
+                return service.name?.toLowerCase() || '';
+            case 'description':
+                return service.description?.toLowerCase() || '';
+            case 'basePrice':
+                return service.basePrice || 0;
+            case 'vat':
+                return service.vat || 0;
+            case 'retention':
+                return service.retention || 0;
+            case 'finalPrice':
+                return service.finalPrice || 0;
+            case 'frequency':
+                return service.frequency || '';
+            case 'activeSubscriptions':
+                return (service as any).activeSubscriptions || 0;
+            default:
+                return '';
+        }
+    };
+
+    // Función de comparación
+    const getComparator = (order: Order, orderBy: OrderBy) => {
+        return order === 'desc'
+            ? (a: Record<string, any>, b: Record<string, any>) => descendingComparator(a, b, orderBy)
+            : (a: Record<string, any>, b: Record<string, any>) => -descendingComparator(a, b, orderBy);
+    };
+
+    const descendingComparator = (a: Record<string, any>, b: Record<string, any>, orderBy: string) => {
         if (b[orderBy] < a[orderBy]) {
             return -1;
         }
@@ -125,46 +157,6 @@ export const ServicesTable: React.FC<ServicesTableProps> = ({
         }
 
         return 0;
-    };
-
-    const getComparator = <Key extends keyof any>(
-        order: Order,
-        orderBy: Key,
-    ): ((a: Record<Key, number | string>, b: Record<Key, number | string>) => number) => {
-        return order === 'desc'
-            ? (a, b) => descendingComparator(a, b, orderBy)
-            : (a, b) => -descendingComparator(a, b, orderBy);
-    };
-
-    // Función para obtener el valor de ordenamiento
-    const getOrderValue = (service: Service, orderBy: OrderBy): string | number => {
-        switch (orderBy) {
-            case 'name':
-                return (service.name || '').toLowerCase();
-            case 'description':
-                return (service.description || '').toLowerCase();
-            case 'basePrice':
-                return service.basePrice || 0;
-            case 'vat':
-                return service.vat || 0;
-            case 'retention':
-                return service.retention || 0;
-            case 'finalPrice':
-                return service.finalPrice || calculatePVP(service);
-            case 'frequency':
-                return getFrequencyText(service.frequency).toLowerCase();
-            case 'activeSubscriptions':
-                return (service as any).activeSubscriptions || 0;
-            default:
-                return '';
-        }
-    };
-
-    // Función para manejar el click en el header para ordenar
-    const handleRequestSort = (property: OrderBy) => {
-        const isAsc = orderBy === property && order === 'asc';
-        setOrder(isAsc ? 'desc' : 'asc');
-        setOrderBy(property);
     };
 
     // Ordenar los servicios
@@ -193,196 +185,194 @@ export const ServicesTable: React.FC<ServicesTableProps> = ({
                 active={orderBy === id}
                 direction={orderBy === id ? order : 'asc'}
                 onClick={() => handleRequestSort(id)}
-                sx={{
-                    '& .MuiTableSortLabel-icon': {
-                        fontSize: '1rem',
-                    },
-                }}
             >
                 {label}
             </TableSortLabel>
         </HeaderTableCell>
     );
 
-    if (loading && services.length === 0) {
+    // Paginación
+    const paginatedServices = sortedServices.slice(
+        page * rowsPerPage,
+        page * rowsPerPage + rowsPerPage
+    );
+
+    if (loading) {
         return (
-            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
                 <CircularProgress />
             </Box>
         );
     }
 
     return (
-        <TableContainer
-            component={Paper}
-            sx={{
-                width: '100%',
-                overflowX: 'auto',
-                '& .MuiTable-root': {
-                    minWidth: 'auto'
-                }
-            }}
-        >
-            <Table
-                size="small"
-                aria-label="tabla de servicios"
-                sx={{
-                    tableLayout: 'fixed',
-                    width: '100%'
-                }}
-            >
+        <TableContainer component={Paper} sx={{ mt: 2, boxShadow: 1 }}>
+            <Table>
                 <TableHead>
                     <TableRow>
-                        <SortableTableHead id="name" label="Nombre" width="180px" />
-                        <SortableTableHead id="description" label="Descripción" width="200px" />
-                        <SortableTableHead id="basePrice" label="Precio Base" width="90px" numeric />
-                        <SortableTableHead id="vat" label="IVA" width="60px" numeric />
-                        <SortableTableHead id="retention" label="Retención" width="80px" numeric />
-                        <SortableTableHead id="finalPrice" label="Precio Final" width="90px" numeric />
-                        <SortableTableHead id="frequency" label="Frecuencia" width="120px" />
-                        <SortableTableHead id="activeSubscriptions" label="Suscripciones" width="100px" numeric />
-                        <HeaderTableCell sx={{ width: '120px', textAlign: 'right' }}>Acciones</HeaderTableCell>
+                        <SortableTableHead id="name" label="Nombre" width="20%" />
+                        <SortableTableHead id="description" label="Descripción" width="25%" />
+                        <SortableTableHead id="basePrice" label="Precio Base" numeric width="12%" />
+                        <SortableTableHead id="vat" label="IVA" numeric width="8%" />
+                        <SortableTableHead id="retention" label="Retención" numeric width="10%" />
+                        <SortableTableHead id="finalPrice" label="Precio Final" numeric width="12%" />
+                        <SortableTableHead id="frequency" label="Frecuencia" width="10%" />
+                        <HeaderTableCell align="center" sx={{ width: '8%' }}>
+                            Suscr.
+                        </HeaderTableCell>
+                        <HeaderTableCell align="right" sx={{ width: '15%' }}>
+                            Acciones
+                        </HeaderTableCell>
                     </TableRow>
                 </TableHead>
                 <TableBody>
-                    {sortedServices.length === 0 ? (
+                    {paginatedServices.length === 0 ? (
                         <TableRow>
                             <CompactTableCell colSpan={9} align="center">
-                                <Typography variant="body2" color="textSecondary">
+                                <Typography color="textSecondary">
                                     No hay servicios disponibles
                                 </Typography>
                             </CompactTableCell>
                         </TableRow>
                     ) : (
-                        sortedServices
-                            .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
-                            .map((service) => (
-                                <StyledTableRow
-                                    key={service.id}
-                                    sx={{ cursor: 'pointer' }}
-                                >
-                                    {/* Nombre */}
-                                    <CompactTableCell>
-                                        <Typography
-                                            variant="body2"
-                                            fontWeight="medium"
-                                            sx={{
-                                                overflow: 'hidden',
-                                                textOverflow: 'ellipsis',
-                                                whiteSpace: 'nowrap'
-                                            }}
-                                            title={service.name}
-                                        >
-                                            {service.name}
-                                        </Typography>
-                                    </CompactTableCell>
+                        paginatedServices.map((service) => (
+                            <StyledTableRow key={service.id}>
+                                {/* Nombre */}
+                                <CompactTableCell>
+                                    <Typography variant="body2" fontWeight={500}>
+                                        {service.name}
+                                    </Typography>
+                                </CompactTableCell>
 
-                                    {/* Descripción */}
-                                    <CompactTableCell>
-                                        <Typography
-                                            variant="body2"
-                                            color="textSecondary"
-                                            sx={{
-                                                overflow: 'hidden',
-                                                textOverflow: 'ellipsis',
-                                                whiteSpace: 'nowrap'
-                                            }}
-                                            title={service.description}
-                                        >
-                                            {service.description || '-'}
-                                        </Typography>
-                                    </CompactTableCell>
+                                {/* Descripción */}
+                                <CompactTableCell>
+                                    <Typography
+                                        variant="body2"
+                                        color="text.secondary"
+                                        sx={{
+                                            maxWidth: '200px',
+                                            overflow: 'hidden',
+                                            textOverflow: 'ellipsis',
+                                            whiteSpace: 'nowrap'
+                                        }}
+                                        title={service.description || 'Sin descripción'}
+                                    >
+                                        {service.description || 'Sin descripción'}
+                                    </Typography>
+                                </CompactTableCell>
 
-                                    {/* Precio Base */}
-                                    <CompactTableCell align="right">
-                                        <Typography variant="body2" fontWeight="bold">
-                                            {formatPrice(service.basePrice)} €
-                                        </Typography>
-                                    </CompactTableCell>
+                                {/* Precio Base */}
+                                <CompactTableCell align="right">
+                                    <Typography variant="body2">
+                                        {formatPrice(service.basePrice)}
+                                    </Typography>
+                                </CompactTableCell>
 
-                                    {/* IVA */}
-                                    <CompactTableCell align="right">
-                                        <Typography variant="body2">
-                                            {service.vat || 0}%
-                                        </Typography>
-                                    </CompactTableCell>
+                                {/* IVA */}
+                                <CompactTableCell align="right">
+                                    <Typography variant="body2">
+                                        {formatPercentage(service.vat)}
+                                    </Typography>
+                                </CompactTableCell>
 
-                                    {/* Retención */}
-                                    <CompactTableCell align="right">
-                                        <Typography variant="body2">
-                                            {service.retention || 0}%
-                                        </Typography>
-                                    </CompactTableCell>
+                                {/* Retención */}
+                                <CompactTableCell align="right">
+                                    <Typography variant="body2">
+                                        {formatPercentage(service.retention)}
+                                    </Typography>
+                                </CompactTableCell>
 
-                                    {/* Precio Final */}
-                                    <CompactTableCell align="right">
-                                        <Typography variant="body2" fontWeight="bold">
-                                            {formatPrice(calculatePVP(service))} €
-                                        </Typography>
-                                    </CompactTableCell>
+                                {/* Precio Final */}
+                                <CompactTableCell align="right">
+                                    <Typography variant="body2" fontWeight={500} color="primary.main">
+                                        {formatPrice(service.finalPrice)}
+                                    </Typography>
+                                </CompactTableCell>
 
-                                    {/* Frecuencia */}
-                                    <CompactTableCell>
-                                        <Typography variant="body2" color="text.primary">
-                                            {getFrequencyText(service.frequency)}
-                                        </Typography>
-                                    </CompactTableCell>
+                                {/* Frecuencia */}
+                                <CompactTableCell>
+                                    <Typography variant="body2">
+                                        {getFrequencyText(service.frequency)}
+                                    </Typography>
+                                </CompactTableCell>
 
-                                    {/* Suscripciones activas */}
-                                    <CompactTableCell align="right">
-                                        <Chip
-                                            label={(service as any).activeSubscriptions || 0}
+                                {/* Suscripciones Activas */}
+                                <CompactTableCell align="center">
+                                    <Chip
+                                        label={(service as any).activeSubscriptions || 0}
+                                        color={(service as any).activeSubscriptions > 0 ? 'primary' : 'default'}
+                                        sx={{
+                                            fontSize: '0.75rem',
+                                            fontWeight: 'bold',
+                                            minWidth: '28px',
+                                            height: '24px',
+                                            borderRadius: '12px',
+                                            backgroundColor: (service as any).activeSubscriptions > 0 ? 'primary.main' : 'grey.400',
+                                            color: 'white',
+                                            '& .MuiChip-label': {
+                                                padding: '0 8px'
+                                            }
+                                        }}
+                                    />
+                                </CompactTableCell>
+
+                                {/* Acciones */}
+                                <CompactTableCell align="right">
+                                    <Box sx={{ display: 'flex', gap: 0.5, justifyContent: 'flex-end' }}>
+                                        {/* Botón Ver Detalle - NUEVO */}
+                                        <IconButton
                                             size="small"
-                                            variant="filled"
-                                            color={(service as any).activeSubscriptions > 0 ? 'primary' : 'default'}
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                onViewDetail(service);
+                                            }}
+                                            title="Ver detalle"
                                             sx={{
-                                                fontSize: '0.75rem',
-                                                fontWeight: 'bold',
-                                                minWidth: '28px',
-                                                height: '24px',
-                                                borderRadius: '12px',
-                                                backgroundColor: (service as any).activeSubscriptions > 0 ? 'primary.main' : 'grey.400',
-                                                color: 'white',
-                                                '& .MuiChip-label': {
-                                                    padding: '0 8px'
+                                                color: 'grey.600',
+                                                '&:hover': {
+                                                    backgroundColor: 'action.hover',
+                                                    color: 'grey.700'
                                                 }
                                             }}
-                                        />
-                                    </CompactTableCell>
+                                        >
+                                            <VisibilityIcon fontSize="small" />
+                                        </IconButton>
 
-                                    {/* Acciones */}
-                                    <CompactTableCell align="right">
-                                        <Box sx={{ display: 'flex', gap: 0.5, justifyContent: 'flex-end' }}>
-                                            <IconButton
-                                                size="small"
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    onEdit(service);
-                                                }}
-                                                sx={{
-                                                    color: 'text.secondary',
-                                                    '&:hover': { backgroundColor: 'action.hover' }
-                                                }}
-                                            >
-                                                <EditIcon fontSize="small" />
-                                            </IconButton>
-                                            <IconButton
-                                                size="small"
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    onDelete(service.id!);
-                                                }}
-                                                sx={{
-                                                    color: 'error.main',
-                                                    '&:hover': { backgroundColor: 'action.hover' }
-                                                }}
-                                            >
-                                                <DeleteIcon fontSize="small" />
-                                            </IconButton>
-                                        </Box>
-                                    </CompactTableCell>
-                                </StyledTableRow>
-                            ))
+                                        {/* Botón Editar */}
+                                        <IconButton
+                                            size="small"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                onEdit(service);
+                                            }}
+                                            title="Editar"
+                                            sx={{
+                                                color: 'text.secondary',
+                                                '&:hover': { backgroundColor: 'action.hover' }
+                                            }}
+                                        >
+                                            <EditIcon fontSize="small" />
+                                        </IconButton>
+
+                                        {/* Botón Eliminar */}
+                                        <IconButton
+                                            size="small"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                onDelete(service.id!);
+                                            }}
+                                            title="Eliminar"
+                                            sx={{
+                                                color: 'error.main',
+                                                '&:hover': { backgroundColor: 'action.hover' }
+                                            }}
+                                        >
+                                            <DeleteIcon fontSize="small" />
+                                        </IconButton>
+                                    </Box>
+                                </CompactTableCell>
+                            </StyledTableRow>
+                        ))
                     )}
                 </TableBody>
             </Table>

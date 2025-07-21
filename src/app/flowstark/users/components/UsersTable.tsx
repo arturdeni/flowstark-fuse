@@ -247,7 +247,7 @@ export const UsersTable: React.FC<UsersTableProps> = ({
                         <SortableTableHead id="name" label="Nombre" width="130px" />
                         <SortableTableHead id="email" label="Email" width="160px" />
                         <SortableTableHead id="phone" label="Teléfono" width="130px" />
-                        <SortableTableHead id="paymentMethod" label="Pago" width="85px" />
+                        <SortableTableHead id="paymentMethod" label="Cobro" width="85px" />
                         <SortableTableHead id="registeredDate" label="Alta" width="70px" />
                         <SortableTableHead id="subscriptions" label="Suscripciones" width="65px" numeric />
                         <HeaderTableCell sx={{ width: '90px', textAlign: 'right' }}>Acciones</HeaderTableCell>

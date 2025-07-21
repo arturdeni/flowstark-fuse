@@ -10,6 +10,7 @@ import {
   ServiceForm,
   SearchAndActions,
   DeleteConfirmDialog,
+  ServiceDetailModal, // Nuevo componente
 } from './components';
 
 const Root = styled(FusePageSimple)(({ theme }) => ({
@@ -32,6 +33,10 @@ const Services: React.FC = () => {
   const [serviceToDelete, setServiceToDelete] = useState<string | null>(null);
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(25);
+  
+  // NUEVO: Estado para el modal de detalles
+  const [detailModalOpen, setDetailModalOpen] = useState(false);
+  const [serviceToView, setServiceToView] = useState<Service | null>(null);
 
   const {
     // Estados
@@ -55,7 +60,7 @@ const Services: React.FC = () => {
     closeSnackbar,
   } = useServices();
 
-  // Manejadores de eventos de UI
+  // Manejadores de eventos de UI existentes
   const handleOpenForm = (service: Service | null = null) => {
     setSelectedService(service);
     setFormOpen(true);
@@ -85,6 +90,17 @@ const Services: React.FC = () => {
   const handleCancelDelete = () => {
     setDeleteConfirmOpen(false);
     setServiceToDelete(null);
+  };
+
+  // NUEVOS: Manejadores para el modal de detalles
+  const handleViewDetail = (service: Service) => {
+    setServiceToView(service);
+    setDetailModalOpen(true);
+  };
+
+  const handleCloseDetailModal = () => {
+    setDetailModalOpen(false);
+    setServiceToView(null);
   };
 
   return (
@@ -117,6 +133,7 @@ const Services: React.FC = () => {
             onRowsPerPageChange={handleChangeRowsPerPage}
             onEdit={handleOpenForm}
             onDelete={handleDeleteClick}
+            onViewDetail={handleViewDetail} // NUEVA prop
           />
 
           {/* Formulario para añadir/editar servicio */}
@@ -127,6 +144,13 @@ const Services: React.FC = () => {
             onClose={handleCloseForm}
             onSave={createService}
             onUpdate={updateService}
+          />
+
+          {/* NUEVO: Modal para ver detalles del servicio */}
+          <ServiceDetailModal
+            open={detailModalOpen}
+            service={serviceToView}
+            onClose={handleCloseDetailModal}
           />
 
           {/* Diálogo de confirmación para eliminar */}

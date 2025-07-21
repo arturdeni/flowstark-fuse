@@ -25,6 +25,7 @@ import {
     Warning as WarningIcon,
     CheckCircle as CheckCircleIcon,
     Schedule as ScheduleIcon,
+    Visibility as VisibilityIcon,
 } from '@mui/icons-material';
 import { styled } from '@mui/material/styles';
 import { SubscriptionWithRelations } from '../hooks/useSubscriptions';
@@ -69,6 +70,7 @@ interface SubscriptionsTableProps {
     onEdit: (subscription: SubscriptionWithRelations) => void;
     onCancel: (subscription: SubscriptionWithRelations) => void;
     onDelete: (id: string) => void;
+    onViewDetail: (subscription: SubscriptionWithRelations) => void;
 }
 
 export const SubscriptionsTable: React.FC<SubscriptionsTableProps> = ({
@@ -81,6 +83,7 @@ export const SubscriptionsTable: React.FC<SubscriptionsTableProps> = ({
     onEdit,
     onCancel,
     onDelete,
+    onViewDetail,
 }) => {
     // ✅ Verificación de seguridad para evitar errores de iteración
     const safeSubscriptions = subscriptions || [];
@@ -136,7 +139,7 @@ export const SubscriptionsTable: React.FC<SubscriptionsTableProps> = ({
             const dateObj = date instanceof Date ? date : new Date(date);
 
             if (isNaN(dateObj.getTime())) return '-';
-            
+
             return dateObj.toLocaleDateString('es-ES', {
                 day: '2-digit',
                 month: '2-digit',
@@ -239,7 +242,7 @@ export const SubscriptionsTable: React.FC<SubscriptionsTableProps> = ({
     // Lógica para determinar qué acciones mostrar según el estado
     const getActions = (subscription: SubscriptionWithRelations) => {
         const status = getSubscriptionStatus(subscription);
-        
+
         return {
             canEdit: status === 'active' || status === 'ending',
             canCancel: status === 'active' || status === 'ending',
@@ -271,7 +274,7 @@ export const SubscriptionsTable: React.FC<SubscriptionsTableProps> = ({
                     Las fechas se recalcularán automáticamente en la próxima actualización.
                 </Alert>
             )}
-            
+
             <TableContainer component={Paper} sx={{ borderRadius: 2, overflow: 'hidden' }}>
                 <Table size="small" aria-label="tabla de suscripciones">
                     <TableHead>
@@ -357,7 +360,7 @@ export const SubscriptionsTable: React.FC<SubscriptionsTableProps> = ({
                         ) : (
                             paginatedSubscriptions.map((subscription) => {
                                 const actions = getActions(subscription);
-                                
+
                                 return (
                                     <StyledTableRow key={subscription.id}>
                                         {/* Cliente */}
@@ -385,7 +388,7 @@ export const SubscriptionsTable: React.FC<SubscriptionsTableProps> = ({
                                         {/* Frecuencia */}
                                         <CompactTableCell>
                                             <Typography variant="body2">
-                                                {subscription.serviceInfo?.frequency 
+                                                {subscription.serviceInfo?.frequency
                                                     ? formatFrequency(subscription.serviceInfo.frequency)
                                                     : '-'
                                                 }
@@ -435,6 +438,25 @@ export const SubscriptionsTable: React.FC<SubscriptionsTableProps> = ({
                                         {/* Acciones - Alineadas a la derecha */}
                                         <CompactTableCell align="right">
                                             <Box display="flex" gap={0.5} justifyContent="flex-end">
+                                                {/* Botón Ver Detalle */}
+                                                <IconButton
+                                                    size="small"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        onViewDetail(subscription);
+                                                    }}
+                                                    title="Ver detalle"
+                                                    sx={{
+                                                        color: 'grey.600',
+                                                        '&:hover': {
+                                                            backgroundColor: 'action.hover',
+                                                            color: 'grey.700'
+                                                        }
+                                                    }}
+                                                >
+                                                    <VisibilityIcon fontSize="small" />
+                                                </IconButton>
+
                                                 {/* Editar - Disponible para activas y finalizando */}
                                                 {actions.canEdit && (
                                                     <Tooltip title="Editar suscripción">

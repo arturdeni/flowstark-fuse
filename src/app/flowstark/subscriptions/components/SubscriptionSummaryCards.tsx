@@ -40,13 +40,7 @@ export const SubscriptionSummaryCards: React.FC<SubscriptionSummaryCardsProps> =
     const activeCount = subscriptions.filter(sub => getSubscriptionStatus(sub) === 'active').length;
     const endingCount = subscriptions.filter(sub => getSubscriptionStatus(sub) === 'ending').length;
     const expiredCount = subscriptions.filter(sub => getSubscriptionStatus(sub) === 'expired').length;
-    
-    const totalRevenue = subscriptions
-        .filter(sub => getSubscriptionStatus(sub) === 'active')
-        .reduce((sum, sub) => {
-            const price = sub.serviceInfo?.finalPrice || sub.serviceInfo?.basePrice || 0;
-            return sum + price;
-        }, 0);
+    const totalCount = subscriptions.length;
 
     return (
         <Grid container spacing={2} sx={{ mb: 3 }}>
@@ -54,7 +48,7 @@ export const SubscriptionSummaryCards: React.FC<SubscriptionSummaryCardsProps> =
                 <Card>
                     <CardContent>
                         <Typography color="textSecondary" gutterBottom variant="body2">
-                            Suscripciones Activas
+                            Activas
                         </Typography>
                         <Typography variant="h4" component="div">
                             {activeCount}
@@ -67,7 +61,7 @@ export const SubscriptionSummaryCards: React.FC<SubscriptionSummaryCardsProps> =
                 <Card>
                     <CardContent>
                         <Typography color="textSecondary" gutterBottom variant="body2">
-                            Finalizan
+                            Finalizando
                         </Typography>
                         <Typography variant="h4" component="div">
                             {endingCount}
@@ -93,10 +87,10 @@ export const SubscriptionSummaryCards: React.FC<SubscriptionSummaryCardsProps> =
                 <Card>
                     <CardContent>
                         <Typography color="textSecondary" gutterBottom variant="body2">
-                            Ingresos Mensuales
+                            Total de Suscripciones
                         </Typography>
                         <Typography variant="h4" component="div">
-                            €{totalRevenue.toFixed(2)}
+                            {totalCount}
                         </Typography>
                     </CardContent>
                 </Card>

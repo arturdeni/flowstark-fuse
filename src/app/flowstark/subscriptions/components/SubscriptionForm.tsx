@@ -143,8 +143,8 @@ export const SubscriptionForm: React.FC<SubscriptionFormProps> = ({
 
         try {
             // Preparar el historial de pagos inicial si es una nueva suscripción
-            const paymentHistory = formData.paymentHistory.length 
-                ? formData.paymentHistory 
+            const paymentHistory = formData.paymentHistory.length
+                ? formData.paymentHistory
                 : [{
                     date: new Date(),
                     amount: 0,
@@ -174,18 +174,37 @@ export const SubscriptionForm: React.FC<SubscriptionFormProps> = ({
         return `${client.firstName} ${client.lastName} - ${client.email}`;
     };
 
+    // Función para obtener el texto de la frecuencia
+    const getFrequencyText = (frequency: string) => {
+        switch (frequency) {
+            case 'monthly':
+                return 'Mensual';
+            case 'quarterly':
+                return 'Trimestral';
+            case 'four_monthly':
+                return 'Cuatrimestral';
+            case 'biannual':
+                return 'Semestral';
+            case 'annual':
+                return 'Anual';
+            default:
+                return frequency;
+        }
+    };
+
     // Función para obtener información del servicio
     const getServiceDisplayName = (service: Service): string => {
         const price = service.finalPrice || service.basePrice || 0;
-        return `${service.name} - ${price.toFixed(2)}€`;
+        const frequency = getFrequencyText(service.frequency);
+        return `${service.name} - ${price.toFixed(2)}€ - ${frequency}`;
     };
 
     return (
         <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={es}>
-            <Dialog 
-                open={open} 
-                onClose={onClose} 
-                maxWidth="md" 
+            <Dialog
+                open={open}
+                onClose={onClose}
+                maxWidth="md"
                 fullWidth
                 PaperProps={{
                     sx: { borderRadius: 2 }
@@ -208,7 +227,7 @@ export const SubscriptionForm: React.FC<SubscriptionFormProps> = ({
                             <Typography variant="h6" gutterBottom>
                                 Información básica
                             </Typography>
-                            
+
                             <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 2 }}>
                                 {/* Cliente */}
                                 <FormControl fullWidth required>
@@ -263,7 +282,7 @@ export const SubscriptionForm: React.FC<SubscriptionFormProps> = ({
                             <Typography variant="h6" gutterBottom>
                                 Configuración de pagos
                             </Typography>
-                            
+
                             <FormControl fullWidth required>
                                 <InputLabel id="payment-type-select-label">Tipo de Pago</InputLabel>
                                 <Select
@@ -289,7 +308,7 @@ export const SubscriptionForm: React.FC<SubscriptionFormProps> = ({
                             <Typography variant="h6" gutterBottom>
                                 Fechas de la suscripción
                             </Typography>
-                            
+
                             <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 2 }}>
                                 {/* Fecha de inicio */}
                                 <DatePicker
@@ -335,7 +354,7 @@ export const SubscriptionForm: React.FC<SubscriptionFormProps> = ({
                                     }}
                                 />
                             </Box>
-                            
+
                             <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
                                 Si no especificas fecha de finalización, la suscripción permanecerá activa indefinidamente.
                             </Typography>
