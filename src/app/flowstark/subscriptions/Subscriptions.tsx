@@ -97,10 +97,10 @@ function Subscriptions() {
     setCancelConfirmOpen(true);
   };
 
-  const handleConfirmCancel = async () => {
+  const handleConfirmCancel = async (endDate: Date) => {
     if (subscriptionToCancel && subscriptionToCancel.id) {
       try {
-        await cancelSubscription(subscriptionToCancel.id);
+        await cancelSubscription(subscriptionToCancel.id, endDate);
       } finally {
         setCancelConfirmOpen(false);
         setSubscriptionToCancel(null);
@@ -198,6 +198,10 @@ function Subscriptions() {
             open={cancelConfirmOpen}
             loading={loading}
             subscriptionName={subscriptionToCancel?.serviceInfo?.name}
+            clientName={subscriptionToCancel?.clientInfo ?
+              `${subscriptionToCancel.clientInfo.firstName} ${subscriptionToCancel.clientInfo.lastName}` :
+              undefined
+            }
             onConfirm={handleConfirmCancel}
             onCancel={handleCancelCancel}
           />

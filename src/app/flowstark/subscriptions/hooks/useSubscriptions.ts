@@ -62,96 +62,76 @@ export const useSubscriptions = () => {
       // Si es una string o número
       const parsed = new Date(date);
       return isNaN(parsed.getTime()) ? null : parsed;
-    } catch {
+    } catch (error) {
+      console.error('Error parsing date:', error);
       return null;
     }
   };
 
-  // Cargar datos iniciales
+  // Función para actualizar el estado de una suscripción basado en fechas
+  const updateSubscriptionStatus = (subscription: SubscriptionWithRelations): 'active' | 'expired' | 'ending' => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // Si tiene endDate, verificar si ya ha caducado
+    if (subscription.endDate) {
+      const endDate = safeParseDate(subscription.endDate);
+
+      if (endDate) {
+        endDate.setHours(0, 0, 0, 0);
+
+        // Si la fecha de fin es hoy o anterior, está caducada
+        if (endDate <= today) {
+          return 'expired';
+        } else {
+          // Si la fecha de fin es futura, está finalizando
+          return 'ending';
+        }
+      }
+    }
+
+    // Si no tiene endDate, está activa
+    return 'active';
+  };
+
+  // Cargar todos los datos
   const loadData = async () => {
     setLoading(true);
     setError(null);
-    
+
     try {
-      // Cargar todos los datos en paralelo
       const [subscriptionsData, clientsData, servicesData] = await Promise.all([
         subscriptionsService.getAllSubscriptions(),
         clientsService.getAllClients(),
         servicesService.getAllServices()
       ]);
 
-      // Procesar suscripciones con fechas seguras
-      const processedSubscriptions = subscriptionsData.map(sub => {
-        const startDate = safeParseDate(sub.startDate) || new Date();
-        const endDate = safeParseDate(sub.endDate);
-        const paymentDate = safeParseDate(sub.paymentDate);
-        const createdAt = safeParseDate(sub.createdAt);
-        const updatedAt = safeParseDate(sub.updatedAt);
-
-        return {
-          ...sub,
-          startDate,
-          endDate,
-          paymentDate,
-          createdAt,
-          updatedAt,
-        };
-      });
-
-      // Combinar con información de clientes y servicios
-      const combinedSubscriptions = processedSubscriptions.map(subscription => {
+      // Procesar suscripciones con información relacionada
+      const subscriptionsWithRelations: SubscriptionWithRelations[] = subscriptionsData.map(subscription => {
         const clientInfo = clientsData.find(client => client.id === subscription.clientId);
         const serviceInfo = servicesData.find(service => service.id === subscription.serviceId);
 
-        // Calcular fecha de pago si no existe
-        let finalPaymentDate = subscription.paymentDate;
-
-        if (!finalPaymentDate && serviceInfo) {
-          const calculated = calculatePaymentDate(subscription, serviceInfo);
-
-          if (calculated) {
-            finalPaymentDate = calculated;
-          }
-        }
-
         return {
           ...subscription,
-          paymentDate: finalPaymentDate,
           clientInfo,
           serviceInfo,
-        } as SubscriptionWithRelations;
+          // Convertir fechas de forma segura
+          startDate: safeParseDate(subscription.startDate) || new Date(),
+          endDate: safeParseDate(subscription.endDate),
+          paymentDate: safeParseDate(subscription.paymentDate),
+        };
       });
 
-      setSubscriptions(combinedSubscriptions);
+      setSubscriptions(subscriptionsWithRelations);
       setClients(clientsData);
       setServices(servicesData);
-      
-    } catch (err) {
-      console.error('Error loading data:', err);
+    } catch (error) {
+      console.error('Error loading data:', error);
       setError('Error al cargar los datos');
       showSnackbar('Error al cargar los datos', 'error');
     } finally {
       setLoading(false);
     }
-  };
-
-  // Función para actualizar automáticamente el estado de las suscripciones
-  const updateSubscriptionStatus = (subscription: Subscription): Subscription['status'] => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    if (subscription.endDate) {
-      const endDate = new Date(subscription.endDate);
-      endDate.setHours(0, 0, 0, 0);
-
-      if (endDate < today) {
-        return 'expired';
-      } else if (endDate >= today) {
-        return 'ending';
-      }
-    }
-
-    return subscription.status === 'cancelled' ? 'cancelled' : 'active';
   };
 
   // Filtrar suscripciones
@@ -259,19 +239,19 @@ export const useSubscriptions = () => {
     }
   };
 
-  // Cancelar suscripción
-  const cancelSubscription = async (id: string) => {
+  // Cancelar suscripción (cambiar a ending con endDate personalizada)
+  const cancelSubscription = async (id: string, endDate: Date) => {
     setLoading(true);
     try {
       await subscriptionsService.updateSubscription(id, {
-        status: 'cancelled' as const,
-        endDate: new Date(),
+        status: 'ending' as const,
+        endDate: endDate,
       });
       await loadData(); // Recargar todos los datos
-      showSnackbar('Suscripción cancelada exitosamente', 'success');
+      showSnackbar('Suscripción marcada para finalizar exitosamente', 'success');
     } catch (error) {
       console.error('Error cancelling subscription:', error);
-      showSnackbar('Error al cancelar la suscripción', 'error');
+      showSnackbar('Error al finalizar la suscripción', 'error');
     } finally {
       setLoading(false);
     }

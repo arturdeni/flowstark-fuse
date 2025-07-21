@@ -17,69 +17,87 @@ const getSubscriptionStatus = (subscription: SubscriptionWithRelations): 'active
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
+    // Si tiene endDate, verificar si ya ha caducado
     if (subscription.endDate) {
         const endDate = new Date(subscription.endDate);
         endDate.setHours(0, 0, 0, 0);
 
-        if (endDate < today) {
+        // Si la fecha de fin es hoy o anterior, está caducada
+        if (endDate <= today) {
             return 'expired';
-        } else if (endDate >= today) {
+        } else {
+            // Si la fecha de fin es futura, está finalizando
             return 'ending';
         }
     }
 
-    return subscription.status === 'cancelled' ? 'expired' : 'active';
+    // Si no tiene endDate, está activa
+    return 'active';
 };
 
-export const SubscriptionSummaryCards: React.FC<SubscriptionSummaryCardsProps> = ({
-    subscriptions,
-}) => {
-    const totalSubscriptions = subscriptions.length;
-
-    // Calcular estados usando la función dinámica
-    const activeSubscriptions = subscriptions.filter(s => getSubscriptionStatus(s) === 'active').length;
-    const endingSubscriptions = subscriptions.filter(s => getSubscriptionStatus(s) === 'ending').length;
-    const expiredSubscriptions = subscriptions.filter(s => getSubscriptionStatus(s) === 'expired').length;
+export const SubscriptionSummaryCards: React.FC<SubscriptionSummaryCardsProps> = ({ subscriptions }) => {
+    // Calcular métricas
+    const activeCount = subscriptions.filter(sub => getSubscriptionStatus(sub) === 'active').length;
+    const endingCount = subscriptions.filter(sub => getSubscriptionStatus(sub) === 'ending').length;
+    const expiredCount = subscriptions.filter(sub => getSubscriptionStatus(sub) === 'expired').length;
+    
+    const totalRevenue = subscriptions
+        .filter(sub => getSubscriptionStatus(sub) === 'active')
+        .reduce((sum, sub) => {
+            const price = sub.serviceInfo?.finalPrice || sub.serviceInfo?.basePrice || 0;
+            return sum + price;
+        }, 0);
 
     return (
-        <Grid container spacing={3} className="mb-6">
+        <Grid container spacing={2} sx={{ mb: 3 }}>
             <Grid item xs={12} sm={6} md={3}>
                 <Card>
                     <CardContent>
-                        <Typography color="textSecondary" gutterBottom>
-                            Total Suscripciones
+                        <Typography color="textSecondary" gutterBottom variant="body2">
+                            Suscripciones Activas
                         </Typography>
-                        <Typography variant="h4">{totalSubscriptions}</Typography>
+                        <Typography variant="h4" component="div">
+                            {activeCount}
+                        </Typography>
                     </CardContent>
                 </Card>
             </Grid>
+
             <Grid item xs={12} sm={6} md={3}>
                 <Card>
                     <CardContent>
-                        <Typography color="textSecondary" gutterBottom>
-                            Activas
-                        </Typography>
-                        <Typography variant="h4">{activeSubscriptions}</Typography>
-                    </CardContent>
-                </Card>
-            </Grid>
-            <Grid item xs={12} sm={6} md={3}>
-                <Card>
-                    <CardContent>
-                        <Typography color="textSecondary" gutterBottom>
+                        <Typography color="textSecondary" gutterBottom variant="body2">
                             Finalizan
                         </Typography>
-                        <Typography variant="h4">{endingSubscriptions}</Typography>
+                        <Typography variant="h4" component="div">
+                            {endingCount}
+                        </Typography>
                     </CardContent>
                 </Card>
             </Grid>
+
             <Grid item xs={12} sm={6} md={3}>
                 <Card>
                     <CardContent>
-                        <Typography color="textSecondary" gutterBottom>
+                        <Typography color="textSecondary" gutterBottom variant="body2">
                             Caducadas
                         </Typography>
-                        <Typography variant="h4">{expiredSubscriptions}</Typography>
+                        <Typography variant="h4" component="div">
+                            {expiredCount}
+                        </Typography>
+                    </CardContent>
+                </Card>
+            </Grid>
+
+            <Grid item xs={12} sm={6} md={3}>
+                <Card>
+                    <CardContent>
+                        <Typography color="textSecondary" gutterBottom variant="body2">
+                            Ingresos Mensuales
+                        </Typography>
+                        <Typography variant="h4" component="div">
+                            €{totalRevenue.toFixed(2)}
+                        </Typography>
                     </CardContent>
                 </Card>
             </Grid>

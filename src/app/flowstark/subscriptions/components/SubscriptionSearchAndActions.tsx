@@ -82,7 +82,7 @@ export const SubscriptionSearchAndActions: React.FC<SubscriptionSearchAndActions
                 >
                     <MenuItem value="all">Todos</MenuItem>
                     <MenuItem value="active">Activas</MenuItem>
-                    <MenuItem value="ending">Finaliza</MenuItem>
+                    <MenuItem value="ending">Finalizan</MenuItem>
                     <MenuItem value="expired">Caducadas</MenuItem>
                 </Select>
             </FormControl>

@@ -5,10 +5,11 @@ import {
     DialogTitle,
     DialogContent,
     DialogActions,
-    Box,
     Button,
     Typography,
+    Box,
     CircularProgress,
+    Alert,
 } from '@mui/material';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFnsV3';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
@@ -22,6 +23,7 @@ interface CancelSubscriptionDialogProps {
     open: boolean;
     loading: boolean;
     subscriptionName?: string;
+    clientName?: string;
     onConfirm: (endDate: Date) => void;
     onCancel: () => void;
 }
@@ -30,125 +32,153 @@ export const CancelSubscriptionDialog: React.FC<CancelSubscriptionDialogProps> =
     open,
     loading,
     subscriptionName,
+    clientName,
     onConfirm,
     onCancel,
 }) => {
     const [endDate, setEndDate] = useState<Date | null>(null);
-    const [validationError, setValidationError] = useState('');
+    const [dateError, setDateError] = useState<string>('');
 
-    // Establecer fecha de hoy como valor por defecto cuando se abre el diálogo
+    // Inicializar con la fecha de hoy cuando se abre el diálogo
     useEffect(() => {
         if (open) {
             const today = new Date();
             setEndDate(today);
-            setValidationError('');
+            setDateError('');
         }
     }, [open]);
 
-    const handleConfirm = () => {
-        // Validar que se haya seleccionado una fecha
-        if (!endDate) {
-            setValidationError('Por favor, selecciona una fecha de finalización');
-            return;
-        }
-
-        // Validar que la fecha no sea anterior a hoy
-        const today = new Date();
-        today.setHours(0, 0, 0, 0); // Resetear horas para comparar solo fechas
-        const selectedDate = new Date(endDate);
-        selectedDate.setHours(0, 0, 0, 0);
-
-        if (selectedDate < today) {
-            setValidationError('La fecha de finalización no puede ser anterior a hoy');
-            return;
-        }
-
-        // Confirmar cancelación
-        onConfirm(endDate);
-    };
-
+    // Manejar cambio de fecha
     const handleDateChange = (date: Date | null) => {
         setEndDate(date);
 
-        if (validationError) {
-            setValidationError('');
+        // Validar fecha
+        if (!date) {
+            setDateError('La fecha es obligatoria');
+            return;
+        }
+
+        const today = new Date();
+        today.setHours(23, 59, 59, 999); // Fin del día de hoy
+
+        if (date > today) {
+            setDateError('La fecha no puede ser futura');
+        } else {
+            setDateError('');
         }
     };
+
+    // Manejar confirmación
+    const handleConfirm = () => {
+        if (!endDate) {
+            setDateError('La fecha es obligatoria');
+            return;
+        }
+
+        const today = new Date();
+        today.setHours(23, 59, 59, 999);
+
+        if (endDate > today) {
+            setDateError('La fecha no puede ser futura');
+            return;
+        }
+
+        onConfirm(endDate);
+    };
+
+    // Manejar cancelación
+    const handleCancel = () => {
+        setEndDate(null);
+        setDateError('');
+        onCancel();
+    };
+
+    // Función para validar si la fecha es válida
+    const isDateValid = endDate && !dateError;
 
     return (
         <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={es}>
             <Dialog
                 open={open}
-                onClose={onCancel}
+                onClose={handleCancel}
                 maxWidth="sm"
                 fullWidth
-                PaperProps={{
-                    sx: { borderRadius: 2 }
-                }}
             >
-                <DialogTitle sx={{ pb: 2 }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                        <WarningIcon color="warning" sx={{ fontSize: '2rem' }} />
-                        <Typography variant="h6" component="div">
-                            Cancelar Suscripción
-                        </Typography>
+                <DialogTitle>
+                    <Box display="flex" alignItems="center" gap={1}>
+                        <WarningIcon color="warning" />
+                        Finalizar Suscripción
                     </Box>
                 </DialogTitle>
 
-                <DialogContent sx={{ pt: 1 }}>
-                    {validationError && (
-                        <Box sx={{ mb: 2, p: 2, bgcolor: 'error.light', borderRadius: 1 }}>
-                            <Typography color="error" variant="body2">
-                                {validationError}
-                            </Typography>
+                <DialogContent>
+                    <Typography variant="body1" gutterBottom>
+                        ¿Estás seguro de que quieres finalizar esta suscripción?
+                    </Typography>
+
+                    {/* Información de la suscripción */}
+                    {(subscriptionName || clientName) && (
+                        <Box sx={{ mb: 2, p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
+                            {clientName && (
+                                <Typography variant="body2" color="textSecondary" sx={{ mb: 0.5 }}>
+                                    <strong>Cliente:</strong> {clientName}
+                                </Typography>
+                            )}
+                            {subscriptionName && (
+                                <Typography variant="body2" color="textSecondary">
+                                    <strong>Servicio:</strong> {subscriptionName}
+                                </Typography>
+                            )}
                         </Box>
                     )}
 
-                    <Typography variant="body1" sx={{ mb: 3 }}>
-                        ¿Estás seguro de que quieres cancelar la suscripción
-                        {subscriptionName && (
-                            <strong> "{subscriptionName}"</strong>
-                        )}?
-                    </Typography>
+                    {/* Campo de fecha */}
+                    <Box sx={{ mb: 2 }}>
+                        <DatePicker
+                            label="Fecha de finalización"
+                            value={endDate}
+                            onChange={handleDateChange}
+                            format="dd/MM/yyyy"
+                            maxDate={new Date()} // No permitir fechas futuras
+                            slotProps={{
+                                textField: {
+                                    required: true,
+                                    error: !!dateError,
+                                    helperText: dateError || 'Fecha en la que finaliza la suscripción (hoy o anterior)',
+                                    size: 'small',
+                                    variant: 'outlined',
+                                    fullWidth: true,
+                                },
+                            }}
+                        />
+                    </Box>
 
-                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                        Esta acción no se puede deshacer. Una vez cancelada, la suscripción no se podrá editar ni reactivar.
-                    </Typography>
-
-                    <DatePicker
-                        label="Fecha de finalización"
-                        value={endDate}
-                        onChange={handleDateChange}
-                        format="dd/MM/yyyy"
-                        sx={{ width: '100%', mt: 1 }}
-                        slotProps={{
-                            textField: {
-                                required: true,
-                                helperText: 'Selecciona cuándo debe finalizar la suscripción',
-                                size: 'small',
-                                variant: 'outlined',
-                                fullWidth: true,
-                            },
-                        }}
-                    />
+                    <Alert severity="info" sx={{ mt: 1 }}>
+                        <Typography variant="body2">
+                            La suscripción se marcará como finalizada en la fecha indicada.
+                            Si la fecha es hoy o anterior, aparecerá como "Caducada".
+                            Si es futura, aparecerá como "Finaliza".
+                        </Typography>
+                    </Alert>
                 </DialogContent>
 
-                <DialogActions sx={{ px: 3, py: 2 }}>
+                <DialogActions>
                     <Button
-                        onClick={onCancel}
+                        onClick={handleCancel}
                         disabled={loading}
                         color="inherit"
                     >
-                        Mantener Activa
+                        Cancelar
                     </Button>
+
                     <Button
                         onClick={handleConfirm}
+                        disabled={loading || !isDateValid}
+                        color="warning"
                         variant="contained"
-                        color="error"
-                        disabled={loading}
-                        startIcon={loading ? <CircularProgress size={20} /> : null}
+                        startIcon={loading ? <CircularProgress size={16} /> : null}
                     >
-                        {loading ? 'Cancelando...' : 'Cancelar Suscripción'}
+                        {loading ? 'Finalizando...' : 'Finalizar Suscripción'}
                     </Button>
                 </DialogActions>
             </Dialog>
