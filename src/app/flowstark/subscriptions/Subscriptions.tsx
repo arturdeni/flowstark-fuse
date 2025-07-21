@@ -6,7 +6,6 @@ import {
   Snackbar,
   Alert,
 } from '@mui/material';
-import { SelectChangeEvent } from '@mui/material/Select';
 import { styled } from '@mui/material/styles';
 import FusePageSimple from '@fuse/core/FusePageSimple';
 
@@ -99,9 +98,9 @@ function Subscriptions() {
   };
 
   const handleConfirmCancel = async () => {
-    if (subscriptionToCancel) {
+    if (subscriptionToCancel && subscriptionToCancel.id) {
       try {
-        await cancelSubscription(subscriptionToCancel.id!);
+        await cancelSubscription(subscriptionToCancel.id);
       } finally {
         setCancelConfirmOpen(false);
         setSubscriptionToCancel(null);
@@ -150,7 +149,7 @@ function Subscriptions() {
           {/* Tarjetas de resumen */}
           <SubscriptionSummaryCards subscriptions={filteredSubscriptions} />
 
-          {/* Barra de búsqueda, filtro y acciones */}
+          {/* Barra de búsqueda, filtros y acciones */}
           <SubscriptionSearchAndActions
             searchTerm={searchTerm}
             statusFilter={statusFilter}

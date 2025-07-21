@@ -28,7 +28,7 @@ import {
 } from '@mui/icons-material';
 import { styled } from '@mui/material/styles';
 import { SubscriptionWithRelations } from '../hooks/useSubscriptions';
-import { formatPaymentDate, getPaymentStatus } from '../../../../utils/paymentDateCalculator';
+import { formatPaymentDate } from '../../../../utils/paymentDateCalculator';
 
 const StyledTableRow = styled(TableRow)(({ theme }) => ({
     '&:nth-of-type(odd)': {
@@ -151,6 +151,51 @@ export const SubscriptionsTable: React.FC<SubscriptionsTableProps> = ({
         }
     };
 
+    // Función para calcular el estado de la fecha de pago
+    const getPaymentDateStatus = (subscription: SubscriptionWithRelations) => {
+        if (!subscription.paymentDate) {
+            return {
+                status: 'unknown',
+                text: 'Sin fecha de pago',
+                color: 'default' as const,
+                icon: <WarningIcon color="disabled" fontSize="small" />
+            };
+        }
+
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        const paymentDate = new Date(subscription.paymentDate);
+        paymentDate.setHours(0, 0, 0, 0);
+
+        const daysUntilPayment = Math.ceil((paymentDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+
+        if (daysUntilPayment < 0) {
+            return {
+                status: 'overdue',
+                text: `Vencido (${Math.abs(daysUntilPayment)} días)`,
+                color: 'error' as const,
+                icon: <WarningIcon color="error" fontSize="small" />
+            };
+        }
+
+        if (daysUntilPayment <= 7) {
+            return {
+                status: 'due',
+                text: `Próximo (${daysUntilPayment} días)`,
+                color: 'warning' as const,
+                icon: <ScheduleIcon color="warning" fontSize="small" />
+            };
+        }
+
+        return {
+            status: 'upcoming',
+            text: `En ${daysUntilPayment} días`,
+            color: 'success' as const,
+            icon: <CheckCircleIcon color="success" fontSize="small" />
+        };
+    };
+
     // Función para formatear precios
     const formatPrice = (price: number): string => {
         return price.toFixed(2);
@@ -232,8 +277,8 @@ export const SubscriptionsTable: React.FC<SubscriptionsTableProps> = ({
 
     // Función para mostrar el estado de pago con icono y color
     const getPaymentDateDisplay = (subscription: SubscriptionWithRelations) => {
-        const paymentStatus = getPaymentStatus(subscription, subscription.paymentCalculation);
         const formattedDate = formatDateSafe(subscription.paymentDate);
+        const paymentStatus = getPaymentDateStatus(subscription);
 
         if (formattedDate === '-' || formattedDate.includes('inválida') || formattedDate.includes('Error')) {
             return (
@@ -246,28 +291,15 @@ export const SubscriptionsTable: React.FC<SubscriptionsTableProps> = ({
             );
         }
 
-        const getIcon = () => {
-            switch (paymentStatus.status) {
-                case 'overdue':
-                    return <WarningIcon color="error" fontSize="small" />;
-                case 'due':
-                    return <ScheduleIcon color="warning" fontSize="small" />;
-                case 'upcoming':
-                    return <CheckCircleIcon color="success" fontSize="small" />;
-                default:
-                    return <ScheduleIcon color="disabled" fontSize="small" />;
-            }
-        };
-
         return (
             <Tooltip title={paymentStatus.text}>
                 <Box display="flex" alignItems="center" gap={1}>
-                    {getIcon()}
+                    {paymentStatus.icon}
                     <Typography 
                         variant="body2" 
                         color={
-                            paymentStatus.status === 'overdue' ? 'error' :
-                            paymentStatus.status === 'due' ? 'warning.main' : 'text.primary'
+                            paymentStatus.color === 'error' ? 'error' :
+                            paymentStatus.color === 'warning' ? 'warning.main' : 'text.primary'
                         }
                     >
                         {formattedDate}
@@ -540,7 +572,7 @@ export const SubscriptionsTable: React.FC<SubscriptionsTableProps> = ({
 
             {/* Paginación */}
             <TablePagination
-                rowsPerPageOptions={[5, 10, 25, 50]}
+                rowsPerPageOptions={[25, 50, 100]}
                 component="div"
                 count={sortedSubscriptions.length}
                 rowsPerPage={rowsPerPage}

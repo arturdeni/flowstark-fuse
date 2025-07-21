@@ -1,21 +1,15 @@
 // src/app/flowstark/subscriptions/hooks/useSubscriptions.ts
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { Subscription, Client, Service } from '../../../../types/models';
 import { subscriptionsService } from '../../../../services/subscriptionsService';
 import { clientsService } from '../../../../services/clientsService';
 import { servicesService } from '../../../../services/servicesService';
-import { 
-  calculatePaymentDate, 
-  getSubscriptionsNeedingRecalculation,
-  recalculatePaymentDates,
-  PaymentDateCalculation
-} from '../../../../utils/paymentDateCalculator';
+import { calculatePaymentDate } from '../../../../utils/paymentDateCalculator';
 
 // Tipo extendido para incluir información relacionada
 export interface SubscriptionWithRelations extends Subscription {
   clientInfo?: Client;
   serviceInfo?: Service;
-  paymentCalculation?: PaymentDateCalculation | null;
 }
 
 export const useSubscriptions = () => {
@@ -30,72 +24,114 @@ export const useSubscriptions = () => {
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'expired' | 'ending'>('all');
   const [filteredSubscriptions, setFilteredSubscriptions] = useState<SubscriptionWithRelations[]>([]);
 
-  // Función para mostrar mensajes (mock - reemplazar con tu sistema de notificaciones)
-  const showSnackbar = (message: string, severity: 'success' | 'error' | 'warning' | 'info') => {
-    console.log(`${severity.toUpperCase()}: ${message}`);
-    // Aquí integrarías tu sistema de notificaciones real
+  // Estado para snackbar
+  const [snackbar, setSnackbar] = useState({
+    open: false,
+    message: '',
+    severity: 'success' as 'success' | 'error' | 'warning' | 'info',
+  });
+
+  // Función para mostrar mensajes
+  const showSnackbar = (message: string, severity: 'success' | 'error' | 'warning' | 'info' = 'success') => {
+    setSnackbar({
+      open: true,
+      message,
+      severity,
+    });
   };
 
-  // Función para cargar datos iniciales
-  const refreshData = useCallback(async () => {
+  const closeSnackbar = () => {
+    setSnackbar(prev => ({ ...prev, open: false }));
+  };
+
+  // Función para validar y convertir fechas de forma segura
+  const safeParseDate = (date: any): Date | null => {
+    if (!date) return null;
+    
+    try {
+      if (date instanceof Date) {
+        return isNaN(date.getTime()) ? null : date;
+      }
+      
+      // Si es un timestamp de Firestore
+      if (date.toDate && typeof date.toDate === 'function') {
+        const parsed = date.toDate();
+        return isNaN(parsed.getTime()) ? null : parsed;
+      }
+      
+      // Si es una string o número
+      const parsed = new Date(date);
+      return isNaN(parsed.getTime()) ? null : parsed;
+    } catch {
+      return null;
+    }
+  };
+
+  // Cargar datos iniciales
+  const loadData = async () => {
     setLoading(true);
     setError(null);
     
     try {
-      await Promise.all([
-        fetchSubscriptions(),
-        fetchClients(),
-        fetchServices()
+      // Cargar todos los datos en paralelo
+      const [subscriptionsData, clientsData, servicesData] = await Promise.all([
+        subscriptionsService.getAllSubscriptions(),
+        clientsService.getAllClients(),
+        servicesService.getAllServices()
       ]);
+
+      // Procesar suscripciones con fechas seguras
+      const processedSubscriptions = subscriptionsData.map(sub => {
+        const startDate = safeParseDate(sub.startDate) || new Date();
+        const endDate = safeParseDate(sub.endDate);
+        const paymentDate = safeParseDate(sub.paymentDate);
+        const createdAt = safeParseDate(sub.createdAt);
+        const updatedAt = safeParseDate(sub.updatedAt);
+
+        return {
+          ...sub,
+          startDate,
+          endDate,
+          paymentDate,
+          createdAt,
+          updatedAt,
+        };
+      });
+
+      // Combinar con información de clientes y servicios
+      const combinedSubscriptions = processedSubscriptions.map(subscription => {
+        const clientInfo = clientsData.find(client => client.id === subscription.clientId);
+        const serviceInfo = servicesData.find(service => service.id === subscription.serviceId);
+
+        // Calcular fecha de pago si no existe
+        let finalPaymentDate = subscription.paymentDate;
+
+        if (!finalPaymentDate && serviceInfo) {
+          const calculated = calculatePaymentDate(subscription, serviceInfo);
+
+          if (calculated) {
+            finalPaymentDate = calculated;
+          }
+        }
+
+        return {
+          ...subscription,
+          paymentDate: finalPaymentDate,
+          clientInfo,
+          serviceInfo,
+        } as SubscriptionWithRelations;
+      });
+
+      setSubscriptions(combinedSubscriptions);
+      setClients(clientsData);
+      setServices(servicesData);
+      
     } catch (err) {
-      console.error('Error refreshing data:', err);
-      setError('Error al cargar los datos. Por favor, inténtalo de nuevo.');
+      console.error('Error loading data:', err);
+      setError('Error al cargar los datos');
+      showSnackbar('Error al cargar los datos', 'error');
     } finally {
       setLoading(false);
-    }
-  }, []);
-
-  // Cargar suscripciones desde Firestore
-  const fetchSubscriptions = async () => {
-    try {
-      const subscriptionsData = await subscriptionsService.getAllSubscriptions();
-      
-      // Procesar cada suscripción para asegurar fechas válidas
-      const processedSubscriptions = subscriptionsData.map(sub => ({
-        ...sub,
-        startDate: sub.startDate instanceof Date ? sub.startDate : new Date(sub.startDate),
-        endDate: sub.endDate ? (sub.endDate instanceof Date ? sub.endDate : new Date(sub.endDate)) : null,
-        paymentDate: sub.paymentDate ? (sub.paymentDate instanceof Date ? sub.paymentDate : new Date(sub.paymentDate)) : undefined,
-        createdAt: sub.createdAt ? (sub.createdAt instanceof Date ? sub.createdAt : new Date(sub.createdAt)) : undefined,
-        updatedAt: sub.updatedAt ? (sub.updatedAt instanceof Date ? sub.updatedAt : new Date(sub.updatedAt)) : undefined,
-      }));
-
-      setSubscriptions(processedSubscriptions);
-    } catch (error) {
-      console.error('Error fetching subscriptions:', error);
-      throw error;
-    }
-  };
-
-  // Cargar clientes desde Firestore
-  const fetchClients = async () => {
-    try {
-      const clientsData = await clientsService.getAllClients();
-      setClients(clientsData);
-    } catch (error) {
-      console.error('Error fetching clients:', error);
-      throw error;
-    }
-  };
-
-  // Cargar servicios desde Firestore
-  const fetchServices = async () => {
-    try {
-      const servicesData = await servicesService.getAllServices();
-      setServices(servicesData);
-    } catch (error) {
-      console.error('Error fetching services:', error);
-      throw error;
     }
   };
 
@@ -109,102 +145,16 @@ export const useSubscriptions = () => {
       endDate.setHours(0, 0, 0, 0);
 
       if (endDate < today) {
-        return 'expired'; // Fecha de fin ya pasó
+        return 'expired';
       } else if (endDate >= today) {
-        return 'ending'; // Fecha de fin es futura pero próxima
+        return 'ending';
       }
     }
 
-    // Si no tiene endDate, mantener como activa (a menos que haya sido cancelada manualmente)
     return subscription.status === 'cancelled' ? 'cancelled' : 'active';
   };
 
-  // Combinar datos de suscripciones con información de clientes y servicios
-  const combineSubscriptionData = useCallback(() => {
-    if (subscriptions.length === 0) return;
-
-    const combinedData = subscriptions.map((subscription) => {
-      const clientInfo = clients.find(client => client.id === subscription.clientId);
-      const serviceInfo = services.find(service => service.id === subscription.serviceId);
-
-      // Calcular información de pago actualizada
-      let paymentCalculation: PaymentDateCalculation | null = null;
-      let updatedPaymentDate = subscription.paymentDate;
-
-      if (serviceInfo) {
-        paymentCalculation = calculatePaymentDate(subscription, serviceInfo);
-        
-        // Si necesita recálculo o no tiene fecha de pago, usar la nueva calculada
-        if (paymentCalculation && (paymentCalculation.shouldRecalculate || !subscription.paymentDate)) {
-          updatedPaymentDate = paymentCalculation.nextPaymentDate;
-        }
-      }
-
-      // Actualizar estado de la suscripción
-      const currentStatus = updateSubscriptionStatus(subscription);
-
-      return {
-        ...subscription,
-        status: currentStatus,
-        paymentDate: updatedPaymentDate,
-        clientInfo,
-        serviceInfo,
-        paymentCalculation,
-      } as SubscriptionWithRelations;
-    });
-
-    setSubscriptions(combinedData);
-  }, [subscriptions, clients, services]);
-
-  // Efecto para combinar datos cuando cambian clientes o servicios
-  useEffect(() => {
-    if (clients.length > 0 && services.length > 0) {
-      combineSubscriptionData();
-    }
-  }, [clients, services, combineSubscriptionData]);
-
-  // Función para recalcular automáticamente fechas de pago vencidas
-  const autoRecalculatePaymentDates = useCallback(async () => {
-    if (subscriptions.length === 0 || services.length === 0) return;
-
-    const subscriptionsNeedingUpdate = getSubscriptionsNeedingRecalculation(subscriptions, services);
-    
-    if (subscriptionsNeedingUpdate.length === 0) return;
-
-    console.log(`Recalculando fechas de pago para ${subscriptionsNeedingUpdate.length} suscripciones...`);
-
-    try {
-      const recalculationResults = recalculatePaymentDates(subscriptionsNeedingUpdate, services);
-      
-      // Actualizar en Firestore las suscripciones que necesitan nuevas fechas
-      const updatePromises = recalculationResults
-        .filter(result => result.newPaymentDate && result.subscription.id)
-        .map(result => 
-          subscriptionsService.updateSubscription(result.subscription.id!, {
-            paymentDate: result.newPaymentDate!
-          })
-        );
-
-      await Promise.all(updatePromises);
-      
-      if (updatePromises.length > 0) {
-        showSnackbar(`Se actualizaron ${updatePromises.length} fechas de pago automáticamente`, 'info');
-        await refreshData(); // Recargar datos después de las actualizaciones
-      }
-    } catch (error) {
-      console.error('Error en recálculo automático:', error);
-      showSnackbar('Error al actualizar fechas de pago automáticamente', 'error');
-    }
-  }, [subscriptions, services, refreshData]);
-
-  // Ejecutar recálculo automático cada vez que se cargan los datos
-  useEffect(() => {
-    if (subscriptions.length > 0 && services.length > 0) {
-      autoRecalculatePaymentDates();
-    }
-  }, [autoRecalculatePaymentDates]);
-
-  // Filtrar suscripciones basado en búsqueda y estado
+  // Filtrar suscripciones
   useEffect(() => {
     let filtered = subscriptions;
 
@@ -224,7 +174,7 @@ export const useSubscriptions = () => {
         const service = subscription.serviceInfo;
 
         const clientName = client
-          ? `${client.firstName} ${client.lastName} ${client.email}`.toLowerCase()
+          ? `${client.firstName || ''} ${client.lastName || ''} ${client.email || ''}`.toLowerCase()
           : '';
         
         const serviceName = service ? service.name.toLowerCase() : '';
@@ -236,6 +186,16 @@ export const useSubscriptions = () => {
     setFilteredSubscriptions(filtered);
   }, [subscriptions, searchTerm, statusFilter]);
 
+  // Cargar datos al montar el componente
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  // Función pública para refrescar datos
+  const refreshData = () => {
+    loadData();
+  };
+
   // Crear nueva suscripción
   const createSubscription = async (subscriptionData: Omit<Subscription, 'id'>) => {
     setLoading(true);
@@ -243,16 +203,18 @@ export const useSubscriptions = () => {
       // Buscar el servicio para calcular la fecha de pago inicial
       const service = services.find(s => s.id === subscriptionData.serviceId);
       
+      const finalData = { ...subscriptionData };
+      
       if (service) {
-        const paymentCalculation = calculatePaymentDate(subscriptionData as Subscription, service);
+        const paymentDate = calculatePaymentDate(finalData as Subscription, service);
 
-        if (paymentCalculation) {
-          subscriptionData.paymentDate = paymentCalculation.nextPaymentDate;
+        if (paymentDate) {
+          finalData.paymentDate = paymentDate;
         }
       }
 
-      await subscriptionsService.createSubscription(subscriptionData);
-      await refreshData();
+      await subscriptionsService.createSubscription(finalData);
+      await loadData(); // Recargar todos los datos
       showSnackbar('Suscripción creada exitosamente', 'success');
     } catch (error) {
       console.error('Error creating subscription:', error);
@@ -267,30 +229,27 @@ export const useSubscriptions = () => {
     setLoading(true);
     try {
       // Si se actualizan datos que afectan paymentDate, recalcular
-      if (
-        subscriptionData.startDate ||
-        subscriptionData.serviceId ||
-        subscriptionData.paymentType
-      ) {
-        const serviceId = subscriptionData.serviceId || subscriptions.find(s => s.id === id)?.serviceId;
+      if (subscriptionData.startDate || subscriptionData.serviceId || subscriptionData.paymentType) {
+        const subscription = subscriptions.find(s => s.id === id);
+        const serviceId = subscriptionData.serviceId || subscription?.serviceId;
         const service = services.find(s => s.id === serviceId);
 
-        if (service) {
+        if (service && subscription) {
           const fullSubscriptionData = {
-            ...subscriptions.find(s => s.id === id),
+            ...subscription,
             ...subscriptionData,
           } as Subscription;
 
-          const paymentCalculation = calculatePaymentDate(fullSubscriptionData, service);
+          const paymentDate = calculatePaymentDate(fullSubscriptionData, service);
 
-          if (paymentCalculation) {
-            subscriptionData.paymentDate = paymentCalculation.nextPaymentDate;
+          if (paymentDate) {
+            subscriptionData.paymentDate = paymentDate;
           }
         }
       }
 
       await subscriptionsService.updateSubscription(id, subscriptionData);
-      await refreshData();
+      await loadData(); // Recargar todos los datos
       showSnackbar('Suscripción actualizada exitosamente', 'success');
     } catch (error) {
       console.error('Error updating subscription:', error);
@@ -308,7 +267,7 @@ export const useSubscriptions = () => {
         status: 'cancelled' as const,
         endDate: new Date(),
       });
-      await refreshData();
+      await loadData(); // Recargar todos los datos
       showSnackbar('Suscripción cancelada exitosamente', 'success');
     } catch (error) {
       console.error('Error cancelling subscription:', error);
@@ -323,7 +282,7 @@ export const useSubscriptions = () => {
     setLoading(true);
     try {
       await subscriptionsService.deleteSubscription(id);
-      await refreshData();
+      await loadData(); // Recargar todos los datos
       showSnackbar('Suscripción eliminada exitosamente', 'success');
     } catch (error) {
       console.error('Error deleting subscription:', error);
@@ -332,42 +291,6 @@ export const useSubscriptions = () => {
       setLoading(false);
     }
   };
-
-  // Función para forzar recálculo manual de todas las fechas de pago
-  const recalculateAllPaymentDates = async () => {
-    if (subscriptions.length === 0 || services.length === 0) {
-      showSnackbar('No hay datos suficientes para recalcular', 'warning');
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const results = recalculatePaymentDates(subscriptions, services);
-      
-      const updatePromises = results
-        .filter(result => result.newPaymentDate && result.subscription.id)
-        .map(result => 
-          subscriptionsService.updateSubscription(result.subscription.id!, {
-            paymentDate: result.newPaymentDate!
-          })
-        );
-
-      await Promise.all(updatePromises);
-      await refreshData();
-      
-      showSnackbar(`Se recalcularon ${updatePromises.length} fechas de pago`, 'success');
-    } catch (error) {
-      console.error('Error recalculating all payment dates:', error);
-      showSnackbar('Error al recalcular fechas de pago', 'error');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Cargar datos al montar el componente
-  useEffect(() => {
-    refreshData();
-  }, [refreshData]);
 
   return {
     // Datos
@@ -383,12 +306,15 @@ export const useSubscriptions = () => {
     statusFilter,
     setStatusFilter,
     
+    // Snackbar
+    snackbar,
+    closeSnackbar,
+    
     // Acciones
     refreshData,
     createSubscription,
     updateSubscription,
     cancelSubscription,
     deleteSubscription,
-    recalculateAllPaymentDates,
   };
 };
