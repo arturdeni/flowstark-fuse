@@ -323,13 +323,9 @@ export const ServicesTable: React.FC<ServicesTableProps> = ({
 
                                     {/* Frecuencia */}
                                     <CompactTableCell>
-                                        <Chip
-                                            label={getFrequencyText(service.frequency)}
-                                            size="small"
-                                            variant="outlined"
-                                            color="default"
-                                            sx={{ fontSize: '0.7rem' }}
-                                        />
+                                        <Typography variant="body2" color="text.primary">
+                                            {getFrequencyText(service.frequency)}
+                                        </Typography>
                                     </CompactTableCell>
 
                                     {/* Suscripciones activas */}

@@ -1,19 +1,13 @@
 // src/app/flowstark/services/Services.tsx
 import React, { useState } from 'react';
-import {
-  Typography,
-  Box,
-  Snackbar,
-  Alert,
-} from '@mui/material';
+import { Box, Snackbar, Alert, Typography } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import FusePageSimple from '@fuse/core/FusePageSimple';
-
 import { useServices } from './hooks/useServices';
 import { Service } from '../../../types/models';
 import {
-  ServiceForm,
   ServicesTable,
+  ServiceForm,
   SearchAndActions,
   DeleteConfirmDialog,
 } from './components';
@@ -30,7 +24,7 @@ const Root = styled(FusePageSimple)(({ theme }) => ({
   '& .FusePageSimple-sidebarContent': {},
 }));
 
-function Services() {
+const Services: React.FC = () => {
   // Estado local para UI
   const [selectedService, setSelectedService] = useState<Service | null>(null);
   const [formOpen, setFormOpen] = useState(false);
@@ -39,43 +33,29 @@ function Services() {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(25);
 
-  // Categorías disponibles (podrían venir de una configuración o API)
-  const categories = [
-    'Premium',
-    'Básico',
-    'Estándar',
-    'Personalizado',
-    'Promocional',
-  ];
-
-  // Hook personalizado con toda la lógica de servicios
   const {
+    // Estados
     filteredServices,
     searchTerm,
     loading,
     snackbar,
-    setSearchTerm,
+
+    // Funciones de datos
     refreshData,
     createService,
     updateService,
     deleteService,
+
+    // Handlers
+    handleSearchChange,
+    handleChangePage,
+    handleChangeRowsPerPage,
+
+    // Snackbar
     closeSnackbar,
   } = useServices();
 
   // Manejadores de eventos de UI
-  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchTerm(e.target.value);
-  };
-
-  const handleChangePage = (event: unknown, newPage: number) => {
-    setPage(newPage);
-  };
-
-  const handleChangeRowsPerPage = (event: React.ChangeEvent<HTMLInputElement>) => {
-    setRowsPerPage(parseInt(event.target.value, 10));
-    setPage(0);
-  };
-
   const handleOpenForm = (service: Service | null = null) => {
     setSelectedService(service);
     setFormOpen(true);
@@ -121,10 +101,10 @@ function Services() {
           {/* Barra de búsqueda y acciones */}
           <SearchAndActions
             searchTerm={searchTerm}
-            loading={loading}
             onSearchChange={handleSearchChange}
             onAddNew={() => handleOpenForm()}
             onRefresh={refreshData}
+            loading={loading}
           />
 
           {/* Tabla de servicios */}
@@ -176,6 +156,6 @@ function Services() {
       }
     />
   );
-}
+};
 
 export default Services;
