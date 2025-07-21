@@ -56,7 +56,7 @@ export interface Subscription {
 	startDate: Date;
 	endDate: Date | null;
 	paymentType: 'advance' | 'arrears'; // Pago anticipado o vencido
-	paymentDate?: Date; // Nueva: Fecha de cobro calculada automáticamente
+	paymentDate?: Date; // Fecha de cobro calculada automáticamente
 	paymentHistory: PaymentHistory[];
 	status: 'active' | 'expired' | 'ending'; // Estados actualizados
 	renewal?: 'monthly' | 'quarterly' | 'four_monthly' | 'biannual' | 'annual'; // Frecuencia de renovación

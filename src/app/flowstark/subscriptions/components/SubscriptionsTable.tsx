@@ -15,14 +15,20 @@ import {
     Typography,
     Box,
     CircularProgress,
+    Tooltip,
+    Alert,
 } from '@mui/material';
 import {
     Edit as EditIcon,
     Delete as DeleteIcon,
     Cancel as CancelIcon,
+    Warning as WarningIcon,
+    CheckCircle as CheckCircleIcon,
+    Schedule as ScheduleIcon,
 } from '@mui/icons-material';
 import { styled } from '@mui/material/styles';
 import { SubscriptionWithRelations } from '../hooks/useSubscriptions';
+import { formatPaymentDate, getPaymentStatus } from '../../../../utils/paymentDateCalculator';
 
 const StyledTableRow = styled(TableRow)(({ theme }) => ({
     '&:nth-of-type(odd)': {
@@ -84,9 +90,14 @@ export const SubscriptionsTable: React.FC<SubscriptionsTableProps> = ({
     const [orderBy, setOrderBy] = useState<OrderBy>('client');
 
     // Función para calcular el estado dinámico de la suscripción
-    const getSubscriptionStatus = (subscription: SubscriptionWithRelations): 'active' | 'expired' | 'ending' => {
+    const getSubscriptionStatus = (subscription: SubscriptionWithRelations): 'active' | 'expired' | 'ending' | 'cancelled' => {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
+
+        // Si está explícitamente cancelada
+        if (subscription.status === 'cancelled') {
+            return 'cancelled';
+        }
 
         if (subscription.endDate) {
             const endDate = new Date(subscription.endDate);
@@ -99,7 +110,7 @@ export const SubscriptionsTable: React.FC<SubscriptionsTableProps> = ({
             }
         }
 
-        return subscription.status === 'cancelled' ? 'expired' : 'active';
+        return 'active';
     };
 
     // Función para mostrar el chip de estado
@@ -113,20 +124,31 @@ export const SubscriptionsTable: React.FC<SubscriptionsTableProps> = ({
                 return <Chip label="Caducada" color="error" size="small" />;
             case 'ending':
                 return <Chip label="Finaliza" color="warning" size="small" />;
+            case 'cancelled':
+                return <Chip label="Cancelada" color="default" size="small" />;
             default:
                 return <Chip label={status} size="small" />;
         }
     };
 
-    // Función para formatear fechas
-    const formatDate = (date: Date | null): string => {
+    // Función para formatear fechas de forma segura
+    const formatDateSafe = (date: Date | string | null | undefined): string => {
         if (!date) return '-';
 
-        return new Date(date).toLocaleDateString('es-ES', {
-            day: '2-digit',
-            month: '2-digit',
-            year: 'numeric',
-        });
+        try {
+            const dateObj = date instanceof Date ? date : new Date(date);
+            
+            // Verificar si la fecha es válida
+            if (isNaN(dateObj.getTime())) {
+                console.warn('Fecha inválida detectada:', date);
+                return 'Fecha inválida';
+            }
+
+            return formatPaymentDate(dateObj);
+        } catch (error) {
+            console.error('Error formateando fecha:', error, date);
+            return 'Error en fecha';
+        }
     };
 
     // Función para formatear precios
@@ -181,7 +203,7 @@ export const SubscriptionsTable: React.FC<SubscriptionsTableProps> = ({
 
         const basePrice = service.basePrice || 0;
         const vat = service.vat || 0;
-        const retention = service.retention || 0;
+        const retention = (service as any).retention || 0;
 
         // Precio con IVA
         const priceWithVat = basePrice * (1 + vat / 100);
@@ -206,6 +228,53 @@ export const SubscriptionsTable: React.FC<SubscriptionsTableProps> = ({
         const status = getSubscriptionStatus(subscription);
         // No se puede eliminar si está en estado "ending" (finalizando)
         return status !== 'ending';
+    };
+
+    // Función para mostrar el estado de pago con icono y color
+    const getPaymentDateDisplay = (subscription: SubscriptionWithRelations) => {
+        const paymentStatus = getPaymentStatus(subscription, subscription.paymentCalculation);
+        const formattedDate = formatDateSafe(subscription.paymentDate);
+
+        if (formattedDate === '-' || formattedDate.includes('inválida') || formattedDate.includes('Error')) {
+            return (
+                <Box display="flex" alignItems="center" gap={1}>
+                    <WarningIcon color="error" fontSize="small" />
+                    <Typography variant="body2" color="error">
+                        Sin fecha válida
+                    </Typography>
+                </Box>
+            );
+        }
+
+        const getIcon = () => {
+            switch (paymentStatus.status) {
+                case 'overdue':
+                    return <WarningIcon color="error" fontSize="small" />;
+                case 'due':
+                    return <ScheduleIcon color="warning" fontSize="small" />;
+                case 'upcoming':
+                    return <CheckCircleIcon color="success" fontSize="small" />;
+                default:
+                    return <ScheduleIcon color="disabled" fontSize="small" />;
+            }
+        };
+
+        return (
+            <Tooltip title={paymentStatus.text}>
+                <Box display="flex" alignItems="center" gap={1}>
+                    {getIcon()}
+                    <Typography 
+                        variant="body2" 
+                        color={
+                            paymentStatus.status === 'overdue' ? 'error' :
+                            paymentStatus.status === 'due' ? 'warning.main' : 'text.primary'
+                        }
+                    >
+                        {formattedDate}
+                    </Typography>
+                </Box>
+            </Tooltip>
+        );
     };
 
     // Función de comparación para ordenamiento
@@ -259,103 +328,127 @@ export const SubscriptionsTable: React.FC<SubscriptionsTableProps> = ({
         setOrderBy(property);
     };
 
-    // Ordenar los datos
+    // Ordenar y paginar datos
     const sortedSubscriptions = useMemo(() => {
-        return safeSubscriptions.slice().sort(getComparator(order, orderBy));
+        return [...safeSubscriptions].sort(getComparator(order, orderBy));
     }, [safeSubscriptions, order, orderBy]);
 
-    // Paginar los datos ordenados
     const paginatedSubscriptions = useMemo(() => {
-        const startIndex = page * rowsPerPage;
-        return sortedSubscriptions.slice(startIndex, startIndex + rowsPerPage);
+        return sortedSubscriptions.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
     }, [sortedSubscriptions, page, rowsPerPage]);
 
-    // Componente para headers ordenables
-    const SortableTableHead = ({
-        id,
-        label,
-        numeric = false,
-        width,
-    }: {
-        id: OrderBy;
-        label: string;
-        numeric?: boolean;
-        width?: string;
-    }) => (
-        <HeaderTableCell align={numeric ? 'right' : 'left'} sx={{ width }}>
-            <TableSortLabel
-                active={orderBy === id}
-                direction={orderBy === id ? order : 'asc'}
-                onClick={() => handleRequestSort(id)}
-                sx={{
-                    '& .MuiTableSortLabel-icon': {
-                        fontSize: '1rem',
-                    },
-                }}
-            >
-                {label}
-            </TableSortLabel>
-        </HeaderTableCell>
-    );
+    // Verificar si hay fechas de pago inválidas
+    const hasInvalidDates = safeSubscriptions.some(sub => {
+        const formatted = formatDateSafe(sub.paymentDate);
+        return formatted.includes('inválida') || formatted.includes('Error') || formatted === '-';
+    });
 
-    if (loading && safeSubscriptions.length === 0) {
+    if (loading) {
         return (
-            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
+            <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
                 <CircularProgress />
             </Box>
         );
     }
 
     return (
-        <TableContainer
-            component={Paper}
-            sx={{
-                width: '100%',
-                overflowX: 'auto',
-                '& .MuiTable-root': {
-                    minWidth: 'auto'
-                }
-            }}
-        >
-            <Table
-                size="small"
-                aria-label="tabla de suscripciones"
-                sx={{
-                    tableLayout: 'fixed',
-                    width: '100%'
-                }}
-            >
-                <TableHead>
-                    <TableRow>
-                        <SortableTableHead id="client" label="Cliente" width="180px" />
-                        <SortableTableHead id="service" label="Servicio" width="150px" />
-                        <SortableTableHead id="frequency" label="Frecuencia" width="120px" />
-                        <SortableTableHead id="paymentDate" label="Fecha de Cobro" width="120px" />
-                        <SortableTableHead id="paymentType" label="Tipo de Pago" width="120px" />
-                        <SortableTableHead id="status" label="Estado" width="100px" />
-                        <SortableTableHead id="finalPrice" label="Precio Final" width="100px" numeric />
-                        <HeaderTableCell sx={{ width: '120px', textAlign: 'right' }}>Acciones</HeaderTableCell>
-                    </TableRow>
-                </TableHead>
-                <TableBody>
-                    {paginatedSubscriptions.length === 0 ? (
+        <>
+            {hasInvalidDates && (
+                <Alert severity="warning" sx={{ mb: 2 }}>
+                    Se han detectado algunas fechas de pago inválidas. 
+                    Las fechas se recalcularán automáticamente en la próxima actualización.
+                </Alert>
+            )}
+            
+            <TableContainer component={Paper} sx={{ borderRadius: 2, overflow: 'hidden' }}>
+                <Table size="small" aria-label="tabla de suscripciones">
+                    <TableHead>
                         <TableRow>
-                            <CompactTableCell colSpan={8} align="center">
-                                <Typography variant="body2" color="text.secondary">
-                                    No hay suscripciones para mostrar
-                                </Typography>
-                            </CompactTableCell>
+                            <HeaderTableCell>
+                                <TableSortLabel
+                                    active={orderBy === 'client'}
+                                    direction={orderBy === 'client' ? order : 'asc'}
+                                    onClick={() => handleRequestSort('client')}
+                                >
+                                    Cliente
+                                </TableSortLabel>
+                            </HeaderTableCell>
+                            <HeaderTableCell>
+                                <TableSortLabel
+                                    active={orderBy === 'service'}
+                                    direction={orderBy === 'service' ? order : 'asc'}
+                                    onClick={() => handleRequestSort('service')}
+                                >
+                                    Servicio
+                                </TableSortLabel>
+                            </HeaderTableCell>
+                            <HeaderTableCell>
+                                <TableSortLabel
+                                    active={orderBy === 'frequency'}
+                                    direction={orderBy === 'frequency' ? order : 'asc'}
+                                    onClick={() => handleRequestSort('frequency')}
+                                >
+                                    Frecuencia
+                                </TableSortLabel>
+                            </HeaderTableCell>
+                            <HeaderTableCell>
+                                <TableSortLabel
+                                    active={orderBy === 'paymentDate'}
+                                    direction={orderBy === 'paymentDate' ? order : 'asc'}
+                                    onClick={() => handleRequestSort('paymentDate')}
+                                >
+                                    Fecha de Cobro
+                                </TableSortLabel>
+                            </HeaderTableCell>
+                            <HeaderTableCell>
+                                <TableSortLabel
+                                    active={orderBy === 'paymentType'}
+                                    direction={orderBy === 'paymentType' ? order : 'asc'}
+                                    onClick={() => handleRequestSort('paymentType')}
+                                >
+                                    Tipo de Pago
+                                </TableSortLabel>
+                            </HeaderTableCell>
+                            <HeaderTableCell>
+                                <TableSortLabel
+                                    active={orderBy === 'status'}
+                                    direction={orderBy === 'status' ? order : 'asc'}
+                                    onClick={() => handleRequestSort('status')}
+                                >
+                                    Estado
+                                </TableSortLabel>
+                            </HeaderTableCell>
+                            <HeaderTableCell align="right">
+                                <TableSortLabel
+                                    active={orderBy === 'finalPrice'}
+                                    direction={orderBy === 'finalPrice' ? order : 'asc'}
+                                    onClick={() => handleRequestSort('finalPrice')}
+                                >
+                                    Precio Final
+                                </TableSortLabel>
+                            </HeaderTableCell>
+                            <HeaderTableCell align="center">Acciones</HeaderTableCell>
                         </TableRow>
-                    ) : (
-                        paginatedSubscriptions.map((subscription) => {
-                            const subscriptionStatus = getSubscriptionStatus(subscription);
-
-                            return (
+                    </TableHead>
+                    <TableBody>
+                        {paginatedSubscriptions.length === 0 ? (
+                            <TableRow>
+                                <CompactTableCell colSpan={8} align="center">
+                                    <Typography variant="body2" color="text.secondary" py={4}>
+                                        No se encontraron suscripciones
+                                    </Typography>
+                                </CompactTableCell>
+                            </TableRow>
+                        ) : (
+                            paginatedSubscriptions.map((subscription) => (
                                 <StyledTableRow key={subscription.id}>
                                     {/* Cliente */}
                                     <CompactTableCell>
-                                        <Typography variant="body2">
+                                        <Typography variant="body2" fontWeight="medium">
                                             {getClientDisplayName(subscription)}
+                                        </Typography>
+                                        <Typography variant="caption" color="text.secondary">
+                                            {subscription.clientInfo?.email}
                                         </Typography>
                                     </CompactTableCell>
 
@@ -370,21 +463,18 @@ export const SubscriptionsTable: React.FC<SubscriptionsTableProps> = ({
                                     <CompactTableCell>
                                         <Chip
                                             label={getFrequencyText(subscription)}
-                                            size="small"
                                             variant="outlined"
                                             color="default"
-                                            sx={{ fontSize: '0.7rem' }}
+                                            size="small"
                                         />
                                     </CompactTableCell>
 
                                     {/* Fecha de Cobro */}
                                     <CompactTableCell>
-                                        <Typography variant="body2">
-                                            {formatDate(subscription.paymentDate)}
-                                        </Typography>
+                                        {getPaymentDateDisplay(subscription)}
                                     </CompactTableCell>
 
-                                    {/* Tipo de Pago - CAMBIO: de Chip a Typography */}
+                                    {/* Tipo de Pago */}
                                     <CompactTableCell>
                                         <Typography variant="body2" color="text.primary">
                                             {getPaymentTypeText(subscription.paymentType || 'advance')}
@@ -403,76 +493,56 @@ export const SubscriptionsTable: React.FC<SubscriptionsTableProps> = ({
                                         </Typography>
                                     </CompactTableCell>
 
-                                    {/* Acciones - CORREGIDO: lógica según estado */}
-                                    <CompactTableCell align="right">
-                                        <Box sx={{ display: 'flex', gap: 0.5, justifyContent: 'flex-end' }}>
-                                            {/* Suscripciones ACTIVAS: Editar + Cancelar */}
-                                            {subscriptionStatus === 'active' && (
-                                                <>
-                                                    <IconButton
-                                                        size="small"
-                                                        onClick={() => onEdit(subscription)}
-                                                        title="Editar suscripción"
-                                                    >
-                                                        <EditIcon fontSize="small" />
-                                                    </IconButton>
-                                                    <IconButton
-                                                        size="small"
-                                                        onClick={() => onCancel(subscription)}
-                                                        title="Cancelar suscripción"
-                                                        color="warning"
-                                                    >
-                                                        <CancelIcon fontSize="small" />
-                                                    </IconButton>
-                                                </>
-                                            )}
-
-                                            {/* Suscripciones FINALIZAN: Editar + Cancelar */}
-                                            {subscriptionStatus === 'ending' && (
-                                                <>
-                                                    <IconButton
-                                                        size="small"
-                                                        onClick={() => onEdit(subscription)}
-                                                        title="Editar suscripción"
-                                                    >
-                                                        <EditIcon fontSize="small" />
-                                                    </IconButton>
-                                                    <IconButton
-                                                        size="small"
-                                                        onClick={() => onCancel(subscription)}
-                                                        title="Cancelar suscripción"
-                                                        color="warning"
-                                                    >
-                                                        <CancelIcon fontSize="small" />
-                                                    </IconButton>
-                                                </>
-                                            )}
-
-                                            {/* Suscripciones CADUCADAS: Solo Eliminar */}
-                                            {subscriptionStatus === 'expired' && (
+                                    {/* Acciones */}
+                                    <CompactTableCell align="center">
+                                        <Box display="flex" gap={0.5} justifyContent="center">
+                                            <Tooltip title="Editar suscripción">
                                                 <IconButton
                                                     size="small"
-                                                    onClick={() => onDelete(subscription.id!)}
-                                                    title="Eliminar suscripción"
-                                                    color="error"
+                                                    onClick={() => onEdit(subscription)}
+                                                    color="primary"
                                                 >
-                                                    <DeleteIcon fontSize="small" />
+                                                    <EditIcon fontSize="small" />
                                                 </IconButton>
+                                            </Tooltip>
+
+                                            {getSubscriptionStatus(subscription) === 'active' && (
+                                                <Tooltip title="Cancelar suscripción">
+                                                    <IconButton
+                                                        size="small"
+                                                        onClick={() => onCancel(subscription)}
+                                                        color="warning"
+                                                    >
+                                                        <CancelIcon fontSize="small" />
+                                                    </IconButton>
+                                                </Tooltip>
+                                            )}
+
+                                            {canDelete(subscription) && (
+                                                <Tooltip title="Eliminar suscripción">
+                                                    <IconButton
+                                                        size="small"
+                                                        onClick={() => subscription.id && onDelete(subscription.id)}
+                                                        color="error"
+                                                    >
+                                                        <DeleteIcon fontSize="small" />
+                                                    </IconButton>
+                                                </Tooltip>
                                             )}
                                         </Box>
                                     </CompactTableCell>
                                 </StyledTableRow>
-                            );
-                        })
-                    )}
-                </TableBody>
-            </Table>
+                            ))
+                        )}
+                    </TableBody>
+                </Table>
+            </TableContainer>
 
             {/* Paginación */}
             <TablePagination
-                rowsPerPageOptions={[25, 50, 100]}
+                rowsPerPageOptions={[5, 10, 25, 50]}
                 component="div"
-                count={safeSubscriptions.length}
+                count={sortedSubscriptions.length}
                 rowsPerPage={rowsPerPage}
                 page={page}
                 onPageChange={onPageChange}
@@ -482,6 +552,6 @@ export const SubscriptionsTable: React.FC<SubscriptionsTableProps> = ({
                     `${from}-${to} de ${count !== -1 ? count : `más de ${to}`}`
                 }
             />
-        </TableContainer>
+        </>
     );
 };
