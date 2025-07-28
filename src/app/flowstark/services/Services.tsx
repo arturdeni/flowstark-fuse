@@ -33,7 +33,7 @@ const Services: React.FC = () => {
   const [serviceToDelete, setServiceToDelete] = useState<string | null>(null);
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(25);
-  
+
   // NUEVO: Estado para el modal de detalles
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [serviceToView, setServiceToView] = useState<Service | null>(null);
@@ -166,6 +166,10 @@ const Services: React.FC = () => {
             open={snackbar.open}
             autoHideDuration={6000}
             onClose={closeSnackbar}
+            anchorOrigin={{
+              vertical: 'bottom',
+              horizontal: 'right'
+            }}
           >
             <Alert
               onClose={closeSnackbar}

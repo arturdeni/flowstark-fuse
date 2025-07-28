@@ -63,3 +63,25 @@ export interface Subscription {
 	createdAt?: Date;
 	updatedAt?: Date;
 }
+
+// Ticket/Recibo
+export interface Ticket {
+	id?: string;
+	subscriptionId: string;
+	dueDate: Date; // Fecha de vencimiento (basada en paymentDate de la suscripción)
+	amount: number; // Monto calculado desde el servicio
+	status: 'paid' | 'pending'; // Estado: pagado o pendiente
+	generatedDate: Date; // Fecha en que se generó el ticket
+	paidDate?: Date; // Fecha en que se marcó como pagado (opcional)
+	isManual: boolean; // true si fue generado manualmente, false si fue automático
+	description?: string; // Descripción opcional del ticket
+	createdAt?: Date;
+	updatedAt?: Date;
+}
+
+// Ticket con información extendida (para las vistas)
+export interface TicketWithRelations extends Ticket {
+	subscriptionInfo?: Subscription;
+	clientInfo?: Client;
+	serviceInfo?: Service;
+}

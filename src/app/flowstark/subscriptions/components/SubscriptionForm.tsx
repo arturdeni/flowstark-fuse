@@ -280,16 +280,16 @@ export const SubscriptionForm: React.FC<SubscriptionFormProps> = ({
                         {/* Configuración de pagos */}
                         <Box>
                             <Typography variant="h6" gutterBottom>
-                                Configuración de pagos
+                                Configuración de cobros
                             </Typography>
 
                             <FormControl fullWidth required>
-                                <InputLabel id="payment-type-select-label">Tipo de Pago</InputLabel>
+                                <InputLabel id="payment-type-select-label">Tipo de Cobro</InputLabel>
                                 <Select
                                     labelId="payment-type-select-label"
                                     name="paymentType"
                                     value={formData.paymentType}
-                                    label="Tipo de Pago"
+                                    label="Tipo de Cobro"
                                     onChange={handleInputChange}
                                     startAdornment={
                                         <InputAdornment position="start">

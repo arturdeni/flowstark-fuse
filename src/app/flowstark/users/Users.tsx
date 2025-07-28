@@ -153,6 +153,10 @@ function Users() {
             open={snackbar.open}
             autoHideDuration={6000}
             onClose={closeSnackbar}
+            anchorOrigin={{
+              vertical: 'bottom',
+              horizontal: 'right'
+            }}
           >
             <Alert
               onClose={closeSnackbar}

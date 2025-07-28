@@ -364,12 +364,12 @@ export const SubscriptionDetailModal: React.FC<SubscriptionDetailModalProps> = (
                                 mb: 2
                             }}>
                                 <PaymentIcon color="primary" fontSize="small" />
-                                Configuración de Pago
+                                Configuración de Cobros
                             </Typography>
 
                             <Box sx={{ pl: 3 }}>
                                 <Typography variant="body2" color="text.secondary" gutterBottom>
-                                    Tipo de pago
+                                    Tipo de cobro
                                 </Typography>
                                 <Typography variant="body1" sx={{ mb: 2 }}>
                                     {getPaymentTypeText(subscription.paymentType || '')}
