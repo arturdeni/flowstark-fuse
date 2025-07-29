@@ -16,6 +16,7 @@ import {
   TicketForm,
   DeleteConfirmDialog,
   TicketDetailModal,
+  PaymentDateDialog,
 } from './components';
 import { TicketWithRelations } from '../../../types/models';
 
@@ -39,6 +40,8 @@ function Tickets() {
   const [ticketToDelete, setTicketToDelete] = useState<string | null>(null);
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(25);
+  const [paymentDateModalOpen, setPaymentDateModalOpen] = useState(false);
+  const [ticketToPay, setTicketToPay] = useState<string | null>(null);
 
   // Estado para el modal de detalles
   const [detailModalOpen, setDetailModalOpen] = useState(false);
@@ -73,7 +76,7 @@ function Tickets() {
     const total = filteredTickets.length;
     const paid = filteredTickets.filter(ticket => ticket.status === 'paid').length;
     const pending = filteredTickets.filter(ticket => ticket.status === 'pending').length;
-    
+
     return { total, paid, pending };
   }, [filteredTickets]);
 
@@ -128,16 +131,34 @@ function Tickets() {
     setPage(0);
   };
 
+  const handleMarkAsPaidClick = (ticketId: string) => {
+    setTicketToPay(ticketId);
+    setPaymentDateModalOpen(true);
+  };
+
+  const handleConfirmPayment = async (paidDate: Date) => {
+    if (ticketToPay) {
+      await markAsPaid(ticketToPay, paidDate);
+      setPaymentDateModalOpen(false);
+      setTicketToPay(null);
+    }
+  };
+
+  const handleCancelPayment = () => {
+    setPaymentDateModalOpen(false);
+    setTicketToPay(null);
+  };
+
   // Obtener información del ticket a eliminar
   const ticketToDeleteInfo = React.useMemo(() => {
     if (!ticketToDelete) return undefined;
-    
+
     const ticket = filteredTickets.find(t => t.id === ticketToDelete);
 
     if (!ticket) return undefined;
 
     return {
-      clientName: ticket.clientInfo 
+      clientName: ticket.clientInfo
         ? `${ticket.clientInfo.firstName} ${ticket.clientInfo.lastName}`
         : undefined,
       serviceName: ticket.serviceInfo?.name,
@@ -195,7 +216,7 @@ function Tickets() {
             onEdit={handleOpenForm}
             onDelete={handleDeleteClick}
             onViewDetail={handleViewDetail}
-            onMarkAsPaid={markAsPaid}
+            onMarkAsPaid={handleMarkAsPaidClick}
             onMarkAsPending={markAsPending}
           />
 
@@ -218,7 +239,7 @@ function Tickets() {
             ticket={ticketToView}
             onClose={handleCloseDetailModal}
             onEdit={handleOpenForm}
-            onMarkAsPaid={markAsPaid}
+            onMarkAsPaid={handleMarkAsPaidClick}
             onMarkAsPending={markAsPending}
           />
 
@@ -229,6 +250,13 @@ function Tickets() {
             ticketInfo={ticketToDeleteInfo}
             onConfirm={handleConfirmDelete}
             onCancel={handleCancelDelete}
+          />
+
+          <PaymentDateDialog
+            open={paymentDateModalOpen}
+            loading={loading}
+            onConfirm={handleConfirmPayment}
+            onCancel={handleCancelPayment}
           />
 
           {/* Snackbar para notificaciones */}

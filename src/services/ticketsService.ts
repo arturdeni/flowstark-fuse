@@ -217,11 +217,11 @@ export const ticketsService = {
 		}
 	},
 
-	// Marcar ticket como pagado
-	markAsPaid: async (id: string): Promise<Ticket> => {
+	// Marcar ticket como pagado con fecha personalizada
+	markAsPaid: async (id: string, paidDate?: Date): Promise<Ticket> => {
 		return ticketsService.updateTicket(id, {
 			status: 'paid',
-			paidDate: new Date()
+			paidDate: paidDate || new Date()
 		});
 	},
 
@@ -234,7 +234,10 @@ export const ticketsService = {
 	},
 
 	// Generar tickets automáticamente para suscripciones con paymentDate
-	generateAutomaticTickets: async (): Promise<{ created: number; errors: string[] }> => {
+	generateAutomaticTickets: async (): Promise<{
+		created: number;
+		errors: string[];
+	}> => {
 		try {
 			const currentUser = firebase.auth().currentUser;
 

@@ -472,7 +472,7 @@ export const SubscriptionsTable: React.FC<SubscriptionsTableProps> = ({
 
                                                 {/* Cancelar - Disponible para activas y finalizando */}
                                                 {actions.canCancel && (
-                                                    <Tooltip title="Cancelar suscripción">
+                                                    <Tooltip title="Finalizar suscripción">
                                                         <IconButton
                                                             size="small"
                                                             onClick={() => onCancel(subscription)}

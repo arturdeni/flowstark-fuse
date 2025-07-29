@@ -1,5 +1,5 @@
 // src/app/flowstark/tickets/components/TicketDetailModal.tsx
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -42,7 +42,43 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
   onMarkAsPaid,
   onMarkAsPending,
 }) => {
-  if (!ticket) return null;
+  // Estado interno para el ticket
+  const [currentTicket, setCurrentTicket] = useState<TicketWithRelations | null>(null);
+
+  // Actualizar el estado interno cuando cambie el ticket prop
+  useEffect(() => {
+    setCurrentTicket(ticket);
+  }, [ticket]);
+
+  if (!currentTicket) return null;
+
+  // Función para manejar marcar como pagado
+  const handleMarkAsPaid = async () => {
+    if (currentTicket.id && onMarkAsPaid) {
+      await onMarkAsPaid(currentTicket.id);
+
+      // Actualizar el estado interno
+      setCurrentTicket({
+        ...currentTicket,
+        status: 'paid',
+        paidDate: new Date()
+      });
+    }
+  };
+
+  // Función para manejar marcar como pendiente
+  const handleMarkAsPending = async () => {
+    if (currentTicket.id && onMarkAsPending) {
+      await onMarkAsPending(currentTicket.id);
+
+      // Actualizar el estado interno
+      setCurrentTicket({
+        ...currentTicket,
+        status: 'pending',
+        paidDate: undefined
+      });
+    }
+  };
 
   const formatDate = (date: Date | undefined) => {
     if (!date) return 'N/A';
@@ -73,7 +109,7 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
     }).format(amount);
   };
 
-  const isOverdue = ticket.status === 'pending' && new Date() > ticket.dueDate;
+  const isOverdue = currentTicket.status === 'pending' && new Date() > currentTicket.dueDate;
 
   return (
     <Dialog
@@ -107,15 +143,15 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
               <Box sx={{ mb: 3 }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
                   <Chip
-                    label={ticket.status === 'paid' ? 'Pagado' : 'Pendiente'}
-                    color={ticket.status === 'paid' ? 'success' : 'warning'}
+                    label={currentTicket.status === 'paid' ? 'Pagado' : 'Pendiente'}
+                    color={currentTicket.status === 'paid' ? 'success' : 'warning'}
                     size="medium"
                   />
                   <Chip
-                    label={ticket.isManual ? 'Manual' : 'Automático'}
-                    variant="outlined"
-                    color={ticket.isManual ? 'primary' : 'default'}
+                    label={currentTicket.isManual ? 'Manual' : 'Automático'}
                     size="medium"
+                    variant="outlined"
+                    color={currentTicket.isManual ? 'primary' : 'default'}
                   />
                   {isOverdue && (
                     <Chip
@@ -132,7 +168,7 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
                       Monto
                     </Typography>
                     <Typography variant="h6" color="primary.main">
-                      {formatCurrency(ticket.amount)}
+                      {formatCurrency(currentTicket.amount)}
                     </Typography>
                   </Grid>
 
@@ -141,7 +177,7 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
                       Fecha de vencimiento
                     </Typography>
                     <Typography variant="body1" color={isOverdue ? 'error.main' : 'text.primary'}>
-                      {formatDateOnly(ticket.dueDate)}
+                      {formatDateOnly(currentTicket.dueDate)}
                     </Typography>
                   </Grid>
 
@@ -150,17 +186,17 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
                       Fecha de generación
                     </Typography>
                     <Typography variant="body1">
-                      {formatDateOnly(ticket.generatedDate)}
+                      {formatDateOnly(currentTicket.generatedDate)}
                     </Typography>
                   </Grid>
 
-                  {ticket.paidDate && ticket.status === 'paid' && (
+                  {currentTicket.paidDate && (
                     <Grid item xs={12} sm={6} md={3}>
                       <Typography variant="body2" color="text.secondary" gutterBottom>
                         Fecha de pago
                       </Typography>
                       <Typography variant="body1" color="success.main">
-                        {formatDateOnly(ticket.paidDate)}
+                        {formatDateOnly(currentTicket.paidDate)}
                       </Typography>
                     </Grid>
                   )}
@@ -169,9 +205,9 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
             </Grid>
 
             {/* Información del Cliente */}
-            {ticket.clientInfo && (
-              <Grid item xs={12}>
-                <Box sx={{ mb: 3 }}>
+            {currentTicket.clientInfo && (
+              <Grid item xs={12} md={6}>
+                <Box>
                   <Typography variant="subtitle1" gutterBottom sx={{
                     fontWeight: 600,
                     display: 'flex',
@@ -190,7 +226,7 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
                           Nombre completo
                         </Typography>
                         <Typography variant="body1" fontWeight={500}>
-                          {ticket.clientInfo.firstName} {ticket.clientInfo.lastName}
+                          {currentTicket.clientInfo.firstName} {currentTicket.clientInfo.lastName}
                         </Typography>
                       </Grid>
 
@@ -199,28 +235,28 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
                           Email
                         </Typography>
                         <Typography variant="body1">
-                          {ticket.clientInfo.email}
+                          {currentTicket.clientInfo.email}
                         </Typography>
                       </Grid>
 
-                      {ticket.clientInfo.phone && (
+                      {currentTicket.clientInfo.phone && (
                         <Grid item xs={12} sm={6}>
                           <Typography variant="body2" color="text.secondary" gutterBottom>
                             Teléfono
                           </Typography>
                           <Typography variant="body1">
-                            {ticket.clientInfo.phone}
+                            {currentTicket.clientInfo.phone}
                           </Typography>
                         </Grid>
                       )}
 
-                      {ticket.clientInfo.fiscalName && (
+                      {currentTicket.clientInfo.fiscalName && (
                         <Grid item xs={12} sm={6}>
                           <Typography variant="body2" color="text.secondary" gutterBottom>
                             Nombre fiscal
                           </Typography>
                           <Typography variant="body1">
-                            {ticket.clientInfo.fiscalName}
+                            {currentTicket.clientInfo.fiscalName}
                           </Typography>
                         </Grid>
                       )}
@@ -231,9 +267,9 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
             )}
 
             {/* Información del Servicio */}
-            {ticket.serviceInfo && (
-              <Grid item xs={12}>
-                <Box sx={{ mb: 3 }}>
+            {currentTicket.serviceInfo && (
+              <Grid item xs={12} md={6}>
+                <Box>
                   <Typography variant="subtitle1" gutterBottom sx={{
                     fontWeight: 600,
                     display: 'flex',
@@ -249,111 +285,34 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
                     <Typography variant="body2" color="text.secondary" gutterBottom>
                       Nombre del servicio
                     </Typography>
-                    <Typography variant="h6" gutterBottom sx={{ color: 'primary.main' }}>
-                      {ticket.serviceInfo.name}
+                    <Typography variant="body1" fontWeight={500} gutterBottom>
+                      {currentTicket.serviceInfo.name}
                     </Typography>
 
-                    {ticket.serviceInfo.description && (
-                      <>
-                        <Typography variant="body2" color="text.secondary" gutterBottom>
-                          Descripción
-                        </Typography>
-                        <Typography variant="body1" sx={{ mb: 2 }}>
-                          {ticket.serviceInfo.description}
-                        </Typography>
-                      </>
-                    )}
+                    <Typography variant="body2" color="text.secondary" gutterBottom>
+                      Descripción
+                    </Typography>
+                    <Typography variant="body1" gutterBottom>
+                      {currentTicket.serviceInfo.description || 'Sin descripción'}
+                    </Typography>
 
                     <Grid container spacing={2}>
-                      <Grid item xs={12} sm={6} md={3}>
+                      <Grid item xs={6}>
                         <Typography variant="body2" color="text.secondary" gutterBottom>
                           Precio base
                         </Typography>
                         <Typography variant="body1">
-                          {formatCurrency(ticket.serviceInfo.basePrice)}
+                          {formatCurrency(currentTicket.serviceInfo.basePrice || 0)}
                         </Typography>
                       </Grid>
 
-                      {ticket.serviceInfo.finalPrice && ticket.serviceInfo.finalPrice !== ticket.serviceInfo.basePrice && (
-                        <Grid item xs={12} sm={6} md={3}>
-                          <Typography variant="body2" color="text.secondary" gutterBottom>
-                            Precio final
-                          </Typography>
-                          <Typography variant="body1" fontWeight={500}>
-                            {formatCurrency(ticket.serviceInfo.finalPrice)}
-                          </Typography>
-                        </Grid>
-                      )}
-
-                      <Grid item xs={12} sm={6} md={3}>
+                      <Grid item xs={6}>
                         <Typography variant="body2" color="text.secondary" gutterBottom>
                           IVA
                         </Typography>
                         <Typography variant="body1">
-                          {ticket.serviceInfo.vat}%
+                          {currentTicket.serviceInfo.vat || 0}%
                         </Typography>
-                      </Grid>
-
-                      <Grid item xs={12} sm={6} md={3}>
-                        <Typography variant="body2" color="text.secondary" gutterBottom>
-                          Frecuencia
-                        </Typography>
-                        <Typography variant="body1">
-                          {ticket.serviceInfo.frequency}
-                        </Typography>
-                      </Grid>
-                    </Grid>
-                  </Box>
-                </Box>
-              </Grid>
-            )}
-
-            {/* Información de la Suscripción */}
-            {ticket.subscriptionInfo && (
-              <Grid item xs={12}>
-                <Box sx={{ mb: 3 }}>
-                  <Typography variant="subtitle1" gutterBottom sx={{
-                    fontWeight: 600,
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 1,
-                    mb: 2
-                  }}>
-                    <CalendarIcon color="primary" fontSize="small" />
-                    Suscripción
-                  </Typography>
-
-                  <Box sx={{ pl: 3 }}>
-                    <Grid container spacing={2}>
-                      <Grid item xs={12} sm={6} md={4}>
-                        <Typography variant="body2" color="text.secondary" gutterBottom>
-                          Fecha de inicio
-                        </Typography>
-                        <Typography variant="body1">
-                          {formatDateOnly(ticket.subscriptionInfo.startDate)}
-                        </Typography>
-                      </Grid>
-
-                      {ticket.subscriptionInfo.endDate && (
-                        <Grid item xs={12} sm={6} md={4}>
-                          <Typography variant="body2" color="text.secondary" gutterBottom>
-                            Fecha de finalización
-                          </Typography>
-                          <Typography variant="body1" color="warning.main">
-                            {formatDateOnly(ticket.subscriptionInfo.endDate)}
-                          </Typography>
-                        </Grid>
-                      )}
-
-                      <Grid item xs={12} sm={6} md={4}>
-                        <Typography variant="body2" color="text.secondary" gutterBottom>
-                          Estado de la suscripción
-                        </Typography>
-                        <Chip
-                          label={ticket.subscriptionInfo.status}
-                          size="small"
-                          color={ticket.subscriptionInfo.status === 'active' ? 'success' : 'default'}
-                        />
                       </Grid>
                     </Grid>
                   </Box>
@@ -362,22 +321,16 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
             )}
 
             {/* Descripción del Ticket */}
-            {ticket.description && (
+            {currentTicket.description && (
               <Grid item xs={12}>
                 <Box>
-                  <Typography variant="subtitle1" gutterBottom sx={{
-                    fontWeight: 600,
-                    mb: 1
-                  }}>
-                    Descripción
+                  <Typography variant="body2" color="text.secondary" gutterBottom>
+                    Descripción del ticket
                   </Typography>
-                  <Typography variant="body1" sx={{ 
-                    p: 2, 
-                    bgcolor: 'grey.50', 
-                    borderRadius: 1,
-                    fontStyle: ticket.description ? 'normal' : 'italic'
+                  <Typography variant="body1" sx={{
+                    fontStyle: currentTicket.description ? 'normal' : 'italic'
                   }}>
-                    {ticket.description || 'Sin descripción'}
+                    {currentTicket.description || 'Sin descripción'}
                   </Typography>
                 </Box>
               </Grid>
@@ -390,17 +343,17 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
                 Información de Auditoría
               </Typography>
               <Grid container spacing={2}>
-                {ticket.createdAt && (
+                {currentTicket.createdAt && (
                   <Grid item xs={12} sm={6}>
                     <Typography variant="body2" color="text.secondary">
-                      Creado: {formatDate(ticket.createdAt)}
+                      Creado: {formatDate(currentTicket.createdAt)}
                     </Typography>
                   </Grid>
                 )}
-                {ticket.updatedAt && (
+                {currentTicket.updatedAt && (
                   <Grid item xs={12} sm={6}>
                     <Typography variant="body2" color="text.secondary">
-                      Actualizado: {formatDate(ticket.updatedAt)}
+                      Actualizado: {formatDate(currentTicket.updatedAt)}
                     </Typography>
                   </Grid>
                 )}
@@ -414,21 +367,21 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
         <Box sx={{ display: 'flex', gap: 1, width: '100%', justifyContent: 'space-between' }}>
           <Box sx={{ display: 'flex', gap: 1 }}>
             {/* Botón cambiar estado */}
-            {ticket.status === 'pending' && onMarkAsPaid ? (
+            {currentTicket.status === 'pending' && onMarkAsPaid ? (
               <Button
                 startIcon={<PaymentIcon />}
                 variant="outlined"
                 color="success"
-                onClick={() => onMarkAsPaid(ticket.id!)}
+                onClick={handleMarkAsPaid}
               >
                 Marcar como Pagado
               </Button>
-            ) : ticket.status === 'paid' && onMarkAsPending ? (
+            ) : currentTicket.status === 'paid' && onMarkAsPending ? (
               <Button
                 startIcon={<ScheduleIcon />}
                 variant="outlined"
                 color="warning"
-                onClick={() => onMarkAsPending(ticket.id!)}
+                onClick={handleMarkAsPending}
               >
                 Marcar como Pendiente
               </Button>
@@ -438,7 +391,7 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
             {onEdit && (
               <Button
                 variant="outlined"
-                onClick={() => onEdit(ticket)}
+                onClick={() => onEdit(currentTicket)}
               >
                 Editar
               </Button>

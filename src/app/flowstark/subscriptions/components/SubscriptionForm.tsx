@@ -16,6 +16,7 @@ import {
     CircularProgress,
     Alert,
     Typography,
+    IconButton,
 } from '@mui/material';
 import { SelectChangeEvent } from '@mui/material/Select';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFnsV3';
@@ -27,6 +28,7 @@ import {
     Inventory as InventoryIcon,
     CalendarToday as CalendarIcon,
     Payment as PaymentIcon,
+    Clear as ClearIcon,
 } from '@mui/icons-material';
 import { Subscription, Client, Service } from '../../../../types/models';
 import { SubscriptionWithRelations } from '../hooks/useSubscriptions';
@@ -118,6 +120,13 @@ export const SubscriptionForm: React.FC<SubscriptionFormProps> = ({
         setFormData({
             ...formData,
             [name]: date,
+        });
+    };
+
+    const handleClearEndDate = () => {
+        setFormData({
+            ...formData,
+            endDate: null,
         });
     };
 
@@ -333,26 +342,38 @@ export const SubscriptionForm: React.FC<SubscriptionFormProps> = ({
                                 />
 
                                 {/* Fecha de fin */}
-                                <DatePicker
-                                    label="Fecha de Finalización (Opcional)"
-                                    value={formData.endDate}
-                                    onChange={(date) => handleDateChange('endDate', date)}
-                                    minDate={formData.startDate}
-                                    slotProps={{
-                                        textField: {
-                                            variant: 'outlined',
-                                            size: 'small',
-                                            fullWidth: true,
-                                            InputProps: {
-                                                startAdornment: (
-                                                    <InputAdornment position="start">
-                                                        <CalendarIcon />
-                                                    </InputAdornment>
-                                                ),
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                    <DatePicker
+                                        label="Fecha de Finalización (Opcional)"
+                                        value={formData.endDate}
+                                        onChange={(date) => handleDateChange('endDate', date)}
+                                        minDate={formData.startDate}
+                                        slotProps={{
+                                            textField: {
+                                                variant: 'outlined',
+                                                size: 'small',
+                                                fullWidth: true,
+                                                InputProps: {
+                                                    startAdornment: (
+                                                        <InputAdornment position="start">
+                                                            <CalendarIcon />
+                                                        </InputAdornment>
+                                                    ),
+                                                }
                                             }
-                                        }
-                                    }}
-                                />
+                                        }}
+                                    />
+                                    {formData.endDate && (
+                                        <IconButton
+                                            size="small"
+                                            onClick={handleClearEndDate}
+                                            title="Limpiar fecha"
+                                            sx={{ flexShrink: 0 }}
+                                        >
+                                            <ClearIcon />
+                                        </IconButton>
+                                    )}
+                                </Box>
                             </Box>
 
                             <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>

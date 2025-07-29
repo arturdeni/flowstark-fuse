@@ -4,7 +4,13 @@ import { ticketsService } from '../../../../services/ticketsService';
 import { subscriptionsService } from '../../../../services/subscriptionsService';
 import { clientsService } from '../../../../services/clientsService';
 import { servicesService } from '../../../../services/servicesService';
-import { Ticket, TicketWithRelations, Subscription, Client, Service } from '../../../../types/models';
+import {
+  Ticket,
+  TicketWithRelations,
+  Subscription,
+  Client,
+  Service,
+} from '../../../../types/models';
 
 export interface UseTicketsReturn {
   // Estado
@@ -17,7 +23,7 @@ export interface UseTicketsReturn {
   statusFilter: 'all' | 'paid' | 'pending';
   loading: boolean;
   error: string | null;
-  
+
   // Snackbar
   snackbar: {
     open: boolean;
@@ -29,10 +35,12 @@ export interface UseTicketsReturn {
   setSearchTerm: (term: string) => void;
   setStatusFilter: (status: 'all' | 'paid' | 'pending') => void;
   refreshData: () => Promise<void>;
-  createTicket: (ticketData: Omit<Ticket, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>;
+  createTicket: (
+    ticketData: Omit<Ticket, 'id' | 'createdAt' | 'updatedAt'>
+  ) => Promise<void>;
   updateTicket: (id: string, ticketData: Partial<Ticket>) => Promise<void>;
   deleteTicket: (id: string) => Promise<void>;
-  markAsPaid: (id: string) => Promise<void>;
+  markAsPaid: (id: string, paidDate?: Date) => Promise<void>;
   markAsPending: (id: string) => Promise<void>;
   generateAutomaticTickets: () => Promise<void>;
   closeSnackbar: () => void;
@@ -44,7 +52,9 @@ export const useTickets = (): UseTicketsReturn => {
   const [clients, setClients] = useState<Client[]>([]);
   const [services, setServices] = useState<Service[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'paid' | 'pending'>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'paid' | 'pending'>(
+    'all'
+  );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [snackbar, setSnackbar] = useState({
@@ -63,7 +73,7 @@ export const useTickets = (): UseTicketsReturn => {
 
   // Función para cerrar snackbar
   const closeSnackbar = () => {
-    setSnackbar(prev => ({ ...prev, open: false }));
+    setSnackbar((prev) => ({ ...prev, open: false }));
   };
 
   // Función para enriquecer tickets con información relacionada
@@ -73,14 +83,24 @@ export const useTickets = (): UseTicketsReturn => {
     clientsList: Client[],
     servicesList: Service[]
   ): TicketWithRelations[] => {
-    const subscriptionsMap = new Map(subscriptionsList.map(sub => [sub.id, sub]));
-    const clientsMap = new Map(clientsList.map(client => [client.id, client]));
-    const servicesMap = new Map(servicesList.map(service => [service.id, service]));
+    const subscriptionsMap = new Map(
+      subscriptionsList.map((sub) => [sub.id, sub])
+    );
+    const clientsMap = new Map(
+      clientsList.map((client) => [client.id, client])
+    );
+    const servicesMap = new Map(
+      servicesList.map((service) => [service.id, service])
+    );
 
-    return ticketsList.map(ticket => {
+    return ticketsList.map((ticket) => {
       const subscription = subscriptionsMap.get(ticket.subscriptionId);
-      const client = subscription ? clientsMap.get(subscription.clientId) : undefined;
-      const service = subscription ? servicesMap.get(subscription.serviceId) : undefined;
+      const client = subscription
+        ? clientsMap.get(subscription.clientId)
+        : undefined;
+      const service = subscription
+        ? servicesMap.get(subscription.serviceId)
+        : undefined;
 
       return {
         ...ticket,
@@ -97,12 +117,13 @@ export const useTickets = (): UseTicketsReturn => {
       setLoading(true);
       setError(null);
 
-      const [ticketsData, subscriptionsData, clientsData, servicesData] = await Promise.all([
-        ticketsService.getAllTickets(),
-        subscriptionsService.getAllSubscriptions(),
-        clientsService.getAllClients(),
-        servicesService.getAllServices(),
-      ]);
+      const [ticketsData, subscriptionsData, clientsData, servicesData] =
+        await Promise.all([
+          ticketsService.getAllTickets(),
+          subscriptionsService.getAllSubscriptions(),
+          clientsService.getAllClients(),
+          servicesService.getAllServices(),
+        ]);
 
       setSubscriptions(subscriptionsData);
       setClients(clientsData);
@@ -142,13 +163,13 @@ export const useTickets = (): UseTicketsReturn => {
     // Filtrar por término de búsqueda
     if (searchTerm) {
       const searchLower = searchTerm.toLowerCase();
-      filtered = filtered.filter(ticket => {
-        const clientName = ticket.clientInfo 
+      filtered = filtered.filter((ticket) => {
+        const clientName = ticket.clientInfo
           ? `${ticket.clientInfo.firstName} ${ticket.clientInfo.lastName}`.toLowerCase()
           : '';
         const serviceName = ticket.serviceInfo?.name?.toLowerCase() || '';
         const amount = ticket.amount.toString();
-        
+
         return (
           clientName.includes(searchLower) ||
           serviceName.includes(searchLower) ||
@@ -160,14 +181,16 @@ export const useTickets = (): UseTicketsReturn => {
 
     // Filtrar por estado
     if (statusFilter !== 'all') {
-      filtered = filtered.filter(ticket => ticket.status === statusFilter);
+      filtered = filtered.filter((ticket) => ticket.status === statusFilter);
     }
 
     return filtered;
   }, [tickets, searchTerm, statusFilter]);
 
   // Crear ticket
-  const createTicket = async (ticketData: Omit<Ticket, 'id' | 'createdAt' | 'updatedAt'>) => {
+  const createTicket = async (
+    ticketData: Omit<Ticket, 'id' | 'createdAt' | 'updatedAt'>
+  ) => {
     setLoading(true);
     try {
       await ticketsService.createTicket(ticketData);
@@ -212,10 +235,10 @@ export const useTickets = (): UseTicketsReturn => {
   };
 
   // Marcar como pagado
-  const markAsPaid = async (id: string) => {
+  const markAsPaid = async (id: string, paidDate?: Date) => {
     setLoading(true);
     try {
-      await ticketsService.markAsPaid(id);
+      await ticketsService.markAsPaid(id, paidDate);
       await loadData();
       showSnackbar('Ticket marcado como pagado', 'success');
     } catch (error) {
@@ -247,10 +270,10 @@ export const useTickets = (): UseTicketsReturn => {
     try {
       const result = await ticketsService.generateAutomaticTickets();
       await loadData();
-      
+
       if (result.created > 0) {
         showSnackbar(
-          `${result.created} tickets generados automáticamente`, 
+          `${result.created} tickets generados automáticamente`,
           'success'
         );
       } else {
@@ -258,7 +281,10 @@ export const useTickets = (): UseTicketsReturn => {
       }
 
       if (result.errors.length > 0) {
-        console.warn('Errores durante la generación automática:', result.errors);
+        console.warn(
+          'Errores durante la generación automática:',
+          result.errors
+        );
       }
     } catch (error) {
       console.error('Error generating automatic tickets:', error);

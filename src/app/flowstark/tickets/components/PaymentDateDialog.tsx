@@ -1,4 +1,4 @@
-// src/app/flowstark/subscriptions/components/CancelSubscriptionDialog.tsx
+// src/app/flowstark/tickets/components/PaymentDateDialog.tsx
 import React, { useState, useEffect } from 'react';
 import {
     Dialog,
@@ -9,48 +9,43 @@ import {
     Typography,
     Box,
     CircularProgress,
-    Alert,
 } from '@mui/material';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFnsV3';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { es } from 'date-fns/locale';
 import {
-    Warning as WarningIcon,
+    Payment as PaymentIcon,
 } from '@mui/icons-material';
 
-interface CancelSubscriptionDialogProps {
+interface PaymentDateDialogProps {
     open: boolean;
     loading: boolean;
-    subscriptionName?: string;
-    clientName?: string;
-    onConfirm: (endDate: Date) => void;
+    onConfirm: (paidDate: Date) => void;
     onCancel: () => void;
 }
 
-export const CancelSubscriptionDialog: React.FC<CancelSubscriptionDialogProps> = ({
+export const PaymentDateDialog: React.FC<PaymentDateDialogProps> = ({
     open,
     loading,
-    subscriptionName,
-    clientName,
     onConfirm,
     onCancel,
 }) => {
-    const [endDate, setEndDate] = useState<Date | null>(null);
+    const [paidDate, setPaidDate] = useState<Date | null>(null);
     const [dateError, setDateError] = useState<string>('');
 
     // Inicializar con la fecha de hoy cuando se abre el diálogo
     useEffect(() => {
         if (open) {
             const today = new Date();
-            setEndDate(today);
+            setPaidDate(today);
             setDateError('');
         }
     }, [open]);
 
     // Manejar cambio de fecha
     const handleDateChange = (date: Date | null) => {
-        setEndDate(date);
+        setPaidDate(date);
 
         // Validar fecha
         if (!date) {
@@ -59,10 +54,10 @@ export const CancelSubscriptionDialog: React.FC<CancelSubscriptionDialogProps> =
         }
 
         const today = new Date();
-        today.setHours(0, 0, 0, 0); // Inicio del día de hoy
+        today.setHours(23, 59, 59, 999); // Fin del día de hoy
 
-        if (date < today) {
-            setDateError('La fecha no puede ser anterior a hoy');
+        if (date > today) {
+            setDateError('La fecha no puede ser futura');
         } else {
             setDateError('');
         }
@@ -70,31 +65,31 @@ export const CancelSubscriptionDialog: React.FC<CancelSubscriptionDialogProps> =
 
     // Manejar confirmación
     const handleConfirm = () => {
-        if (!endDate) {
+        if (!paidDate) {
             setDateError('La fecha es obligatoria');
             return;
         }
 
         const today = new Date();
-        today.setHours(0, 0, 0, 0);
+        today.setHours(23, 59, 59, 999);
 
-        if (endDate < today) {
-            setDateError('La fecha no puede ser anterior a hoy');
+        if (paidDate > today) {
+            setDateError('La fecha no puede ser futura');
             return;
         }
 
-        onConfirm(endDate);
+        onConfirm(paidDate);
     };
 
     // Manejar cancelación
     const handleCancel = () => {
-        setEndDate(null);
+        setPaidDate(null);
         setDateError('');
         onCancel();
     };
 
     // Función para validar si la fecha es válida
-    const isDateValid = endDate && !dateError;
+    const isDateValid = paidDate && !dateError;
 
     return (
         <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={es}>
@@ -106,45 +101,29 @@ export const CancelSubscriptionDialog: React.FC<CancelSubscriptionDialogProps> =
             >
                 <DialogTitle>
                     <Box display="flex" alignItems="center" gap={1}>
-                        <WarningIcon color="warning" />
-                        Finalizar Suscripción
+                        <PaymentIcon color="success" />
+                        Marcar como Pagado
                     </Box>
                 </DialogTitle>
 
                 <DialogContent>
                     <Typography variant="body1" gutterBottom>
-                        ¿Estás seguro de que quieres finalizar esta suscripción?
+                        ¿Cuándo fue pagado este ticket?
                     </Typography>
 
-                    {/* Información de la suscripción */}
-                    {(subscriptionName || clientName) && (
-                        <Box sx={{ mb: 2, p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
-                            {clientName && (
-                                <Typography variant="body2" color="textSecondary" sx={{ mb: 0.5 }}>
-                                    <strong>Cliente:</strong> {clientName}
-                                </Typography>
-                            )}
-                            {subscriptionName && (
-                                <Typography variant="body2" color="textSecondary">
-                                    <strong>Servicio:</strong> {subscriptionName}
-                                </Typography>
-                            )}
-                        </Box>
-                    )}
-
                     {/* Campo de fecha */}
-                    <Box sx={{ mb: 2 }}>
+                    <Box sx={{ mt: 2, mb: 2 }}>
                         <DatePicker
-                            label="Fecha de finalización"
-                            value={endDate}
+                            label="Fecha de pago"
+                            value={paidDate}
                             onChange={handleDateChange}
                             format="dd/MM/yyyy"
-                            minDate={new Date()} // No permitir fechas anteriores a hoy
+                            maxDate={new Date()} // No permitir fechas futuras
                             slotProps={{
                                 textField: {
                                     required: true,
                                     error: !!dateError,
-                                    helperText: dateError || 'Fecha en la que finaliza la suscripción (hoy o futura)',
+                                    helperText: dateError || 'Fecha en la que se realizó el pago (hoy o anterior)',
                                     size: 'small',
                                     variant: 'outlined',
                                     fullWidth: true,
@@ -152,14 +131,6 @@ export const CancelSubscriptionDialog: React.FC<CancelSubscriptionDialogProps> =
                             }}
                         />
                     </Box>
-
-                    <Alert severity="info" sx={{ mt: 1 }}>
-                        <Typography variant="body2">
-                            La suscripción se marcará como finalizada en la fecha indicada.
-                            Si la fecha es hoy, aparecerá como "Caducada".
-                            Si es futura, aparecerá como "Finaliza".
-                        </Typography>
-                    </Alert>
                 </DialogContent>
 
                 <DialogActions>
@@ -174,11 +145,11 @@ export const CancelSubscriptionDialog: React.FC<CancelSubscriptionDialogProps> =
                     <Button
                         onClick={handleConfirm}
                         disabled={loading || !isDateValid}
-                        color="warning"
+                        color="success"
                         variant="contained"
                         startIcon={loading ? <CircularProgress size={16} /> : null}
                     >
-                        {loading ? 'Finalizando...' : 'Finalizar Suscripción'}
+                        {loading ? 'Marcando...' : 'Marcar como Pagado'}
                     </Button>
                 </DialogActions>
             </Dialog>

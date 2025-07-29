@@ -65,6 +65,23 @@ export const SubscriptionDetailModal: React.FC<SubscriptionDetailModalProps> = (
         }
     };
 
+    const getPaymentMethodText = (paymentMethodType: string) => {
+        switch (paymentMethodType) {
+            case 'credit_card':
+            case 'card': // Por si hay inconsistencias
+                return 'Tarjeta de crédito';
+            case 'cash':
+                return 'Efectivo';
+            case 'direct_debit':
+                return 'Domiciliación';
+            case 'bank_transfer':
+            case 'transfer': // Por si hay inconsistencias
+                return 'Transferencia bancaria';
+            default:
+                return 'No especificado';
+        }
+    };
+
     const getStatusText = (status: string) => {
         switch (status) {
             case 'active':
@@ -381,7 +398,7 @@ export const SubscriptionDetailModal: React.FC<SubscriptionDetailModalProps> = (
                                             Método de pago preferido
                                         </Typography>
                                         <Typography variant="body1">
-                                            {subscription.clientInfo.paymentMethod.type || 'No especificado'}
+                                            {getPaymentMethodText(subscription.clientInfo.paymentMethod.type || '')}
                                         </Typography>
                                     </>
                                 )}

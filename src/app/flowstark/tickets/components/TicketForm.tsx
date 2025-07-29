@@ -17,8 +17,6 @@ import {
   Alert,
   Typography,
   Divider,
-  FormControlLabel,
-  Switch,
 } from '@mui/material';
 import { SelectChangeEvent } from '@mui/material/Select';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFnsV3';
@@ -28,18 +26,16 @@ import { es } from 'date-fns/locale';
 import {
   Receipt as ReceiptIcon,
   Person as PersonIcon,
-  Inventory as InventoryIcon,
   Euro as EuroIcon,
   CalendarToday as CalendarIcon,
+  Percent as PercentIcon,
 } from '@mui/icons-material';
-import { Ticket, Subscription, Client, Service, TicketWithRelations } from '../../../../types/models';
+import { Ticket, Client, TicketWithRelations } from '../../../../types/models';
 
 interface TicketFormProps {
   open: boolean;
   selectedTicket: TicketWithRelations | null;
-  subscriptions: Subscription[];
   clients: Client[];
-  services: Service[];
   loading: boolean;
   onClose: () => void;
   onSave: (ticketData: Omit<Ticket, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>;
@@ -47,36 +43,38 @@ interface TicketFormProps {
 }
 
 interface FormData {
-  subscriptionId: string;
+  clientId: string;
+  serviceDescription: string;
+  basePrice: number | string;
+  finalPrice: number | string;
+  vat: number | string;
+  retention: number | string;
   dueDate: Date;
-  amount: number;
   status: 'paid' | 'pending';
-  description: string;
-  isManual: boolean;
 }
 
 export const TicketForm: React.FC<TicketFormProps> = ({
   open,
   selectedTicket,
-  subscriptions,
   clients,
-  services,
   loading,
   onClose,
   onSave,
   onUpdate,
 }) => {
   const [formData, setFormData] = useState<FormData>({
-    subscriptionId: '',
+    clientId: '',
+    serviceDescription: '',
+    basePrice: 0,
+    finalPrice: 0,
+    vat: 21,
+    retention: 0,
     dueDate: new Date(),
-    amount: 0,
     status: 'pending',
-    description: '',
-    isManual: true,
   });
 
   const [validationError, setValidationError] = useState<string>('');
-  const [selectedSubscription, setSelectedSubscription] = useState<Subscription | null>(null);
+  const [isUpdatingPrice, setIsUpdatingPrice] = useState(false);
 
   const isEditMode = Boolean(selectedTicket);
 
@@ -84,90 +82,173 @@ export const TicketForm: React.FC<TicketFormProps> = ({
   useEffect(() => {
     if (open) {
       if (selectedTicket) {
-        // Modo edición
+        // Modo edición - extraer datos del ticket existente
         setFormData({
-          subscriptionId: selectedTicket.subscriptionId,
+          clientId: selectedTicket.clientInfo?.id || '',
+          serviceDescription: selectedTicket.description || '',
+          basePrice: 0, // No podemos extraer estos valores del ticket existente
+          finalPrice: selectedTicket.amount,
+          vat: 21,
+          retention: 0,
           dueDate: selectedTicket.dueDate,
-          amount: selectedTicket.amount,
           status: selectedTicket.status,
-          description: selectedTicket.description || '',
-          isManual: selectedTicket.isManual,
         });
-        
-        const subscription = subscriptions.find(s => s.id === selectedTicket.subscriptionId);
-        setSelectedSubscription(subscription || null);
       } else {
         // Modo creación
         setFormData({
-          subscriptionId: '',
+          clientId: '',
+          serviceDescription: '',
+          basePrice: 0,
+          finalPrice: 0,
+          vat: 21,
+          retention: 0,
           dueDate: new Date(),
-          amount: 0,
           status: 'pending',
-          description: '',
-          isManual: true,
         });
-        setSelectedSubscription(null);
       }
 
       setValidationError('');
     }
-  }, [open, selectedTicket, subscriptions]);
+  }, [open, selectedTicket]);
 
-  // Actualizar información cuando cambie la suscripción seleccionada
-  useEffect(() => {
-    if (formData.subscriptionId && !isEditMode) {
-      const subscription = subscriptions.find(s => s.id === formData.subscriptionId);
+  // Función para calcular precio final basado en precio base
+  const calculateFinalPriceFromBase = (basePrice: number, vat: number, retention: number): number => {
+    const priceWithVat = basePrice * (1 + vat / 100);
+    const finalPrice = priceWithVat * (1 - retention / 100);
+    return finalPrice;
+  };
 
-      if (subscription) {
-        setSelectedSubscription(subscription);
-        
-        // Obtener el servicio relacionado para calcular el precio
-        const service = services.find(s => s.id === subscription.serviceId);
+  // Función para calcular precio base basado en precio final
+  const calculateBasePriceFromFinal = (finalPrice: number, vat: number, retention: number): number => {
+    const divisor = (1 + vat / 100) * (1 - retention / 100);
+    return divisor !== 0 ? finalPrice / divisor : 0;
+  };
 
-        if (service) {
-          setFormData(prev => ({
-            ...prev,
-            amount: service.finalPrice || service.basePrice,
-            dueDate: subscription.paymentDate || new Date(),
-            description: `Ticket para ${service.name}`,
-          }));
+  const handleInputChange = (
+    e: React.ChangeEvent<HTMLInputElement | { name?: string; value: unknown }> |
+      SelectChangeEvent<string>
+  ) => {
+    if (isUpdatingPrice) return; // Evitar loops infinitos
+
+    const { name, value } = e.target as { name: string; value: string | number };
+
+    let processedValue: string | number = value;
+
+    if (name === 'basePrice' || name === 'finalPrice' || name === 'vat' || name === 'retention') {
+      // Permitir valores vacíos temporalmente
+      if (value === '' || value === null || value === undefined) {
+        processedValue = '';
+      } else {
+        // Limitar a máximo 2 decimales
+        const numValue = parseFloat(value as string);
+
+        if (!isNaN(numValue)) {
+          processedValue = Math.round(numValue * 100) / 100;
+        } else {
+          processedValue = '';
         }
       }
     }
-  }, [formData.subscriptionId, subscriptions, services, isEditMode]);
 
-  // Función para obtener información del cliente
-  const getClientInfo = (subscription: Subscription | null) => {
-    if (!subscription) return null;
+    // Calcular el precio complementario dinámicamente
+    setIsUpdatingPrice(true);
 
-    return clients.find(c => c.id === subscription.clientId);
+    const newFormData = {
+      ...formData,
+      [name]: processedValue
+    };
+
+    // Función helper para obtener valor numérico
+    const getNumericValue = (val: string | number): number => {
+      if (val === '' || val === null || val === undefined) return 0;
+
+      const num = typeof val === 'string' ? parseFloat(val) : val;
+      return isNaN(num) ? 0 : num;
+    };
+
+    // Si cambió el precio base, calcular el precio final
+    if ((name === 'basePrice' || name === 'vat' || name === 'retention') &&
+      newFormData.basePrice !== '') {
+
+      const basePrice = getNumericValue(newFormData.basePrice);
+      const vat = getNumericValue(newFormData.vat);
+      const retention = getNumericValue(newFormData.retention);
+
+      if (basePrice > 0) {
+        const calculatedFinalPrice = calculateFinalPriceFromBase(basePrice, vat, retention);
+        newFormData.finalPrice = Math.round(calculatedFinalPrice * 100) / 100;
+      }
+    }
+
+    // Si cambió el precio final, calcular el precio base
+    if (name === 'finalPrice' && newFormData.finalPrice !== '') {
+      const finalPrice = getNumericValue(newFormData.finalPrice);
+      const vat = getNumericValue(newFormData.vat);
+      const retention = getNumericValue(newFormData.retention);
+
+      if (finalPrice > 0) {
+        const calculatedBasePrice = calculateBasePriceFromFinal(finalPrice, vat, retention);
+        newFormData.basePrice = Math.round(calculatedBasePrice * 100) / 100;
+      }
+    }
+
+    setFormData(newFormData);
+    setIsUpdatingPrice(false);
+
+    if (validationError) {
+      setValidationError('');
+    }
   };
 
-  // Función para obtener información del servicio
-  const getServiceInfo = (subscription: Subscription | null) => {
-    if (!subscription) return null;
+  // Manejar cuando el usuario sale del campo (convertir vacíos a 0)
+  const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
 
-    return services.find(s => s.id === subscription.serviceId);
+    if (name === 'basePrice' || name === 'finalPrice' || name === 'vat' || name === 'retention') {
+      if (value === '' || value === null || value === undefined) {
+        setFormData(prev => ({
+          ...prev,
+          [name]: 0
+        }));
+      }
+    }
   };
 
   // Validar formulario
   const validateForm = (): boolean => {
-    if (!formData.subscriptionId) {
-      setValidationError('Por favor selecciona una suscripción');
+    if (!formData.clientId) {
+      setValidationError('Por favor selecciona un cliente');
       return false;
     }
 
-    if (!formData.dueDate) {
-      setValidationError('Por favor selecciona una fecha de vencimiento');
+    if (!formData.serviceDescription.trim()) {
+      setValidationError('Por favor describe el servicio');
       return false;
     }
 
-    if (formData.amount <= 0) {
-      setValidationError('El monto debe ser mayor a 0');
+    const finalPrice = typeof formData.finalPrice === 'string' ?
+      parseFloat(formData.finalPrice) || 0 : formData.finalPrice;
+
+    if (finalPrice <= 0) {
+      setValidationError('El precio final debe ser mayor que 0');
       return false;
     }
 
-    setValidationError('');
+    const vat = typeof formData.vat === 'string' ?
+      parseFloat(formData.vat) || 0 : formData.vat;
+    const retention = typeof formData.retention === 'string' ?
+      parseFloat(formData.retention) || 0 : formData.retention;
+
+    if (vat < 0 || vat > 100) {
+      setValidationError('El IVA debe estar entre 0 y 100%');
+      return false;
+    }
+
+    if (retention < 0 || retention > 100) {
+      setValidationError('La retención debe estar entre 0 y 100%');
+      return false;
+    }
+
     return true;
   };
 
@@ -175,15 +256,19 @@ export const TicketForm: React.FC<TicketFormProps> = ({
   const handleSubmit = async () => {
     if (!validateForm()) return;
 
+    const finalPrice = typeof formData.finalPrice === 'string' ?
+      parseFloat(formData.finalPrice) || 0 : formData.finalPrice;
+
+    // Para tickets manuales, no necesitamos subscriptionId
     const ticketData: Omit<Ticket, 'id' | 'createdAt' | 'updatedAt'> = {
-      subscriptionId: formData.subscriptionId,
+      subscriptionId: '', // Vacío para tickets manuales
       dueDate: formData.dueDate,
-      amount: formData.amount,
+      amount: finalPrice,
       status: formData.status,
       generatedDate: selectedTicket?.generatedDate || new Date(),
       paidDate: formData.status === 'paid' ? (selectedTicket?.paidDate || new Date()) : undefined,
-      isManual: formData.isManual,
-      description: formData.description.trim() || undefined,
+      isManual: true,
+      description: formData.serviceDescription.trim(),
     };
 
     try {
@@ -206,22 +291,15 @@ export const TicketForm: React.FC<TicketFormProps> = ({
     onClose();
   };
 
-  // Manejar cambios en los campos del formulario
-  const handleInputChange = (field: keyof FormData, value: any) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-
-    if (validationError) setValidationError('');
-  };
-
-  const clientInfo = getClientInfo(selectedSubscription);
-  const serviceInfo = getServiceInfo(selectedSubscription);
+  // Obtener información del cliente seleccionado
+  const selectedClient = clients.find(c => c.id === formData.clientId);
 
   return (
     <LocalizationProvider dateAdapter={AdapterDateFns} locale={es}>
-      <Dialog 
-        open={open} 
-        onClose={handleClose} 
-        maxWidth="md" 
+      <Dialog
+        open={open}
+        onClose={handleClose}
+        maxWidth="md"
         fullWidth
         PaperProps={{
           sx: { borderRadius: 2 }
@@ -245,15 +323,19 @@ export const TicketForm: React.FC<TicketFormProps> = ({
               </Alert>
             )}
 
-            {/* Selección de Suscripción */}
+            {/* Selección de Cliente */}
             <Box>
-              <FormControl fullWidth disabled={isEditMode}>
-                <InputLabel>Suscripción *</InputLabel>
+              <Typography variant="h6" gutterBottom>
+                Cliente
+              </Typography>
+
+              <FormControl fullWidth>
+                <InputLabel>Cliente *</InputLabel>
                 <Select
-                  value={formData.subscriptionId}
-                  label="Suscripción *"
-                  onChange={(e: SelectChangeEvent) => 
-                    handleInputChange('subscriptionId', e.target.value)
+                  value={formData.clientId}
+                  label="Cliente *"
+                  onChange={(e: SelectChangeEvent) =>
+                    handleInputChange({ target: { name: 'clientId', value: e.target.value } } as any)
                   }
                   startAdornment={
                     <InputAdornment position="start">
@@ -261,52 +343,46 @@ export const TicketForm: React.FC<TicketFormProps> = ({
                     </InputAdornment>
                   }
                 >
-                  {subscriptions
-                    .filter(sub => sub.status === 'active')
-                    .map((subscription) => {
-                      const client = clients.find(c => c.id === subscription.clientId);
-                      const service = services.find(s => s.id === subscription.serviceId);
-                      const clientName = client ? `${client.firstName} ${client.lastName}` : 'Cliente desconocido';
-                      const serviceName = service?.name || 'Servicio desconocido';
-                      
-                      return (
-                        <MenuItem key={subscription.id} value={subscription.id}>
-                          <Box>
-                            <Typography variant="body2" fontWeight={500}>
-                              {clientName} - {serviceName}
-                            </Typography>
-                            <Typography variant="caption" color="text.secondary">
-                              Próximo cobro: {subscription.paymentDate 
-                                ? new Intl.DateTimeFormat('es-ES').format(subscription.paymentDate)
-                                : 'No definido'
-                              }
-                            </Typography>
-                          </Box>
-                        </MenuItem>
-                      );
-                    })}
+                  {clients
+                    .filter(client => client.active !== false)
+                    .map((client) => (
+                      <MenuItem key={client.id} value={client.id}>
+                        <Box>
+                          <Typography variant="body2" fontWeight={500}>
+                            {`${client.firstName} ${client.lastName}`.trim() || client.fiscalName}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            {client.email}
+                          </Typography>
+                        </Box>
+                      </MenuItem>
+                    ))}
                 </Select>
               </FormControl>
 
-              {/* Información de la suscripción seleccionada */}
-              {selectedSubscription && clientInfo && serviceInfo && (
+              {/* Información del cliente seleccionado */}
+              {selectedClient && (
                 <Box sx={{ mt: 2, p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
                   <Typography variant="subtitle2" gutterBottom>
-                    Información de la Suscripción
+                    Información del Cliente
                   </Typography>
                   <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1 }}>
                     <Typography variant="body2">
-                      <strong>Cliente:</strong> {clientInfo.firstName} {clientInfo.lastName}
+                      <strong>Nombre:</strong> {selectedClient.firstName} {selectedClient.lastName}
                     </Typography>
                     <Typography variant="body2">
-                      <strong>Email:</strong> {clientInfo.email}
+                      <strong>Email:</strong> {selectedClient.email}
                     </Typography>
-                    <Typography variant="body2">
-                      <strong>Servicio:</strong> {serviceInfo.name}
-                    </Typography>
-                    <Typography variant="body2">
-                      <strong>Precio:</strong> €{(serviceInfo.finalPrice || serviceInfo.basePrice).toFixed(2)}
-                    </Typography>
+                    {selectedClient.phone && (
+                      <Typography variant="body2">
+                        <strong>Teléfono:</strong> {selectedClient.phone}
+                      </Typography>
+                    )}
+                    {selectedClient.fiscalName && (
+                      <Typography variant="body2">
+                        <strong>Nombre fiscal:</strong> {selectedClient.fiscalName}
+                      </Typography>
+                    )}
                   </Box>
                 </Box>
               )}
@@ -314,102 +390,241 @@ export const TicketForm: React.FC<TicketFormProps> = ({
 
             <Divider />
 
-            {/* Detalles del Ticket */}
-            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2 }}>
-              {/* Fecha de Vencimiento */}
-              <DatePicker
-                label="Fecha de Vencimiento *"
-                value={formData.dueDate}
-                onChange={(newValue) => handleInputChange('dueDate', newValue || new Date())}
-                slotProps={{
-                  textField: {
-                    fullWidth: true,
-                    InputProps: {
-                      startAdornment: (
-                        <InputAdornment position="start">
-                          <CalendarIcon color="action" />
-                        </InputAdornment>
-                      ),
-                    },
-                  },
-                }}
-              />
+            {/* Descripción del servicio */}
+            <Box>
+              <Typography variant="h6" gutterBottom>
+                Descripción del servicio
+              </Typography>
 
-              {/* Monto */}
               <TextField
-                label="Monto *"
-                type="number"
-                value={formData.amount}
-                onChange={(e) => handleInputChange('amount', parseFloat(e.target.value) || 0)}
+                label="Describe el servicio"
+                name="serviceDescription"
+                value={formData.serviceDescription}
+                onChange={handleInputChange}
+                variant="outlined"
                 fullWidth
-                inputProps={{ min: 0, step: 0.01 }}
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <EuroIcon color="action" />
-                    </InputAdornment>
-                  ),
-                }}
+                multiline
+                rows={3}
+                required
+                placeholder="Ej: Material de Pilates - Esterilla y banda elástica"
               />
             </Box>
 
-            {/* Estado y Tipo */}
-            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr auto' }, gap: 2, alignItems: 'center' }}>
-              <FormControl fullWidth>
-                <InputLabel>Estado</InputLabel>
-                <Select
-                  value={formData.status}
-                  label="Estado"
-                  onChange={(e: SelectChangeEvent) => 
-                    handleInputChange('status', e.target.value as 'paid' | 'pending')
+            <Divider />
+
+            {/* Configuración de precios */}
+            <Box>
+              <Typography variant="h6" gutterBottom>
+                Configuración de precios
+              </Typography>
+
+              <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 2, mb: 2 }}>
+                <TextField
+                  label="Precio Base"
+                  name="basePrice"
+                  type="number"
+                  value={formData.basePrice}
+                  onChange={handleInputChange}
+                  onBlur={handleBlur}
+                  variant="outlined"
+                  size="small"
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <EuroIcon fontSize="small" />
+                      </InputAdornment>
+                    ),
+                  }}
+                  inputProps={{
+                    min: 0,
+                    step: 0.01,
+                    style: {
+                      MozAppearance: 'textfield' // Firefox
+                    }
+                  }}
+                  sx={{
+                    '& input[type=number]::-webkit-outer-spin-button': {
+                      '-webkit-appearance': 'none',
+                      margin: 0,
+                    },
+                    '& input[type=number]::-webkit-inner-spin-button': {
+                      '-webkit-appearance': 'none',
+                      margin: 0,
+                    },
+                  }}
+                />
+
+                <TextField
+                  label="Precio Final"
+                  name="finalPrice"
+                  type="number"
+                  value={formData.finalPrice}
+                  onChange={handleInputChange}
+                  onBlur={handleBlur}
+                  variant="outlined"
+                  size="small"
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <EuroIcon fontSize="small" />
+                      </InputAdornment>
+                    ),
+                  }}
+                  inputProps={{
+                    min: 0,
+                    step: 0.01,
+                    style: {
+                      MozAppearance: 'textfield'
+                    }
+                  }}
+                  sx={{
+                    '& input[type=number]::-webkit-outer-spin-button': {
+                      '-webkit-appearance': 'none',
+                      margin: 0,
+                    },
+                    '& input[type=number]::-webkit-inner-spin-button': {
+                      '-webkit-appearance': 'none',
+                      margin: 0,
+                    },
+                  }}
+                />
+
+                <TextField
+                  label="IVA"
+                  name="vat"
+                  type="number"
+                  value={formData.vat}
+                  onChange={handleInputChange}
+                  onBlur={handleBlur}
+                  variant="outlined"
+                  size="small"
+                  InputProps={{
+                    endAdornment: (
+                      <InputAdornment position="end">
+                        <PercentIcon fontSize="small" />
+                      </InputAdornment>
+                    ),
+                  }}
+                  inputProps={{
+                    min: 0,
+                    max: 100,
+                    step: 0.1,
+                    style: {
+                      MozAppearance: 'textfield'
+                    }
+                  }}
+                  sx={{
+                    '& input[type=number]::-webkit-outer-spin-button': {
+                      '-webkit-appearance': 'none',
+                      margin: 0,
+                    },
+                    '& input[type=number]::-webkit-inner-spin-button': {
+                      '-webkit-appearance': 'none',
+                      margin: 0,
+                    },
+                  }}
+                />
+
+                <TextField
+                  label="Retención"
+                  name="retention"
+                  type="number"
+                  value={formData.retention}
+                  onChange={handleInputChange}
+                  onBlur={handleBlur}
+                  variant="outlined"
+                  size="small"
+                  InputProps={{
+                    endAdornment: (
+                      <InputAdornment position="end">
+                        <PercentIcon fontSize="small" />
+                      </InputAdornment>
+                    ),
+                  }}
+                  inputProps={{
+                    min: 0,
+                    max: 100,
+                    step: 0.1,
+                    style: {
+                      MozAppearance: 'textfield'
+                    }
+                  }}
+                  sx={{
+                    '& input[type=number]::-webkit-outer-spin-button': {
+                      '-webkit-appearance': 'none',
+                      margin: 0,
+                    },
+                    '& input[type=number]::-webkit-inner-spin-button': {
+                      '-webkit-appearance': 'none',
+                      margin: 0,
+                    },
+                  }}
+                />
+              </Box>
+            </Box>
+
+            <Divider />
+
+            {/* Configuración del ticket */}
+            <Box>
+              <Typography variant="h6" gutterBottom>
+                Configuración del ticket
+              </Typography>
+
+              <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 2 }}>
+                <DatePicker
+                  label="Fecha de Vencimiento"
+                  format="dd/MM/yyyy"
+                  value={formData.dueDate}
+                  onChange={(date) =>
+                    handleInputChange({ target: { name: 'dueDate', value: date } } as any)
                   }
-                >
-                  <MenuItem value="pending">Pendiente</MenuItem>
-                  <MenuItem value="paid">Pagado</MenuItem>
-                </Select>
-              </FormControl>
+                  slotProps={{
+                    textField: {
+                      variant: 'outlined',
+                      size: 'small',
+                      fullWidth: true,
+                      required: true,
+                      InputProps: {
+                        startAdornment: (
+                          <InputAdornment position="start">
+                            <CalendarIcon fontSize="small" />
+                          </InputAdornment>
+                        ),
+                      }
+                    }
+                  }}
+                />
 
-              <FormControlLabel
-                control={
-                  <Switch
-                    checked={formData.isManual}
-                    onChange={(e) => handleInputChange('isManual', e.target.checked)}
-                    disabled={isEditMode}
-                  />
-                }
-                label="Ticket Manual"
-              />
+                <FormControl size="small" fullWidth>
+                  <InputLabel>Estado</InputLabel>
+                  <Select
+                    value={formData.status}
+                    label="Estado"
+                    onChange={(e: SelectChangeEvent) =>
+                      handleInputChange({ target: { name: 'status', value: e.target.value } } as any)
+                    }
+                  >
+                    <MenuItem value="pending">Pendiente</MenuItem>
+                    <MenuItem value="paid">Pagado</MenuItem>
+                  </Select>
+                </FormControl>
+              </Box>
             </Box>
-
-            {/* Descripción */}
-            <TextField
-              label="Descripción"
-              value={formData.description}
-              onChange={(e) => handleInputChange('description', e.target.value)}
-              fullWidth
-              multiline
-              rows={3}
-              placeholder="Descripción opcional del ticket..."
-            />
           </Box>
         </DialogContent>
 
-        <DialogActions sx={{ px: 3, pb: 2 }}>
+        <DialogActions sx={{ px: 3, py: 2 }}>
           <Button onClick={handleClose} disabled={loading}>
             Cancelar
           </Button>
-          <Button 
-            onClick={handleSubmit} 
+          <Button
+            onClick={handleSubmit}
             variant="contained"
             disabled={loading}
             startIcon={loading ? <CircularProgress size={20} /> : null}
           >
-            {loading 
-              ? 'Guardando...' 
-              : isEditMode 
-                ? 'Actualizar Ticket' 
-                : 'Crear Ticket'
-            }
+            {loading ? 'Guardando...' : (isEditMode ? 'Actualizar' : 'Crear Ticket')}
           </Button>
         </DialogActions>
       </Dialog>
