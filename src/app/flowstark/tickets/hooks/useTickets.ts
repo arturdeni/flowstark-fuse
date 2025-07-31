@@ -1,4 +1,4 @@
-// src/app/flowstark/tickets/hooks/useTickets.ts
+// src/app/flowstark/tickets/hooks/useTickets.ts - VERSIÓN LIMPIA
 import { useState, useEffect, useMemo } from 'react';
 import { ticketsService } from '../../../../services/ticketsService';
 import { subscriptionsService } from '../../../../services/subscriptionsService';
@@ -6,95 +6,74 @@ import { clientsService } from '../../../../services/clientsService';
 import { servicesService } from '../../../../services/servicesService';
 import {
   Ticket,
-  TicketWithRelations,
   Subscription,
   Client,
   Service,
+  TicketWithRelations,
 } from '../../../../types/models';
 
-export interface UseTicketsReturn {
-  // Estado
-  tickets: TicketWithRelations[];
-  filteredTickets: TicketWithRelations[];
-  subscriptions: Subscription[];
-  clients: Client[];
-  services: Service[];
-  searchTerm: string;
-  statusFilter: 'all' | 'paid' | 'pending';
-  loading: boolean;
-  error: string | null;
-
-  // Snackbar
-  snackbar: {
-    open: boolean;
-    message: string;
-    severity: 'success' | 'error' | 'warning' | 'info';
-  };
-
-  // Acciones
-  setSearchTerm: (term: string) => void;
-  setStatusFilter: (status: 'all' | 'paid' | 'pending') => void;
-  refreshData: () => Promise<void>;
-  createTicket: (
-    ticketData: Omit<Ticket, 'id' | 'createdAt' | 'updatedAt'>
-  ) => Promise<void>;
-  updateTicket: (id: string, ticketData: Partial<Ticket>) => Promise<void>;
-  deleteTicket: (id: string) => Promise<void>;
-  markAsPaid: (id: string, paidDate?: Date) => Promise<void>;
-  markAsPending: (id: string) => Promise<void>;
-  generateAutomaticTickets: () => Promise<void>;
-  closeSnackbar: () => void;
+interface SnackbarState {
+  open: boolean;
+  message: string;
+  severity: 'success' | 'error' | 'warning' | 'info';
 }
 
-export const useTickets = (): UseTicketsReturn => {
+export const useTickets = () => {
+  // Estados principales
   const [tickets, setTickets] = useState<TicketWithRelations[]>([]);
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
   const [services, setServices] = useState<Service[]>([]);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'paid' | 'pending'>(
-    'all'
-  );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [snackbar, setSnackbar] = useState({
+
+  // Filtros
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'paid'>(
+    'all'
+  );
+
+  // Snackbar
+  const [snackbar, setSnackbar] = useState<SnackbarState>({
     open: false,
     message: '',
-    severity: 'success' as 'success' | 'error' | 'warning' | 'info',
+    severity: 'info',
   });
 
   // Función para mostrar snackbar
   const showSnackbar = (
     message: string,
-    severity: 'success' | 'error' | 'warning' | 'info' = 'success'
+    severity: SnackbarState['severity']
   ) => {
     setSnackbar({ open: true, message, severity });
   };
 
-  // Función para cerrar snackbar
+  // Cerrar snackbar
   const closeSnackbar = () => {
     setSnackbar((prev) => ({ ...prev, open: false }));
   };
 
-  // Función para enriquecer tickets con información relacionada
+  // Enriquecer tickets con información relacionada
   const enrichTicketsWithRelations = (
-    ticketsList: Ticket[],
-    subscriptionsList: Subscription[],
-    clientsList: Client[],
-    servicesList: Service[]
+    ticketsData: Ticket[],
+    subscriptionsData: Subscription[],
+    clientsData: Client[],
+    servicesData: Service[]
   ): TicketWithRelations[] => {
     const subscriptionsMap = new Map(
-      subscriptionsList.map((sub) => [sub.id, sub])
+      subscriptionsData.map((sub) => [sub.id, sub])
     );
     const clientsMap = new Map(
-      clientsList.map((client) => [client.id, client])
+      clientsData.map((client) => [client.id, client])
     );
     const servicesMap = new Map(
-      servicesList.map((service) => [service.id, service])
+      servicesData.map((service) => [service.id, service])
     );
 
-    return ticketsList.map((ticket) => {
-      const subscription = subscriptionsMap.get(ticket.subscriptionId);
+    return ticketsData.map((ticket) => {
+      const subscription = ticket.subscriptionId
+        ? subscriptionsMap.get(ticket.subscriptionId)
+        : undefined;
       const client = subscription
         ? clientsMap.get(subscription.clientId)
         : undefined;
@@ -168,13 +147,14 @@ export const useTickets = (): UseTicketsReturn => {
           ? `${ticket.clientInfo.firstName} ${ticket.clientInfo.lastName}`.toLowerCase()
           : '';
         const serviceName = ticket.serviceInfo?.name?.toLowerCase() || '';
+        const description = ticket.description?.toLowerCase() || '';
         const amount = ticket.amount.toString();
 
         return (
           clientName.includes(searchLower) ||
           serviceName.includes(searchLower) ||
-          amount.includes(searchLower) ||
-          ticket.description?.toLowerCase().includes(searchLower)
+          description.includes(searchLower) ||
+          amount.includes(searchLower)
         );
       });
     }
@@ -205,7 +185,10 @@ export const useTickets = (): UseTicketsReturn => {
   };
 
   // Actualizar ticket
-  const updateTicket = async (id: string, ticketData: Partial<Ticket>) => {
+  const updateTicket = async (
+    id: string,
+    ticketData: Partial<Omit<Ticket, 'id' | 'createdAt' | 'updatedAt'>>
+  ) => {
     setLoading(true);
     try {
       await ticketsService.updateTicket(id, ticketData);
@@ -264,36 +247,6 @@ export const useTickets = (): UseTicketsReturn => {
     }
   };
 
-  // Generar tickets automáticos
-  const generateAutomaticTickets = async () => {
-    setLoading(true);
-    try {
-      const result = await ticketsService.generateAutomaticTickets();
-      await loadData();
-
-      if (result.created > 0) {
-        showSnackbar(
-          `${result.created} tickets generados automáticamente`,
-          'success'
-        );
-      } else {
-        showSnackbar('No hay nuevos tickets para generar', 'info');
-      }
-
-      if (result.errors.length > 0) {
-        console.warn(
-          'Errores durante la generación automática:',
-          result.errors
-        );
-      }
-    } catch (error) {
-      console.error('Error generating automatic tickets:', error);
-      showSnackbar('Error al generar tickets automáticos', 'error');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   return {
     // Estado
     tickets: filteredTickets,
@@ -310,13 +263,12 @@ export const useTickets = (): UseTicketsReturn => {
     // Acciones
     setSearchTerm,
     setStatusFilter,
-    refreshData,
+    refreshData, // Este botón ahora solo actualiza la vista local con datos de Firebase
     createTicket,
     updateTicket,
     deleteTicket,
     markAsPaid,
     markAsPending,
-    generateAutomaticTickets,
     closeSnackbar,
   };
 };

@@ -75,8 +75,32 @@ export interface Ticket {
 	paidDate?: Date; // Fecha en que se marcó como pagado (opcional)
 	isManual: boolean; // true si fue generado manualmente, false si fue automático
 	description?: string; // Descripción opcional del ticket
+	serviceStart: Date; // Fecha de inicio del período de servicio
+	serviceEnd: Date; // Fecha de fin del período de servicio
 	createdAt?: Date;
 	updatedAt?: Date;
+}
+
+// Interfaz para la lógica de cálculo de períodos de servicio
+export interface ServicePeriod {
+	start: Date;
+	end: Date;
+	description: string;
+}
+
+// Enum para tipos de pago para mayor claridad
+export enum PaymentType {
+	ADVANCE = 'advance', // Pago anticipado
+	ARREARS = 'arrears' // Pago vencido
+}
+
+// Enum para frecuencias de servicio
+export enum ServiceFrequency {
+	MONTHLY = 'monthly',
+	QUARTERLY = 'quarterly',
+	FOUR_MONTHLY = 'four_monthly',
+	BIANNUAL = 'biannual',
+	ANNUAL = 'annual'
 }
 
 // Ticket con información extendida (para las vistas)

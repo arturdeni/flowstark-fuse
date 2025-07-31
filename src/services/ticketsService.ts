@@ -1,7 +1,8 @@
-// src/services/ticketsService.ts
+// src/services/ticketsService.ts - Sin errores de lint
+
 import { db } from './firebase/firestore';
 import firebase from 'firebase/compat/app';
-import { Ticket } from '../types/models';
+import { Ticket, PaymentType, ServiceFrequency } from '../types/models';
 
 export const ticketsService = {
 	// Obtener todos los tickets del usuario actual
@@ -28,6 +29,9 @@ export const ticketsService = {
 					dueDate: data.dueDate?.toDate(),
 					generatedDate: data.generatedDate?.toDate(),
 					paidDate: data.paidDate?.toDate(),
+					// ✅ NUEVOS CAMPOS
+					serviceStart: data.serviceStart?.toDate(),
+					serviceEnd: data.serviceEnd?.toDate(),
 					createdAt: data.createdAt?.toDate(),
 					updatedAt: data.updatedAt?.toDate()
 				} as Ticket;
@@ -63,6 +67,9 @@ export const ticketsService = {
 					dueDate: data.dueDate?.toDate(),
 					generatedDate: data.generatedDate?.toDate(),
 					paidDate: data.paidDate?.toDate(),
+					// ✅ NUEVOS CAMPOS
+					serviceStart: data.serviceStart?.toDate(),
+					serviceEnd: data.serviceEnd?.toDate(),
 					createdAt: data.createdAt?.toDate(),
 					updatedAt: data.updatedAt?.toDate()
 				} as Ticket;
@@ -90,11 +97,14 @@ export const ticketsService = {
 				return {
 					id: docSnap.id,
 					...data,
-					dueDate: data.dueDate?.toDate(),
-					generatedDate: data.generatedDate?.toDate(),
-					paidDate: data.paidDate?.toDate(),
-					createdAt: data.createdAt?.toDate(),
-					updatedAt: data.updatedAt?.toDate()
+					dueDate: data?.dueDate?.toDate(),
+					generatedDate: data?.generatedDate?.toDate(),
+					paidDate: data?.paidDate?.toDate(),
+					// ✅ NUEVOS CAMPOS
+					serviceStart: data?.serviceStart?.toDate(),
+					serviceEnd: data?.serviceEnd?.toDate(),
+					createdAt: data?.createdAt?.toDate(),
+					updatedAt: data?.updatedAt?.toDate()
 				} as Ticket;
 			} else {
 				throw new Error('Ticket not found');
@@ -105,7 +115,7 @@ export const ticketsService = {
 		}
 	},
 
-	// Crear nuevo ticket
+	// Crear nuevo ticket (con período de servicio)
 	createTicket: async (ticketData: Omit<Ticket, 'id' | 'createdAt' | 'updatedAt'>): Promise<Ticket> => {
 		try {
 			const currentUser = firebase.auth().currentUser;
@@ -122,6 +132,9 @@ export const ticketsService = {
 				dueDate: firebase.firestore.Timestamp.fromDate(ticketData.dueDate),
 				generatedDate: firebase.firestore.Timestamp.fromDate(ticketData.generatedDate),
 				paidDate: ticketData.paidDate ? firebase.firestore.Timestamp.fromDate(ticketData.paidDate) : null,
+				// ✅ NUEVOS CAMPOS
+				serviceStart: firebase.firestore.Timestamp.fromDate(ticketData.serviceStart),
+				serviceEnd: firebase.firestore.Timestamp.fromDate(ticketData.serviceEnd),
 				createdAt: timestamp,
 				updatedAt: timestamp
 			};
@@ -134,11 +147,14 @@ export const ticketsService = {
 			return {
 				id: createdDoc.id,
 				...createdData,
-				dueDate: createdData.dueDate?.toDate(),
-				generatedDate: createdData.generatedDate?.toDate(),
-				paidDate: createdData.paidDate?.toDate(),
-				createdAt: createdData.createdAt?.toDate(),
-				updatedAt: createdData.updatedAt?.toDate()
+				dueDate: createdData?.dueDate?.toDate(),
+				generatedDate: createdData?.generatedDate?.toDate(),
+				paidDate: createdData?.paidDate?.toDate(),
+				// ✅ NUEVOS CAMPOS
+				serviceStart: createdData?.serviceStart?.toDate(),
+				serviceEnd: createdData?.serviceEnd?.toDate(),
+				createdAt: createdData?.createdAt?.toDate(),
+				updatedAt: createdData?.updatedAt?.toDate()
 			} as Ticket;
 		} catch (error) {
 			console.error('Error creating ticket: ', error);
@@ -166,6 +182,7 @@ export const ticketsService = {
 				updatedAt: firebase.firestore.Timestamp.now()
 			};
 
+			// Convertir fechas individuales si existen
 			if (ticketData.dueDate instanceof Date) {
 				processedData.dueDate = firebase.firestore.Timestamp.fromDate(ticketData.dueDate);
 			}
@@ -180,6 +197,15 @@ export const ticketsService = {
 				processedData.paidDate = null;
 			}
 
+			// ✅ NUEVOS CAMPOS
+			if (ticketData.serviceStart instanceof Date) {
+				processedData.serviceStart = firebase.firestore.Timestamp.fromDate(ticketData.serviceStart);
+			}
+
+			if (ticketData.serviceEnd instanceof Date) {
+				processedData.serviceEnd = firebase.firestore.Timestamp.fromDate(ticketData.serviceEnd);
+			}
+
 			await docRef.update(processedData);
 
 			// Obtener el documento actualizado
@@ -189,11 +215,14 @@ export const ticketsService = {
 			return {
 				id: updatedDoc.id,
 				...updatedData,
-				dueDate: updatedData.dueDate?.toDate(),
-				generatedDate: updatedData.generatedDate?.toDate(),
-				paidDate: updatedData.paidDate?.toDate(),
-				createdAt: updatedData.createdAt?.toDate(),
-				updatedAt: updatedData.updatedAt?.toDate()
+				dueDate: updatedData?.dueDate?.toDate(),
+				generatedDate: updatedData?.generatedDate?.toDate(),
+				paidDate: updatedData?.paidDate?.toDate(),
+				// ✅ NUEVOS CAMPOS
+				serviceStart: updatedData?.serviceStart?.toDate(),
+				serviceEnd: updatedData?.serviceEnd?.toDate(),
+				createdAt: updatedData?.createdAt?.toDate(),
+				updatedAt: updatedData?.updatedAt?.toDate()
 			} as Ticket;
 		} catch (error) {
 			console.error('Error updating ticket: ', error);
@@ -233,11 +262,51 @@ export const ticketsService = {
 		});
 	},
 
-	// Generar tickets automáticamente para suscripciones con paymentDate
-	generateAutomaticTickets: async (): Promise<{
-		created: number;
-		errors: string[];
-	}> => {
+	// ✅ NUEVA FUNCIÓN: Crear ticket manual con período de servicio calculado
+	createManualTicketWithPeriod: async (
+		subscriptionId: string,
+		dueDate: Date,
+		amount: number,
+		description?: string
+	): Promise<Ticket> => {
+		try {
+			// Usar imports dinámicos para evitar circular dependencies
+			const { subscriptionsService } = await import('./subscriptionsService');
+			const { servicesService } = await import('./servicesService');
+			const { calculateServicePeriod } = await import('../utils/servicePeriodCalculator');
+
+			// Obtener datos de la suscripción y servicio
+			const subscription = await subscriptionsService.getSubscriptionById(subscriptionId);
+			const service = await servicesService.getServiceById(subscription.serviceId);
+
+			// Calcular período de servicio
+			const servicePeriod = calculateServicePeriod(
+				dueDate,
+				subscription.paymentType as PaymentType,
+				service.frequency as ServiceFrequency,
+				service.name
+			);
+
+			// Crear ticket con período calculado
+			return await ticketsService.createTicket({
+				subscriptionId,
+				dueDate,
+				amount,
+				status: 'pending',
+				generatedDate: new Date(),
+				isManual: true,
+				description: description || servicePeriod.description,
+				serviceStart: servicePeriod.start,
+				serviceEnd: servicePeriod.end
+			});
+		} catch (error) {
+			console.error('Error creating manual ticket with period:', error);
+			throw error;
+		}
+	},
+
+	// ✅ NUEVA FUNCIÓN: Obtener tickets por rango de fechas de servicio
+	getTicketsByServicePeriod: async (startDate: Date, endDate: Date): Promise<Ticket[]> => {
 		try {
 			const currentUser = firebase.auth().currentUser;
 
@@ -245,62 +314,67 @@ export const ticketsService = {
 				throw new Error('No user logged in');
 			}
 
-			// Importar servicios necesarios
-			const { subscriptionsService } = await import('./subscriptionsService');
-			const { servicesService } = await import('./servicesService');
+			const querySnapshot = await db
+				.collection('users')
+				.doc(currentUser.uid)
+				.collection('tickets')
+				.where('serviceStart', '>=', firebase.firestore.Timestamp.fromDate(startDate))
+				.where('serviceStart', '<=', firebase.firestore.Timestamp.fromDate(endDate))
+				.orderBy('serviceStart', 'asc')
+				.get();
 
-			// Obtener todas las suscripciones activas
-			const subscriptions = await subscriptionsService.getAllSubscriptions();
-			const activeSubscriptions = subscriptions.filter((sub) => sub.status === 'active' && sub.paymentDate);
-
-			// Obtener todos los tickets existentes
-			const existingTickets = await ticketsService.getAllTickets();
-
-			// Obtener todos los servicios para calcular precios
-			const services = await servicesService.getAllServices();
-			const servicesMap = new Map(services.map((service) => [service.id, service]));
-
-			let created = 0;
-			const errors: string[] = [];
-
-			for (const subscription of activeSubscriptions) {
-				try {
-					const service = servicesMap.get(subscription.serviceId);
-
-					if (!service) {
-						errors.push(`Servicio no encontrado para suscripción ${subscription.id}`);
-						continue;
-					}
-
-					// Verificar si ya existe un ticket para esta fecha de pago
-					const existingTicket = existingTickets.find(
-						(ticket) =>
-							ticket.subscriptionId === subscription.id &&
-							ticket.dueDate.getTime() === subscription.paymentDate.getTime() &&
-							!ticket.isManual
-					);
-
-					if (!existingTicket) {
-						// Crear nuevo ticket automático
-						await ticketsService.createTicket({
-							subscriptionId: subscription.id,
-							dueDate: subscription.paymentDate,
-							amount: service.finalPrice || service.basePrice,
-							status: 'pending',
-							generatedDate: new Date(),
-							isManual: false,
-							description: `Ticket automático para ${service.name}`
-						});
-						created++;
-					}
-				} catch (error) {
-					errors.push(`Error procesando suscripción ${subscription.id}: ${error.message}`);
-				}
-			}
-
-			return { created, errors };
+			return querySnapshot.docs.map((doc) => {
+				const data = doc.data();
+				return {
+					id: doc.id,
+					...data,
+					dueDate: data.dueDate?.toDate(),
+					generatedDate: data.generatedDate?.toDate(),
+					paidDate: data.paidDate?.toDate(),
+					serviceStart: data.serviceStart?.toDate(),
+					serviceEnd: data.serviceEnd?.toDate(),
+					createdAt: data.createdAt?.toDate(),
+					updatedAt: data.updatedAt?.toDate()
+				} as Ticket;
+			});
 		} catch (error) {
-			console.error('Error generating automatic tickets: ', error);
+			console.error('Error getting tickets by service period: ', error);
+			throw error;
+		}
+	},
+
+	// ✅ NUEVA FUNCIÓN: Validar solapamiento de períodos de servicio
+	validateServicePeriodOverlap: async (
+		subscriptionId: string,
+		serviceStart: Date,
+		serviceEnd: Date,
+		excludeTicketId?: string
+	): Promise<{ hasOverlap: boolean; overlappingTickets: Ticket[] }> => {
+		try {
+			const tickets = await ticketsService.getTicketsBySubscription(subscriptionId);
+
+			const overlappingTickets = tickets.filter((ticket) => {
+				// Excluir el ticket actual si se está editando
+				if (excludeTicketId && ticket.id === excludeTicketId) {
+					return false;
+				}
+
+				// Verificar solapamiento de fechas
+				const ticketStart = ticket.serviceStart;
+				const ticketEnd = ticket.serviceEnd;
+
+				if (!ticketStart || !ticketEnd) return false;
+
+				// Lógica de solapamiento: dos períodos se solapan si uno empieza antes de que termine el otro
+				return serviceStart <= ticketEnd && serviceEnd >= ticketStart;
+			});
+
+			return {
+				hasOverlap: overlappingTickets.length > 0,
+				overlappingTickets
+			};
+		} catch (error) {
+			console.error('Error validating service period overlap:', error);
 			throw error;
 		}
 	}

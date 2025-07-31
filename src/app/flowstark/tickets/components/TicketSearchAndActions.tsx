@@ -1,36 +1,31 @@
-// src/app/flowstark/tickets/components/TicketSearchAndActions.tsx
+// src/app/flowstark/tickets/components/TicketSearchAndActions.tsx - VERSIÓN LIMPIA
 import React from 'react';
 import {
   Box,
   TextField,
-  Button,
   FormControl,
   InputLabel,
   Select,
   MenuItem,
-  InputAdornment,
-  Chip,
+  Button,
   Typography,
+  SelectChangeEvent,
 } from '@mui/material';
 import {
-  Search as SearchIcon,
   Add as AddIcon,
-  AutoMode as AutoIcon,
   Refresh as RefreshIcon,
 } from '@mui/icons-material';
-import { SelectChangeEvent } from '@mui/material/Select';
 
 interface TicketSearchAndActionsProps {
   searchTerm: string;
-  statusFilter: 'all' | 'paid' | 'pending';
+  statusFilter: 'all' | 'pending' | 'paid';
   ticketCount: number;
   paidCount: number;
   pendingCount: number;
   loading: boolean;
-  onSearchChange: (value: string) => void;
-  onStatusFilterChange: (status: 'all' | 'paid' | 'pending') => void;
+  onSearchChange: (term: string) => void;
+  onStatusFilterChange: (status: 'all' | 'pending' | 'paid') => void;
   onAddTicket: () => void;
-  onGenerateAutomatic: () => void;
   onRefresh: () => void;
 }
 
@@ -44,65 +39,39 @@ export const TicketSearchAndActions: React.FC<TicketSearchAndActionsProps> = ({
   onSearchChange,
   onStatusFilterChange,
   onAddTicket,
-  onGenerateAutomatic,
   onRefresh,
 }) => {
+  const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    onSearchChange(event.target.value);
+  };
+
   const handleStatusChange = (event: SelectChangeEvent) => {
-    onStatusFilterChange(event.target.value as 'all' | 'paid' | 'pending');
+    onStatusFilterChange(event.target.value as 'all' | 'pending' | 'paid');
   };
 
   return (
     <Box sx={{ mb: 3 }}>
-      {/* Estadísticas rápidas */}
-      <Box sx={{ mb: 2, display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-        <Chip
-          label={`Total: ${ticketCount}`}
-          color="primary"
-          variant="outlined"
-        />
-        <Chip
-          label={`Pagados: ${paidCount}`}
-          color="success"
-          variant="outlined"
-        />
-        <Chip
-          label={`Pendientes: ${pendingCount}`}
-          color="warning"
-          variant="outlined"
-        />
-      </Box>
-
-      {/* Barra de búsqueda y filtros */}
       <Box
         sx={{
           display: 'flex',
           gap: 2,
           alignItems: 'center',
-          flexWrap: 'wrap',
           mb: 2,
+          flexWrap: 'wrap',
         }}
       >
         {/* Campo de búsqueda */}
         <TextField
-          label="Buscar tickets"
-          variant="outlined"
-          size="small"
+          placeholder="Buscar tickets..."
           value={searchTerm}
-          onChange={(e) => onSearchChange(e.target.value)}
-          sx={{ minWidth: 300, flexGrow: 1 }}
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                <SearchIcon color="action" />
-              </InputAdornment>
-            ),
-          }}
-          placeholder="Buscar por cliente, servicio, monto..."
+          onChange={handleSearchChange}
+          size="small"
+          sx={{ minWidth: 200, flex: 1 }}
         />
 
         {/* Filtro por estado */}
-        <FormControl size="small" sx={{ minWidth: 160 }}>
-          <InputLabel>Estado</InputLabel>
+        <FormControl size="small" sx={{ minWidth: 120 }}>
+          <InputLabel id="status-filter-label">Estado</InputLabel>
           <Select
             value={statusFilter}
             label="Estado"
@@ -127,17 +96,6 @@ export const TicketSearchAndActions: React.FC<TicketSearchAndActionsProps> = ({
           </Button>
 
           <Button
-            variant="outlined"
-            startIcon={<AutoIcon />}
-            onClick={onGenerateAutomatic}
-            disabled={loading}
-            size="small"
-            color="secondary"
-          >
-            Generar Automático
-          </Button>
-
-          <Button
             variant="contained"
             startIcon={<AddIcon />}
             onClick={onAddTicket}
@@ -149,13 +107,26 @@ export const TicketSearchAndActions: React.FC<TicketSearchAndActionsProps> = ({
         </Box>
       </Box>
 
-      {/* Información adicional */}
-      <Typography variant="body2" color="text.secondary">
-        {ticketCount === 0
-          ? 'No se encontraron tickets'
-          : `Mostrando ${ticketCount} ticket${ticketCount !== 1 ? 's' : ''}`
-        }
-      </Typography>
+      {/* Información adicional con estadísticas */}
+      <Box sx={{ display: 'flex', gap: 3, alignItems: 'center' }}>
+        <Typography variant="body2" color="text.secondary">
+          {ticketCount === 0
+            ? 'No se encontraron tickets'
+            : `Mostrando ${ticketCount} ticket${ticketCount !== 1 ? 's' : ''}`
+          }
+        </Typography>
+
+        {ticketCount > 0 && (
+          <>
+            <Typography variant="body2" color="success.main">
+              {paidCount} pagados
+            </Typography>
+            <Typography variant="body2" color="warning.main">
+              {pendingCount} pendientes
+            </Typography>
+          </>
+        )}
+      </Box>
     </Box>
   );
 };

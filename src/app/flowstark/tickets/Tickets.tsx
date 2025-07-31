@@ -1,24 +1,18 @@
-// src/app/flowstark/tickets/Tickets.tsx
-import React, { useState } from 'react';
-import {
-  Typography,
-  Box,
-  Snackbar,
-  Alert,
-} from '@mui/material';
+// src/app/flowstark/tickets/Tickets.tsx - VERSIÓN LIMPIA
+import React, { useState, useMemo } from 'react';
+import { Box, Snackbar, Alert, Typography } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import FusePageSimple from '@fuse/core/FusePageSimple';
-
 import { useTickets } from './hooks/useTickets';
+import { TicketWithRelations } from '../../../types/models';
 import {
-  TicketSearchAndActions,
   TicketsTable,
   TicketForm,
-  DeleteConfirmDialog,
+  TicketSearchAndActions,
   TicketDetailModal,
+  DeleteConfirmDialog,
   PaymentDateDialog,
 } from './components';
-import { TicketWithRelations } from '../../../types/models';
 
 const Root = styled(FusePageSimple)(({ theme }) => ({
   '& .FusePageSimple-header': {
@@ -32,74 +26,73 @@ const Root = styled(FusePageSimple)(({ theme }) => ({
   '& .FusePageSimple-sidebarContent': {},
 }));
 
-function Tickets() {
-  // Estado local para UI
+const Tickets: React.FC = () => {
+  // Estados locales para UI
   const [selectedTicket, setSelectedTicket] = useState<TicketWithRelations | null>(null);
   const [formOpen, setFormOpen] = useState(false);
-  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
-  const [ticketToDelete, setTicketToDelete] = useState<string | null>(null);
-  const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(25);
-  const [paymentDateModalOpen, setPaymentDateModalOpen] = useState(false);
-  const [ticketToPay, setTicketToPay] = useState<string | null>(null);
-
-  // Estado para el modal de detalles
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [ticketToView, setTicketToView] = useState<TicketWithRelations | null>(null);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [ticketToDelete, setTicketToDelete] = useState<string | null>(null);
+  const [paymentDateDialogOpen, setPaymentDateDialogOpen] = useState(false);
+  const [ticketToMarkPaid, setTicketToMarkPaid] = useState<string | null>(null);
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(25);
 
+  // Hook principal
   const {
     // Estados
-    tickets: filteredTickets,
+    filteredTickets,
     subscriptions,
     clients,
     services,
     searchTerm,
     statusFilter,
     loading,
+    error,
     snackbar,
 
     // Acciones
     setSearchTerm,
     setStatusFilter,
-    refreshData,
+    refreshData, // Ahora solo actualiza la vista local
     createTicket,
     updateTicket,
     deleteTicket,
     markAsPaid,
     markAsPending,
-    generateAutomaticTickets,
     closeSnackbar,
   } = useTickets();
 
-  // Calcular estadísticas
-  const ticketStats = React.useMemo(() => {
+  // Estadísticas de tickets
+  const ticketStats = useMemo(() => {
     const total = filteredTickets.length;
-    const paid = filteredTickets.filter(ticket => ticket.status === 'paid').length;
-    const pending = filteredTickets.filter(ticket => ticket.status === 'pending').length;
+    const paid = filteredTickets.filter(t => t.status === 'paid').length;
+    const pending = filteredTickets.filter(t => t.status === 'pending').length;
 
     return { total, paid, pending };
   }, [filteredTickets]);
 
-  // Handlers para el formulario
+  // Handlers para formulario
   const handleOpenForm = (ticket?: TicketWithRelations) => {
     setSelectedTicket(ticket || null);
     setFormOpen(true);
   };
 
   const handleCloseForm = () => {
-    setFormOpen(false);
     setSelectedTicket(null);
+    setFormOpen(false);
   };
 
-  // Handlers para el modal de detalles
+  // Handlers para modal de detalles
   const handleViewDetail = (ticket: TicketWithRelations) => {
     setTicketToView(ticket);
     setDetailModalOpen(true);
   };
 
   const handleCloseDetailModal = () => {
-    setDetailModalOpen(false);
     setTicketToView(null);
+    setDetailModalOpen(false);
   };
 
   // Handlers para eliminación
@@ -111,14 +104,33 @@ function Tickets() {
   const handleConfirmDelete = async () => {
     if (ticketToDelete) {
       await deleteTicket(ticketToDelete);
-      setDeleteConfirmOpen(false);
       setTicketToDelete(null);
+      setDeleteConfirmOpen(false);
     }
   };
 
   const handleCancelDelete = () => {
-    setDeleteConfirmOpen(false);
     setTicketToDelete(null);
+    setDeleteConfirmOpen(false);
+  };
+
+  // Handlers para marcar como pagado
+  const handleMarkAsPaidClick = (ticketId: string) => {
+    setTicketToMarkPaid(ticketId);
+    setPaymentDateDialogOpen(true);
+  };
+
+  const handleConfirmMarkAsPaid = async (paidDate: Date) => {
+    if (ticketToMarkPaid) {
+      await markAsPaid(ticketToMarkPaid, paidDate);
+      setTicketToMarkPaid(null);
+      setPaymentDateDialogOpen(false);
+    }
+  };
+
+  const handleCancelMarkAsPaid = () => {
+    setTicketToMarkPaid(null);
+    setPaymentDateDialogOpen(false);
   };
 
   // Handlers para paginación
@@ -131,33 +143,16 @@ function Tickets() {
     setPage(0);
   };
 
-  const handleMarkAsPaidClick = (ticketId: string) => {
-    setTicketToPay(ticketId);
-    setPaymentDateModalOpen(true);
-  };
-
-  const handleConfirmPayment = async (paidDate: Date) => {
-    if (ticketToPay) {
-      await markAsPaid(ticketToPay, paidDate);
-      setPaymentDateModalOpen(false);
-      setTicketToPay(null);
-    }
-  };
-
-  const handleCancelPayment = () => {
-    setPaymentDateModalOpen(false);
-    setTicketToPay(null);
-  };
-
-  // Obtener información del ticket a eliminar
-  const ticketToDeleteInfo = React.useMemo(() => {
-    if (!ticketToDelete) return undefined;
+  // Datos para el modal de confirmación de eliminación
+  const deleteConfirmData = useMemo(() => {
+    if (!ticketToDelete) return null;
 
     const ticket = filteredTickets.find(t => t.id === ticketToDelete);
 
-    if (!ticket) return undefined;
+    if (!ticket) return null;
 
     return {
+      id: ticket.id!,
       clientName: ticket.clientInfo
         ? `${ticket.clientInfo.firstName} ${ticket.clientInfo.lastName}`
         : undefined,
@@ -184,7 +179,8 @@ function Tickets() {
             className="mt-1"
             color="text.secondary"
           >
-            Gestiona los tickets y recibos de las suscripciones
+            Gestiona los tickets y recibos de las suscripciones.
+            Los tickets se generan automáticamente cuando las suscripciones llegan a su fecha de cobro.
           </Typography>
         </Box>
       }
@@ -201,9 +197,27 @@ function Tickets() {
             onSearchChange={setSearchTerm}
             onStatusFilterChange={setStatusFilter}
             onAddTicket={() => handleOpenForm()}
-            onGenerateAutomatic={generateAutomaticTickets}
-            onRefresh={refreshData}
+            onRefresh={refreshData} // Solo actualiza la vista local
           />
+
+          {/* Mensaje informativo sobre la generación automática */}
+          {ticketStats.total === 0 && !loading && (
+            <Box
+              sx={{
+                mb: 3,
+                p: 2,
+                backgroundColor: 'info.light',
+                borderRadius: 1,
+                border: 1,
+                borderColor: 'info.main'
+              }}
+            >
+              <Typography variant="body2" color="info.dark">
+                💡 Los tickets se generan automáticamente cuando las suscripciones llegan a su fecha de cobro (paymentDate).
+                Si no ves tickets aquí, verifica que tus suscripciones tengan fechas de pago configuradas.
+              </Typography>
+            </Box>
+          )}
 
           {/* Tabla de tickets */}
           <TicketsTable
@@ -238,25 +252,23 @@ function Tickets() {
             open={detailModalOpen}
             ticket={ticketToView}
             onClose={handleCloseDetailModal}
-            onEdit={handleOpenForm}
-            onMarkAsPaid={handleMarkAsPaidClick}
-            onMarkAsPending={markAsPending}
           />
 
           {/* Diálogo de confirmación para eliminar */}
           <DeleteConfirmDialog
             open={deleteConfirmOpen}
-            loading={loading}
-            ticketInfo={ticketToDeleteInfo}
+            data={deleteConfirmData}
             onConfirm={handleConfirmDelete}
             onCancel={handleCancelDelete}
+            loading={loading}
           />
 
+          {/* Diálogo para marcar como pagado */}
           <PaymentDateDialog
-            open={paymentDateModalOpen}
+            open={paymentDateDialogOpen}
+            onConfirm={handleConfirmMarkAsPaid}
+            onCancel={handleCancelMarkAsPaid}
             loading={loading}
-            onConfirm={handleConfirmPayment}
-            onCancel={handleCancelPayment}
           />
 
           {/* Snackbar para notificaciones */}
@@ -264,15 +276,11 @@ function Tickets() {
             open={snackbar.open}
             autoHideDuration={6000}
             onClose={closeSnackbar}
-            anchorOrigin={{
-              vertical: 'bottom',
-              horizontal: 'right'
-            }}
+            anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
           >
             <Alert
               onClose={closeSnackbar}
               severity={snackbar.severity}
-              variant="filled"
               sx={{ width: '100%' }}
             >
               {snackbar.message}
@@ -282,6 +290,6 @@ function Tickets() {
       }
     />
   );
-}
+};
 
 export default Tickets;
