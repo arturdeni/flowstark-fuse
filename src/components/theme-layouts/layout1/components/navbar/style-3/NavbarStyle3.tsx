@@ -1,3 +1,4 @@
+// src/components/theme-layouts/layout1/components/navbar/style-3/NavbarStyle3.tsx
 import { styled } from '@mui/material/styles';
 import SwipeableDrawer from '@mui/material/SwipeableDrawer';
 import { useAppDispatch, useAppSelector } from 'src/store/hooks';
@@ -27,12 +28,19 @@ type StyledNavBarProps = {
 	position?: string;
 	className?: string;
 	anchor?: string;
+	forceMobileFolded?: number; // Nueva prop para forzar plegado en móvil
 };
 
 const StyledNavBar = styled('div')<StyledNavBarProps>(({ theme, dense }) => ({
 	minWidth: navbarWidth,
 	width: navbarWidth,
 	maxWidth: navbarWidth,
+	// En móvil, usar el ancho dense por defecto
+	[theme.breakpoints.down('lg')]: {
+		minWidth: navbarWidthDense,
+		width: navbarWidthDense,
+		maxWidth: navbarWidthDense
+	},
 	'& .user-menu': {
 		minWidth: 56,
 		width: 56,
@@ -63,7 +71,7 @@ const StyledNavBar = styled('div')<StyledNavBarProps>(({ theme, dense }) => ({
 				position: 'right'
 			},
 			style: {
-				borderLight: `1px solid ${theme.palette.divider}`
+				borderLeft: `1px solid ${theme.palette.divider}`
 			}
 		},
 		{
@@ -77,55 +85,86 @@ const StyledNavBar = styled('div')<StyledNavBarProps>(({ theme, dense }) => ({
 		{
 			props: ({ dense, open, position }) => dense && !open && position === 'left',
 			style: {
-				marginLeft: -navbarWidthDense
+				[theme.breakpoints.up('lg')]: {
+					marginLeft: -navbarWidthDense
+				},
+				// En móvil, nunca ocultar
+				[theme.breakpoints.down('lg')]: {
+					marginLeft: 0
+				}
 			}
 		},
 		{
 			props: ({ dense, open, position }) => dense && !open && position === 'right',
 			style: {
-				marginRight: -navbarWidthDense
+				[theme.breakpoints.up('lg')]: {
+					marginRight: -navbarWidthDense
+				},
+				// En móvil, nunca ocultar
+				[theme.breakpoints.down('lg')]: {
+					marginRight: 0
+				}
 			}
 		},
 		{
 			props: ({ folded }) => !folded,
 			style: {
-				minWidth: navbarWidth + panelWidth,
-				width: navbarWidth + panelWidth,
-				maxWidth: navbarWidth + panelWidth,
+				[theme.breakpoints.up('lg')]: {
+					minWidth: navbarWidth + panelWidth,
+					width: navbarWidth + panelWidth,
+					maxWidth: navbarWidth + panelWidth
+				},
+				// En móvil, mantener tamaño reducido incluso desplegado
+				[theme.breakpoints.down('lg')]: {
+					minWidth: navbarWidthDense,
+					width: navbarWidthDense,
+					maxWidth: navbarWidthDense
+				},
 				'& #fuse-navbar-panel': {
-					opacity: '1!important',
-					pointerEvents: 'initial!important'
+					[theme.breakpoints.up('lg')]: {
+						opacity: '1!important',
+						pointerEvents: 'initial!important'
+					},
+					// En móvil, ocultar el panel
+					[theme.breakpoints.down('lg')]: {
+						opacity: '0!important',
+						pointerEvents: 'none!important'
+					}
 				}
 			}
 		},
 		{
 			props: ({ folded, dense }) => !folded && dense,
 			style: {
-				minWidth: navbarWidthDense + panelWidth
-			}
-		},
-		{
-			props: ({ folded, dense }) => !folded && dense,
-			style: {
-				width: navbarWidthDense + panelWidth
-			}
-		},
-		{
-			props: ({ folded, dense }) => !folded && dense,
-			style: {
-				maxWidth: navbarWidthDense + panelWidth
+				[theme.breakpoints.up('lg')]: {
+					minWidth: navbarWidthDense + panelWidth,
+					width: navbarWidthDense + panelWidth,
+					maxWidth: navbarWidthDense + panelWidth
+				}
 			}
 		},
 		{
 			props: ({ folded, open, position }) => !folded && !open && position === 'left',
 			style: {
-				marginLeft: -(dense ? navbarWidthDense + panelWidth : navbarWidth + panelWidth)
+				[theme.breakpoints.up('lg')]: {
+					marginLeft: -(dense ? navbarWidthDense + panelWidth : navbarWidth + panelWidth)
+				},
+				// En móvil, nunca ocultar
+				[theme.breakpoints.down('lg')]: {
+					marginLeft: 0
+				}
 			}
 		},
 		{
 			props: ({ folded, open, position }) => !folded && !open && position === 'right',
 			style: {
-				marginRight: -(dense ? navbarWidthDense + panelWidth : navbarWidth + panelWidth)
+				[theme.breakpoints.up('lg')]: {
+					marginRight: -(dense ? navbarWidthDense + panelWidth : navbarWidth + panelWidth)
+				},
+				// En móvil, nunca ocultar
+				[theme.breakpoints.down('lg')]: {
+					marginRight: 0
+				}
 			}
 		},
 		{
@@ -140,13 +179,25 @@ const StyledNavBar = styled('div')<StyledNavBarProps>(({ theme, dense }) => ({
 		{
 			props: ({ open, position }) => !open && position === 'left',
 			style: {
-				marginLeft: -(dense ? navbarWidthDense : navbarWidth)
+				[theme.breakpoints.up('lg')]: {
+					marginLeft: -(dense ? navbarWidthDense : navbarWidth)
+				},
+				// En móvil, nunca ocultar
+				[theme.breakpoints.down('lg')]: {
+					marginLeft: 0
+				}
 			}
 		},
 		{
 			props: ({ open, position }) => !open && position === 'right',
 			style: {
-				marginRight: -(dense ? navbarWidthDense : navbarWidth)
+				[theme.breakpoints.up('lg')]: {
+					marginRight: -(dense ? navbarWidthDense : navbarWidth)
+				},
+				// En móvil, nunca ocultar
+				[theme.breakpoints.down('lg')]: {
+					marginRight: 0
+				}
 			}
 		},
 		{
@@ -157,6 +208,28 @@ const StyledNavBar = styled('div')<StyledNavBarProps>(({ theme, dense }) => ({
 					duration: theme.transitions.duration.enteringScreen
 				})
 			}
+		},
+		// Forzar estilo plegado en móvil
+		{
+			props: ({ forceMobileFolded }) => forceMobileFolded,
+			style: {
+				'& .user-menu': {
+					minWidth: 56,
+					width: 56,
+					'& .title': {
+						opacity: 0
+					},
+					'& .subtitle': {
+						opacity: 0
+					},
+					'& .info-icon': {
+						opacity: 0
+					},
+					'& .arrow': {
+						opacity: 0
+					}
+				}
+			}
 		}
 	]
 }));
@@ -165,7 +238,7 @@ const StyledNavBarMobile = styled(SwipeableDrawer)<StyledNavBarProps>(() => ({
 	'& .MuiDrawer-paper': {
 		'& #fuse-navbar-side-panel': {
 			minWidth: 'auto',
-			wdith: 'auto'
+			width: 'auto'
 		},
 		'& #fuse-navbar-panel': {
 			opacity: '1!important',
@@ -223,7 +296,13 @@ function NavbarStyle3(props: NavbarStyle3Props) {
 					'& #fuse-navbar-side-panel': {
 						width: dense ? navbarWidthDense : navbarWidth,
 						minWidth: dense ? navbarWidthDense : navbarWidth,
-						maxWidth: dense ? navbarWidthDense : navbarWidth
+						maxWidth: dense ? navbarWidthDense : navbarWidth,
+						// En móvil, usar siempre el tamaño dense
+						[theme.breakpoints.down('lg')]: {
+							width: navbarWidthDense,
+							minWidth: navbarWidthDense,
+							maxWidth: navbarWidthDense
+						}
 					},
 					'& #fuse-navbar-panel': {
 						maxWidth: '100%',
@@ -233,24 +312,29 @@ function NavbarStyle3(props: NavbarStyle3Props) {
 						[theme.breakpoints.up('lg')]: {
 							minWidth: panelWidth,
 							maxWidth: 'initial'
+						},
+						// En móvil, ocultar completamente el panel
+						[theme.breakpoints.down('lg')]: {
+							display: 'none'
 						}
 					}
 				})}
 			/>
 
-			{!isMobile && (
-				<StyledNavBar
-					open={navbar.open}
-					dense={dense ? 1 : 0}
-					folded={folded ? 1 : 0}
-					position={config.navbar.position}
-					className={clsx('sticky top-0 z-20 h-screen flex-auto shrink-0 flex-col', className)}
-				>
-					<NavbarStyle3Content dense={dense ? 1 : 0} />
-				</StyledNavBar>
-			)}
+			{/* SIEMPRE mostrar la navbar, tanto en desktop como móvil */}
+			<StyledNavBar
+				open={isMobile ? true : navbar.open} // En móvil, siempre "abierta" (visible)
+				dense={dense || isMobile ? 1 : 0} // En móvil, forzar modo dense
+				folded={folded ? 1 : 0}
+				position={config.navbar.position}
+				forceMobileFolded={isMobile ? 1 : 0}
+				className={clsx('sticky top-0 z-20 h-screen flex-auto shrink-0 flex-col', className)}
+			>
+				<NavbarStyle3Content dense={dense || isMobile ? 1 : 0} />
+			</StyledNavBar>
 
-			{isMobile && (
+			{/* Mantener drawer móvil solo para casos especiales */}
+			{false && isMobile && (
 				<StyledNavBarMobile
 					classes={{
 						paper: clsx('h-screen w-auto max-w-full flex-auto flex-col overflow-hidden', className)

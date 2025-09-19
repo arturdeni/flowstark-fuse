@@ -1,3 +1,4 @@
+// src/components/theme-layouts/layout1/components/ToolbarLayout1.tsx
 import { ThemeProvider } from '@mui/material/styles';
 import AppBar from '@mui/material/AppBar';
 import Toolbar from '@mui/material/Toolbar';
@@ -52,15 +53,15 @@ function ToolbarLayout1(props: ToolbarLayout1Props) {
 				elevation={0}
 			>
 				<Toolbar className="min-h-12 p-0 md:min-h-16">
-					<div className="flex flex-1 px-2 md:px-4 space-x-2 ">
+					<div className="flex flex-1 px-2 md:px-4 space-x-2">
 						{config.navbar.display && config.navbar.position === 'left' && (
 							<>
 								{!isMobile && (
 									<>
 										{(config.navbar.style === 'style-3' ||
 											config.navbar.style === 'style-3-dense') && (
-												<NavbarToggleButton className="h-10 w-10 p-0" />
-											)}
+											<NavbarToggleButton className="h-10 w-10 p-0" />
+										)}
 
 										{config.navbar.style === 'style-1' && !navbar.open && (
 											<NavbarToggleButton className="h-10 w-10 p-0" />
@@ -68,7 +69,13 @@ function ToolbarLayout1(props: ToolbarLayout1Props) {
 									</>
 								)}
 
-								{isMobile && <NavbarToggleButton className="h-10 w-10 p-0 sm:mx-2" />}
+								{/* En móvil, mostrar botón para estilos plegables */}
+								{isMobile &&
+									(config.navbar.style === 'style-2' ||
+										config.navbar.style === 'style-3' ||
+										config.navbar.style === 'style-3-dense') && (
+										<NavbarToggleButton className="h-10 w-10 p-0 sm:mx-2" />
+									)}
 							</>
 						)}
 
@@ -100,7 +107,13 @@ function ToolbarLayout1(props: ToolbarLayout1Props) {
 								</>
 							)}
 
-							{isMobile && <NavbarToggleButton className="h-10 w-10 p-0 sm:mx-2" />}
+							{/* En móvil, mostrar botón para estilos plegables */}
+							{isMobile &&
+								(config.navbar.style === 'style-2' ||
+									config.navbar.style === 'style-3' ||
+									config.navbar.style === 'style-3-dense') && (
+									<NavbarToggleButton className="h-10 w-10 p-0 sm:mx-2" />
+								)}
 						</>
 					)}
 				</Toolbar>

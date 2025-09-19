@@ -1,3 +1,4 @@
+// src/components/theme-layouts/components/navbar/NavbarToggleButton.tsx
 import IconButton from '@mui/material/IconButton';
 import { useAppDispatch } from 'src/store/hooks';
 import _ from 'lodash';
@@ -7,7 +8,9 @@ import clsx from 'clsx';
 import { IconButtonProps } from '@mui/material/IconButton/IconButton';
 import useFuseLayoutSettings from '@fuse/core/FuseLayout/useFuseLayoutSettings';
 import useFuseSettings from '@fuse/core/FuseSettings/hooks/useFuseSettings';
-import { navbarToggle, navbarToggleMobile } from './navbarSlice';
+import { navbarToggle, navbarOpenFolded, navbarCloseFolded } from './navbarSlice';
+import { useAppSelector } from 'src/store/hooks';
+import { selectFuseNavbar } from './navbarSlice';
 
 export type NavbarToggleButtonProps = IconButtonProps;
 
@@ -32,18 +35,39 @@ function NavbarToggleButton(props: NavbarToggleButtonProps) {
 	const isMobile = useThemeMediaQuery((theme) => theme.breakpoints.down('lg'));
 	const { config } = useFuseLayoutSettings();
 	const { setSettings } = useFuseSettings();
+	const navbar = useAppSelector(selectFuseNavbar);
+
+	const handleClick = () => {
+		if (isMobile) {
+			// En móvil, manejar según el estilo de navbar
+			if (
+				config?.navbar?.style === 'style-2' ||
+				config?.navbar?.style === 'style-3' ||
+				config?.navbar?.style === 'style-3-dense'
+			) {
+				// Para estilos plegables, alternar entre plegado/desplegado
+				if (navbar.foldedOpen) {
+					dispatch(navbarCloseFolded());
+				} else {
+					dispatch(navbarOpenFolded());
+				}
+			} else {
+				// Para style-1, usar toggle normal
+				dispatch(navbarToggle());
+			}
+		} else {
+			// En desktop, comportamiento normal
+			if (config?.navbar?.style === 'style-2') {
+				setSettings(_.set({}, 'layout.config.navbar.folded', !config?.navbar?.folded));
+			} else {
+				dispatch(navbarToggle());
+			}
+		}
+	};
 
 	return (
 		<IconButton
-			onClick={() => {
-				if (isMobile) {
-					dispatch(navbarToggleMobile());
-				} else if (config?.navbar?.style === 'style-2') {
-					setSettings(_.set({}, 'layout.config.navbar.folded', !config?.navbar?.folded));
-				} else {
-					dispatch(navbarToggle());
-				}
-			}}
+			onClick={handleClick}
 			{...rest}
 			className={clsx('border border-divider', className)}
 		>

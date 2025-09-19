@@ -1,3 +1,4 @@
+// src/components/theme-layouts/layout1/components/navbar/style-2/NavbarStyle2.tsx
 import { styled } from '@mui/material/styles';
 import SwipeableDrawer from '@mui/material/SwipeableDrawer';
 import {
@@ -22,6 +23,7 @@ type StyledNavBarPropsProps = {
 	theme?: Theme;
 	folded: number;
 	open: boolean;
+	forceMobileFolded?: number; // Nueva prop para forzar plegado en móvil
 };
 
 const Root = styled('div')<StyledNavBarPropsProps>(({ theme }) => ({
@@ -32,6 +34,11 @@ const Root = styled('div')<StyledNavBarPropsProps>(({ theme }) => ({
 		width: navbarWidth,
 		minWidth: navbarWidth
 	},
+	// En pantallas pequeñas, siempre mostrar en modo plegado
+	[theme.breakpoints.down('lg')]: {
+		width: 76,
+		minWidth: 76
+	},
 	variants: [
 		{
 			props: ({ folded }) => folded,
@@ -40,6 +47,14 @@ const Root = styled('div')<StyledNavBarPropsProps>(({ theme }) => ({
 					width: 76,
 					minWidth: 76
 				}
+			}
+		},
+		// Forzar plegado en móvil
+		{
+			props: ({ forceMobileFolded }) => forceMobileFolded,
+			style: {
+				width: 76,
+				minWidth: 76
 			}
 		}
 	]
@@ -53,6 +68,7 @@ type StyledNavBarProps = {
 	foldedandclosed: number;
 	position?: string;
 	anchor?: string;
+	forceMobileFolded?: number; // Nueva prop para forzar plegado en móvil
 };
 
 const StyledNavbar = styled('div')<StyledNavBarProps>(({ theme }) => ({
@@ -64,6 +80,12 @@ const StyledNavbar = styled('div')<StyledNavBarProps>(({ theme }) => ({
 		easing: theme.transitions.easing.sharp,
 		duration: theme.transitions.duration.shorter
 	}),
+	// En pantallas pequeñas, siempre mostrar en modo plegado
+	[theme.breakpoints.down('lg')]: {
+		width: 76,
+		minWidth: 76,
+		maxWidth: 76
+	},
 	variants: [
 		{
 			props: {
@@ -151,10 +173,64 @@ const StyledNavbar = styled('div')<StyledNavBarProps>(({ theme }) => ({
 					}
 				}
 			}
+		},
+		// Nueva variante para forzar modo plegado en móvil
+		{
+			props: ({ forceMobileFolded }) => forceMobileFolded,
+			style: {
+				'& .NavbarStyle2-content': {
+					'& .logo-icon': {
+						width: 44,
+						height: 44
+					},
+					'& .logo-text': {
+						opacity: 0
+					},
+					'& .react-badge': {
+						opacity: 0
+					},
+					'& .fuse-list-item': {
+						width: 52
+					},
+					'& .fuse-list-item-text, & .arrow-icon, & .item-badge': {
+						opacity: 0
+					},
+					'& .fuse-list-subheader .fuse-list-subheader-text': {
+						opacity: 0
+					},
+					'& .fuse-list-subheader:before': {
+						content: '""',
+						display: 'block',
+						position: 'absolute',
+						minWidth: 16,
+						borderTop: '2px solid',
+						opacity: 0.2
+					},
+					'& .collapse-children': {
+						display: 'none'
+					},
+					'& .user-menu': {
+						minWidth: 52,
+						'& .title': {
+							opacity: 0
+						},
+						'& .subtitle': {
+							opacity: 0
+						},
+						'& .info-icon': {
+							opacity: 0
+						},
+						'& .arrow': {
+							opacity: 0
+						}
+					}
+				}
+			}
 		}
 	]
 }));
 
+// Mantener el drawer móvil como backup para casos especiales
 const StyledNavbarMobile = styled(SwipeableDrawer)<StyledNavBarProps>(({ theme }) => ({
 	'& > .MuiDrawer-paper': {
 		minWidth: navbarWidth,
@@ -184,34 +260,49 @@ function NavbarStyle2() {
 	const foldedandclosed = folded && !navbar.foldedOpen;
 	const foldedandopened = folded && navbar.foldedOpen;
 
+	// En móvil, forzar modo plegado
+	const forcedMobileFolded = isMobile;
+	const mobileFoldedAndClosed = isMobile && !navbar.foldedOpen;
+	const mobileFoldedAndOpened = isMobile && navbar.foldedOpen;
+
 	useEffect(() => {
 		return () => {
 			dispatch(resetNavbar());
 		};
 	}, [dispatch]);
 
+	// NO cerrar el móvil automáticamente, solo cerrar el estado "opened" si está abierto
+	useEffect(() => {
+		// Si cambiamos a móvil y la navbar está expandida, cerrarla
+		if (isMobile && navbar.foldedOpen) {
+			dispatch(navbarCloseFolded());
+		}
+	}, [dispatch, isMobile, navbar.foldedOpen]);
+
 	return (
 		<Root
 			folded={folded ? 1 : 0}
 			open={navbar.open}
+			forceMobileFolded={forcedMobileFolded ? 1 : 0}
 			id="fuse-navbar"
 			className="sticky top-0 z-20 h-screen shrink-0"
 		>
-			{!isMobile && (
-				<StyledNavbar
-					className="hidden lg:flex sticky top-0 z-20 h-screen flex-auto shrink-0 flex-col overflow-hidden shadow-sm"
-					position={config?.navbar?.position}
-					folded={folded ? 1 : 0}
-					foldedandopened={foldedandopened ? 1 : 0}
-					foldedandclosed={foldedandclosed ? 1 : 0}
-					onMouseEnter={() => foldedandclosed && dispatch(navbarOpenFolded())}
-					onMouseLeave={() => foldedandopened && dispatch(navbarCloseFolded())}
-				>
-					<NavbarStyle2Content className="NavbarStyle2-content" />
-				</StyledNavbar>
-			)}
+			{/* SIEMPRE mostrar la navbar, tanto en desktop como móvil */}
+			<StyledNavbar
+				className="flex sticky top-0 z-20 h-screen flex-auto shrink-0 flex-col overflow-hidden shadow-sm"
+				position={config?.navbar?.position}
+				folded={folded ? 1 : 0}
+				foldedandopened={foldedandopened ? 1 : 0}
+				foldedandclosed={foldedandclosed ? 1 : 0}
+				forceMobileFolded={forcedMobileFolded ? 1 : 0}
+				onMouseEnter={() => (foldedandclosed || mobileFoldedAndClosed) && dispatch(navbarOpenFolded())}
+				onMouseLeave={() => (foldedandopened || mobileFoldedAndOpened) && dispatch(navbarCloseFolded())}
+			>
+				<NavbarStyle2Content className="NavbarStyle2-content" />
+			</StyledNavbar>
 
-			{isMobile && (
+			{/* Mantener drawer móvil solo para casos especiales o si se necesita en el futuro */}
+			{false && isMobile && (
 				<StyledNavbarMobile
 					classes={{
 						root: 'flex lg:hidden',

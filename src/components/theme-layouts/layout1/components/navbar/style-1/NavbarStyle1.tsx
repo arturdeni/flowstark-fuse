@@ -1,4 +1,4 @@
-import { Theme } from '@mui/system/createTheme';
+// src/components/theme-layouts/layout1/components/navbar/style-1/NavbarStyle1.tsx
 import { styled } from '@mui/material/styles';
 import SwipeableDrawer from '@mui/material/SwipeableDrawer';
 import { useAppDispatch, useAppSelector } from 'src/store/hooks';
@@ -7,6 +7,7 @@ import {
 	resetNavbar,
 	selectFuseNavbar
 } from 'src/components/theme-layouts/components/navbar/navbarSlice';
+import { Theme } from '@mui/system/createTheme';
 import { useEffect } from 'react';
 import useFuseLayoutSettings from '@fuse/core/FuseLayout/useFuseLayoutSettings';
 import useThemeMediaQuery from '@fuse/hooks/useThemeMediaQuery';
@@ -17,65 +18,74 @@ const navbarWidth = 280;
 
 type StyledNavBarProps = {
 	theme?: Theme;
-	open: boolean;
-	position: string;
+	open?: boolean;
+	position?: string;
+	className?: string;
+	anchor?: string;
 };
 
 const StyledNavBar = styled('div')<StyledNavBarProps>(({ theme }) => ({
 	minWidth: navbarWidth,
 	width: navbarWidth,
 	maxWidth: navbarWidth,
+	maxHeight: '100%',
+	// En móvil, hacer la navbar más pequeña pero siempre visible
+	[theme.breakpoints.down('lg')]: {
+		minWidth: 80,
+		width: 80,
+		maxWidth: 80
+	},
 	variants: [
 		{
-			props: ({ open }) => !open,
-			style: {
-				transition: theme.transitions.create('margin', {
-					easing: theme.transitions.easing.easeOut,
-					duration: theme.transitions.duration.leavingScreen
-				})
-			}
-		},
-		{
-			props: ({ open, position }) => !open && position === 'left',
-			style: {
-				marginLeft: `-${navbarWidth}px`
-			}
-		},
-		{
-			props: ({ open, position }) => !open && position === 'right',
-			style: {
-				marginRight: `-${navbarWidth}px`
-			}
-		},
-		{
-			props: ({ open }) => open,
-			style: {
-				transition: theme.transitions.create('margin', {
-					easing: theme.transitions.easing.easeOut,
-					duration: theme.transitions.duration.enteringScreen
-				})
-			}
-		},
-		{
-			props: ({ open, position }) => open && position === 'left',
+			props: {
+				position: 'left'
+			},
 			style: {
 				borderRight: `1px solid ${theme.palette.divider}`
 			}
 		},
 		{
-			props: ({ open, position }) => open && position === 'right',
+			props: {
+				position: 'right'
+			},
 			style: {
 				borderLeft: `1px solid ${theme.palette.divider}`
+			}
+		},
+		{
+			props: ({ open }) => !open,
+			style: {
+				transition: theme.transitions.create(['width', 'min-width'], {
+					easing: theme.transitions.easing.sharp,
+					duration: theme.transitions.duration.leavingScreen
+				}),
+				[theme.breakpoints.up('lg')]: {
+					marginLeft: -navbarWidth
+				},
+				// En móvil, nunca ocultar completamente
+				[theme.breakpoints.down('lg')]: {
+					marginLeft: 0
+				}
+			}
+		},
+		{
+			props: ({ open }) => open,
+			style: {
+				transition: theme.transitions.create(['width', 'min-width'], {
+					easing: theme.transitions.easing.easeOut,
+					duration: theme.transitions.duration.enteringScreen
+				})
 			}
 		}
 	]
 }));
 
-const StyledNavBarMobile = styled(SwipeableDrawer)(() => ({
-	'& .MuiDrawer-paper': {
+const StyledNavBarMobile = styled(SwipeableDrawer)<StyledNavBarProps>(() => ({
+	'& > .MuiDrawer-paper': {
 		minWidth: navbarWidth,
 		width: navbarWidth,
-		maxWidth: navbarWidth
+		maxWidth: navbarWidth,
+		maxHeight: '100%'
 	}
 }));
 
@@ -99,17 +109,17 @@ function NavbarStyle1() {
 
 	return (
 		<>
-			{!isMobile && (
-				<StyledNavBar
-					className="sticky top-0 z-20 h-screen flex-auto shrink-0 flex-col overflow-hidden shadow-sm"
-					open={navbar.open}
-					position={config.navbar.position}
-				>
-					<NavbarStyle1Content />
-				</StyledNavBar>
-			)}
+			{/* SIEMPRE mostrar la navbar, tanto en desktop como móvil */}
+			<StyledNavBar
+				className="sticky top-0 z-20 h-screen flex-auto shrink-0 flex-col overflow-hidden shadow-sm"
+				open={isMobile ? true : navbar.open} // En móvil, siempre "abierta" (visible)
+				position={config.navbar.position}
+			>
+				<NavbarStyle1Content />
+			</StyledNavBar>
 
-			{isMobile && (
+			{/* Mantener drawer móvil solo para casos especiales */}
+			{false && isMobile && (
 				<StyledNavBarMobile
 					classes={{
 						paper: 'flex-col flex-auto h-full'
