@@ -21,6 +21,7 @@
     "@mui/x-date-pickers": "7.23.1",
     "@popperjs/core": "2.11.8",
     "@reduxjs/toolkit": "2.4.0",
+    "@stripe/stripe-js": "^7.9.0",
     "autosuggest-highlight": "3.3.4",
     "aws-amplify": "6.10.2",
     "clsx": "2.1.1",
