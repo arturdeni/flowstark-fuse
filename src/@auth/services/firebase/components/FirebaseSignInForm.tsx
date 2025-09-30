@@ -1,6 +1,5 @@
 import TextField from '@mui/material/TextField';
 import Button from '@mui/material/Button';
-import { useEffect } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import _ from 'lodash';
 import { z } from 'zod';
@@ -34,18 +33,13 @@ function FirebaseSignInForm() {
 	const { signIn } = useFirebaseAuth();
 	const dispatch = useAppDispatch();
 
-	const { control, formState, handleSubmit, setValue, setError } = useForm<FormType>({
+	const { control, formState, handleSubmit, setError } = useForm<FormType>({
 		mode: 'onChange',
 		defaultValues,
 		resolver: zodResolver(schema)
 	});
 
 	const { isValid, dirtyFields, errors } = formState;
-
-	useEffect(() => {
-		setValue('email', 'hi@withinpixels.com', { shouldDirty: true, shouldValidate: true });
-		setValue('password', 'dummyPassword', { shouldDirty: true, shouldValidate: true });
-	}, [setValue]);
 
 	function onSubmit(formData: FormType) {
 		const { email, password } = formData;

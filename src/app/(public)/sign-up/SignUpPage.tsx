@@ -34,14 +34,6 @@ function SignUpPage() {
 						</Link>
 					</div>
 
-					<div className="mt-6 mb-8 flex items-center justify-center">
-						<img
-							className="h-9"
-							src="/assets/images/logo/firebase.svg"
-							alt="Firebase Authentication"
-						/>
-					</div>
-
 					<FirebaseSignUpForm />
 				</div>
 			</Paper>
@@ -55,10 +47,10 @@ function SignUpPage() {
 				<div className="relative z-10 w-full max-w-4xl">
 					<div className="text-7xl font-bold leading-none text-gray-100">
 						<div>Create an account</div>
-						<div>for Flowstark</div>
+						<div>in Flowstark</div>
 					</div>
 					<div className="mt-6 text-lg leading-6 tracking-tight text-gray-400">
-						Comienza a gestionar tus suscripciones de forma eficiente con nuestra plataforma
+						Gestiona las cuotas recurrentes de tu negocio y controla los pagos de tus clientes.
 					</div>
 					<div className="mt-8 flex items-center">
 						<AvatarGroup

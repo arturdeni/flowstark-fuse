@@ -45,15 +45,6 @@ function SignInPage() {
 						Welcome to Flowstark. Sign in to access your account.
 					</Box>
 
-					{/* Firebase logo and authentication form */}
-					<div className="mt-6 mb-8 flex items-center justify-center">
-						<img
-							className="h-9"
-							src="/assets/images/logo/firebase.svg"
-							alt="Firebase Authentication"
-						/>
-					</div>
-
 					<FirebaseSignInTab />
 				</CardContent>
 			</Paper>
