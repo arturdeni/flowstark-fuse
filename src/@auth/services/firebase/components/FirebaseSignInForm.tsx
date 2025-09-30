@@ -138,14 +138,14 @@ function FirebaseSignInForm() {
 
 				<Button
 					variant="contained"
-					color="secondary"
+					color="primary"
 					className="w-full"
 					aria-label="Sign in"
 					disabled={_.isEmpty(dirtyFields) || !isValid}
 					type="submit"
 					size="large"
 				>
-					Sign in
+					Continua
 				</Button>
 			</form>
 		</div>

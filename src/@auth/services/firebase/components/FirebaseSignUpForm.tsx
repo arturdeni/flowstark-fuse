@@ -141,7 +141,7 @@ function FirebaseSignUpForm() {
 					<TextField
 						{...field}
 						className="mb-6"
-						label="Password (Confirm)"
+						label="Password (Confirmar)"
 						type="password"
 						error={!!errors.passwordConfirm}
 						helperText={errors?.passwordConfirm?.message}
@@ -158,10 +158,11 @@ function FirebaseSignUpForm() {
 				render={({ field }) => (
 					<FormControl error={!!errors.acceptTermsConditions}>
 						<FormControlLabel
-							label="I agree with Terms and Privacy Policy"
+							label="Acepto los términos y condiciones"
 							control={
 								<Checkbox
 									size="small"
+									color="primary"
 									{...field}
 								/>
 							}
@@ -173,14 +174,14 @@ function FirebaseSignUpForm() {
 
 			<Button
 				variant="contained"
-				color="secondary"
+				color="primary"
 				className="mt-6 w-full"
 				aria-label="Register"
 				disabled={_.isEmpty(dirtyFields) || !isValid}
 				type="submit"
 				size="large"
 			>
-				Create your free account
+				Empezar
 			</Button>
 		</form>
 	);

@@ -22,15 +22,15 @@ function SignUpPage() {
 					/>
 
 					<Typography className="mt-8 text-4xl font-extrabold leading-[1.25] tracking-tight">
-						Sign up
+						Regístrate
 					</Typography>
 					<div className="mt-0.5 flex items-baseline font-medium">
-						<Typography>Already have an account?</Typography>
+						<Typography>Ya tienes cuenta?</Typography>
 						<Link
 							className="ml-1"
 							to="/sign-in"
 						>
-							Sign in
+							Iniciar sesión
 						</Link>
 					</div>
 
@@ -46,11 +46,11 @@ function SignUpPage() {
 				{/* SVG graphics code... */}
 				<div className="relative z-10 w-full max-w-4xl">
 					<div className="text-7xl font-bold leading-none text-gray-100">
-						<div>Create an account</div>
-						<div>in Flowstark</div>
+						<div>Empieza gratis</div>
+						<div>y haz que tu negocio fluya</div>
 					</div>
 					<div className="mt-6 text-lg leading-6 tracking-tight text-gray-400">
-						Gestiona las cuotas recurrentes de tu negocio y controla los pagos de tus clientes.
+						Con Flowstark gestionas cobros recurrentes, organizas tus clientes y mantienes todo en orden.
 					</div>
 					<div className="mt-8 flex items-center">
 						<AvatarGroup
@@ -67,7 +67,7 @@ function SignUpPage() {
 						</AvatarGroup>
 
 						<div className="ml-4 font-medium tracking-tight text-gray-400">
-							Join other businesses managing subscriptions with Flowstark
+							No estás solo, otros negocios ya trabajan con nosotros.
 						</div>
 					</div>
 				</div>

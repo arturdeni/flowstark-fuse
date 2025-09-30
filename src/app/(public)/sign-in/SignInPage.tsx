@@ -5,7 +5,6 @@ import Avatar from '@mui/material/Avatar';
 import Box from '@mui/material/Box';
 import Paper from '@mui/material/Paper';
 import CardContent from '@mui/material/CardContent';
-import { lighten } from '@mui/material/styles';
 import FirebaseSignInTab from './tabs/FirebaseSignInTab';
 
 /**
@@ -23,27 +22,17 @@ function SignInPage() {
 					/>
 
 					<Typography className="mt-8 text-4xl font-extrabold leading-[1.25] tracking-tight">
-						Sign in
+						Inicia sesión
 					</Typography>
 					<div className="mt-0.5 flex items-baseline font-medium">
-						<Typography>Don't have an account?</Typography>
+						<Typography>Todavía no tienes cuenta?</Typography>
 						<Link
 							className="ml-1"
 							to="/sign-up"
 						>
-							Sign up
+							Regístrate
 						</Link>
 					</div>
-
-					<Box
-						className="mt-6 text-md leading-[1.625] rounded-lg py-2 px-4"
-						sx={{
-							backgroundColor: (theme) => lighten(theme.palette.primary.main, 0.8),
-							color: 'primary.dark'
-						}}
-					>
-						Welcome to Flowstark. Sign in to access your account.
-					</Box>
 
 					<FirebaseSignInTab />
 				</CardContent>
@@ -85,17 +74,17 @@ function SignInPage() {
 
 				<div className="relative z-10 w-full max-w-4xl">
 					<div className="text-7xl font-bold leading-none text-gray-100">
-						<div>Welcome to</div>
-						<div>Flowstark</div>
+						<div>Empieza gratis</div>
+						<div>y haz que tu negocio fluya</div>
 					</div>
 					<div className="mt-6 text-lg leading-6 tracking-tight text-gray-400">
-						Gestión integral de suscripciones para tu negocio
+						Con Flowstark gestionas cobros recurrentes, organizas tus clientes y mantienes todo en orden.
 					</div>
 					<div className="mt-8 flex items-center">
 						<AvatarGroup
 							sx={{
 								'& .MuiAvatar-root': {
-									borderColor: 'primary.main'
+									borderColor: 'secondary.main'
 								}
 							}}
 						>
@@ -106,7 +95,7 @@ function SignInPage() {
 						</AvatarGroup>
 
 						<div className="ml-4 font-medium tracking-tight text-gray-400">
-							Join our growing community of businesses
+							No estás solo, otros negocios ya trabajan con nosotros.
 						</div>
 					</div>
 				</div>

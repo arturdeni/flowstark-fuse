@@ -36,19 +36,19 @@ export const themesConfig: FuseThemesType = {
 			},
 			primary: {
 				light: '#536D89',
-				main: '#0A74DA',
+				main: '#154241',
 				dark: '#154241',
 				contrastText: '#FFFFFF'
 			},
 			secondary: {
 				light: '#6BC9F7',
-				main: '#00A4EF',
+				main: '#C6E7A3',
 				dark: '#0078D7',
 				contrastText: '#FFFFFF'
 			},
 			background: {
-				paper: '#F8FBFA',
-				default: '#E8F3F0' // Tono verdoso suave
+				paper: '#EBF4EC',
+				default: '#EBF4EC' // Tono verdoso suave
 			},
 			error: {
 				light: '#FFCDD2',
