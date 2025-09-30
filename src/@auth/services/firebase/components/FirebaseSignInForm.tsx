@@ -125,7 +125,7 @@ function FirebaseSignInForm() {
 						<TextField
 							{...field}
 							className="mb-6"
-							label="Password"
+							label="Contraseña"
 							type="password"
 							error={!!errors.password}
 							helperText={errors?.password?.message}

@@ -35,7 +35,7 @@ export const themesConfig: FuseThemesType = {
 				white: '#FFFFFF'
 			},
 			primary: {
-				light: '#536D89',
+				light: '#367a72',
 				main: '#154241',
 				dark: '#154241',
 				contrastText: '#FFFFFF'

@@ -123,7 +123,7 @@ function FirebaseSignUpForm() {
 					<TextField
 						{...field}
 						className="mb-6"
-						label="Password"
+						label="Contraseña"
 						type="password"
 						error={!!errors.password}
 						helperText={errors?.password?.message}
@@ -141,7 +141,7 @@ function FirebaseSignUpForm() {
 					<TextField
 						{...field}
 						className="mb-6"
-						label="Password (Confirmar)"
+						label="Confirmar Contraseña"
 						type="password"
 						error={!!errors.passwordConfirm}
 						helperText={errors?.passwordConfirm?.message}
@@ -158,7 +158,26 @@ function FirebaseSignUpForm() {
 				render={({ field }) => (
 					<FormControl error={!!errors.acceptTermsConditions}>
 						<FormControlLabel
-							label="Acepto los términos y condiciones"
+							label={
+								<span>
+									Acepto los{' '}
+									<a
+										href="/terms-and-conditions"
+										target="_blank"
+										rel="noopener noreferrer"
+									>
+										Términos y Condiciones
+									</a>{' '}
+									y la{' '}
+									<a
+										href="/privacy-policy"
+										target="_blank"
+										rel="noopener noreferrer"
+									>
+										Política de Privacidad
+									</a>
+								</span>
+							}
 							control={
 								<Checkbox
 									size="small"
@@ -180,6 +199,11 @@ function FirebaseSignUpForm() {
 				disabled={_.isEmpty(dirtyFields) || !isValid}
 				type="submit"
 				size="large"
+				sx={{
+					'&:hover': {
+						backgroundColor: '#2C645E'
+					}
+				}}
 			>
 				Empezar
 			</Button>

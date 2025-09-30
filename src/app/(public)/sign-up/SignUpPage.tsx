@@ -21,13 +21,16 @@ function SignUpPage() {
 						alt="logo"
 					/>
 
-					<Typography className="mt-8 text-4xl font-extrabold leading-[1.25] tracking-tight">
+					<Typography
+						className="mt-8 text-4xl font-extrabold leading-[1.25] tracking-tight"
+						color="primary"
+					>
 						Regístrate
 					</Typography>
 					<div className="mt-0.5 flex items-baseline font-medium">
-						<Typography>Ya tienes cuenta?</Typography>
+						<Typography>¿Ya tienes cuenta?</Typography>
 						<Link
-							className="ml-1"
+							className="ml-1 text-[#154241] hover:text-[#367a72]"
 							to="/sign-in"
 						>
 							Iniciar sesión
@@ -42,12 +45,38 @@ function SignUpPage() {
 				className="relative hidden h-full flex-auto items-center justify-center overflow-hidden p-16 md:flex lg:px-28"
 				sx={{ backgroundColor: 'primary.dark', color: 'primary.contrastText' }}
 			>
-				{/* Mantener el resto del componente igual */}
-				{/* SVG graphics code... */}
+				<svg
+					className="pointer-events-none absolute inset-0"
+					viewBox="0 0 960 540"
+					width="100%"
+					height="100%"
+					preserveAspectRatio="xMidYMax slice"
+					xmlns="http://www.w3.org/2000/svg"
+				>
+					<Box
+						component="g"
+						className="opacity-5"
+						fill="none"
+						stroke="currentColor"
+						strokeWidth="100"
+					>
+						<circle
+							r="234"
+							cx="196"
+							cy="23"
+						/>
+						<circle
+							r="234"
+							cx="790"
+							cy="491"
+						/>
+					</Box>
+				</svg>
+
 				<div className="relative z-10 w-full max-w-4xl">
 					<div className="text-7xl font-bold leading-none text-gray-100">
-						<div>Empieza gratis</div>
-						<div>y haz que tu negocio fluya</div>
+						<div>Nos alegra</div>
+						<div>tenerte de vuelta👋</div>
 					</div>
 					<div className="mt-6 text-lg leading-6 tracking-tight text-gray-400">
 						Con Flowstark gestionas cobros recurrentes, organizas tus clientes y mantienes todo en orden.
@@ -56,7 +85,7 @@ function SignUpPage() {
 						<AvatarGroup
 							sx={{
 								'& .MuiAvatar-root': {
-									borderColor: 'primary.main'
+									borderColor: 'secondary.main'
 								}
 							}}
 						>

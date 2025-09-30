@@ -21,13 +21,16 @@ function SignInPage() {
 						alt="logo"
 					/>
 
-					<Typography className="mt-8 text-4xl font-extrabold leading-[1.25] tracking-tight">
+					<Typography
+						className="mt-8 text-4xl font-extrabold leading-[1.25] tracking-tight"
+						color="primary"
+					>
 						Inicia sesión
 					</Typography>
 					<div className="mt-0.5 flex items-baseline font-medium">
-						<Typography>Todavía no tienes cuenta?</Typography>
+						<Typography>¿Todavía no tienes cuenta?</Typography>
 						<Link
-							className="ml-1"
+							className="ml-1 text-[#154241] hover:text-[#367a72]"
 							to="/sign-up"
 						>
 							Regístrate
@@ -38,7 +41,6 @@ function SignInPage() {
 				</CardContent>
 			</Paper>
 
-			{/* Mantener el resto del componente igual */}
 			<Box
 				className="relative hidden h-full flex-auto items-center justify-center overflow-hidden p-16 md:flex lg:px-28"
 				sx={{ backgroundColor: 'primary.dark', color: 'primary.contrastText' }}
@@ -70,7 +72,6 @@ function SignInPage() {
 						/>
 					</Box>
 				</svg>
-				{/* Resto del SVG y elementos decorativos... */}
 
 				<div className="relative z-10 w-full max-w-4xl">
 					<div className="text-7xl font-bold leading-none text-gray-100">
