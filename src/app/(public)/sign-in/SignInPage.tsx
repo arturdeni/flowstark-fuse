@@ -75,11 +75,11 @@ function SignInPage() {
 
 				<div className="relative z-10 w-full max-w-4xl">
 					<div className="text-7xl font-bold leading-none text-gray-100">
-						<div>Empieza gratis</div>
-						<div>y haz que tu negocio fluya</div>
+						<div>Nos alegra</div>
+						<div>tenerte de vuelta👋</div>
 					</div>
 					<div className="mt-6 text-lg leading-6 tracking-tight text-gray-400">
-						Con Flowstark gestionas cobros recurrentes, organizas tus clientes y mantienes todo en orden.
+						Accede de nuevo y mantén todo bajo control, para que tu negocio siga fluyendo.
 					</div>
 					<div className="mt-8 flex items-center">
 						<AvatarGroup
@@ -96,7 +96,7 @@ function SignInPage() {
 						</AvatarGroup>
 
 						<div className="ml-4 font-medium tracking-tight text-gray-400">
-							No estás solo, otros negocios ya trabajan con nosotros.
+							El club de los que fluyen, y tu ya estás dentro.
 						</div>
 					</div>
 				</div>
