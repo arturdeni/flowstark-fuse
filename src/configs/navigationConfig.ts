@@ -40,6 +40,13 @@ const navigationConfig: FuseNavItemType[] = [
 		type: 'item',
 		icon: 'heroicons-outline:receipt-percent',
 		url: 'tickets'
+	},
+	{
+		id: 'flowstark.settings',
+		title: 'Configuración',
+		type: 'item',
+		icon: 'heroicons-outline:cog',
+		url: 'settings'
 	}
 ];
 

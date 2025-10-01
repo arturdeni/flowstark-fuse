@@ -30,6 +30,13 @@ const FlowstarkNavigation: FuseNavItemType[] = [
     icon: "heroicons-outline:calendar",
     url: "subscriptions",
   },
+  {
+    id: "flowstark.settings",
+    title: "Configuración",
+    type: "item",
+    icon: "heroicons-outline:cog",
+    url: "settings",
+  },
 ];
 
 export default FlowstarkNavigation;
