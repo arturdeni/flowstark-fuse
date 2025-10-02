@@ -8,7 +8,6 @@ import {
   Button,
   Avatar,
   Divider,
-  Chip,
   Snackbar,
   Alert,
   Tabs,
@@ -23,8 +22,6 @@ import {
   Email as EmailIcon,
   Phone as PhoneIcon,
   Business as BusinessIcon,
-  Star as StarIcon,
-  CheckCircle as CheckCircleIcon,
   LocationOn as LocationOnIcon,
   Language as LanguageIcon,
   Badge as BadgeIcon,
@@ -32,6 +29,7 @@ import {
 import useAuth from '@fuse/core/FuseAuthProvider/useAuth';
 import { userProfileService } from '@/services/userProfileService';
 import type { UserProfile } from '@/services/userProfileService';
+import SubscriptionPanel from './components/SubscriptionPanel';
 
 const Root = styled(FusePageSimple)(({ theme }) => ({
   '& .FusePageSimple-header': {
@@ -127,25 +125,6 @@ function Settings() {
     loadUserProfile();
   }, [user]);
 
-  // Estado de suscripción (simulado - debería venir del backend)
-  const [subscriptionStatus] = useState({
-    isPremium: false,
-    plan: 'Gratuita',
-    features: [
-      'Clientes ilimitados',
-      'Servicios ilimitados',
-      'Hasta 5 suscripciones',
-    ],
-  });
-
-  const premiumFeatures = [
-    'Suscripciones ilimitadas',
-    'Soporte prioritario 24/7',
-    'Reportes avanzados',
-    'Exportación de datos',
-    'Facturación automática',
-    'Estadísticas detalladas',
-  ];
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({
@@ -198,14 +177,6 @@ function Settings() {
     }
   };
 
-  const handleUpgradeToPremium = () => {
-    // Aquí iría la lógica para actualizar a Premium (integración con Stripe)
-    setSnackbar({
-      open: true,
-      message: 'Redirigiendo a la página de pago...',
-      severity: 'info',
-    });
-  };
 
   const closeSnackbar = () => {
     setSnackbar({ ...snackbar, open: false });
@@ -459,89 +430,7 @@ function Settings() {
 
             {/* Panel de Suscripción */}
             <div className="lg:col-span-1">
-              <StyledPaper elevation={1} className="p-6">
-                <Box className="mb-6">
-                  <Typography variant="h5" gutterBottom>
-                    Suscripción
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Gestiona tu plan y funcionalidades
-                  </Typography>
-                </Box>
-
-                <Divider className="mb-4" />
-
-                {/* Plan Actual */}
-                <Box className="mb-6">
-                  <Box className="flex items-center justify-between mb-3">
-                    <Typography variant="subtitle2" color="text.secondary">
-                      Plan Actual
-                    </Typography>
-                    <Chip
-                      label={subscriptionStatus.plan}
-                      size="small"
-                      color={subscriptionStatus.isPremium ? 'primary' : 'default'}
-                      icon={subscriptionStatus.isPremium ? <StarIcon /> : undefined}
-                    />
-                  </Box>
-
-                  <Box className="space-y-2">
-                    {subscriptionStatus.features.map((feature, index) => (
-                      <Box key={index} className="flex items-start gap-2">
-                        <CheckCircleIcon
-                          className="mt-0.5 flex-shrink-0"
-                          sx={{ fontSize: 18, color: 'success.main' }}
-                        />
-                        <Typography variant="body2">{feature}</Typography>
-                      </Box>
-                    ))}
-                  </Box>
-                </Box>
-
-                {!subscriptionStatus.isPremium && (
-                  <>
-                    <Divider className="my-4" />
-
-                    {/* Premium Features */}
-                    <Box className="mb-6">
-                      <Box className="flex items-center gap-2 mb-3">
-                        <StarIcon sx={{ fontSize: 20, color: 'primary.main' }} />
-                        <Typography variant="subtitle1" fontWeight="medium">
-                          Premium
-                        </Typography>
-                      </Box>
-
-                      <Typography variant="body2" color="text.secondary" className="mb-3">
-                        Desbloquea funcionalidades avanzadas:
-                      </Typography>
-
-                      <Box className="space-y-2">
-                        {premiumFeatures.map((feature, index) => (
-                          <Box key={index} className="flex items-start gap-2">
-                            <CheckCircleIcon
-                              className="mt-0.5 flex-shrink-0"
-                              sx={{ fontSize: 18, color: 'primary.main' }}
-                            />
-                            <Typography variant="body2">{feature}</Typography>
-                          </Box>
-                        ))}
-                      </Box>
-                    </Box>
-
-                    <Box className="flex justify-center">
-                      <Button
-                        variant="contained"
-                        color="primary"
-                        onClick={handleUpgradeToPremium}
-                        startIcon={<StarIcon />}
-                        size="large"
-                      >
-                        Mejorar a Premium
-                      </Button>
-                    </Box>
-                  </>
-                )}
-              </StyledPaper>
+              <SubscriptionPanel />
             </div>
           </div>
 
