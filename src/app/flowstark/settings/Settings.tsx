@@ -8,9 +8,6 @@ import {
   Button,
   Avatar,
   Divider,
-  Card,
-  CardContent,
-  CardActions,
   Chip,
   Snackbar,
   Alert,
@@ -45,17 +42,10 @@ const Root = styled(FusePageSimple)(({ theme }) => ({
   },
 }));
 
-const StyledCard = styled(Card)(({ theme }) => ({
-  height: '100%',
-  display: 'flex',
-  flexDirection: 'column',
-}));
-
 const StyledPaper = styled(Paper)(() => ({
   height: '100%',
   display: 'flex',
   flexDirection: 'column',
-  justifyContent: 'space-around',
 }));
 
 function Settings() {
@@ -140,21 +130,21 @@ function Settings() {
   // Estado de suscripción (simulado - debería venir del backend)
   const [subscriptionStatus] = useState({
     isPremium: false,
-    plan: 'Free',
+    plan: 'Gratuita',
     features: [
-      'Hasta 10 clientes',
-      'Hasta 5 servicios',
-      'Soporte por email',
+      'Clientes ilimitados',
+      'Servicios ilimitados',
+      'Hasta 5 suscripciones',
     ],
   });
 
   const premiumFeatures = [
-    'Clientes ilimitados',
-    'Servicios ilimitados',
+    'Suscripciones ilimitadas',
     'Soporte prioritario 24/7',
     'Reportes avanzados',
     'Exportación de datos',
-    'API de integración',
+    'Facturación automática',
+    'Estadísticas detalladas',
   ];
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -469,92 +459,89 @@ function Settings() {
 
             {/* Panel de Suscripción */}
             <div className="lg:col-span-1">
-              <StyledCard elevation={1}>
-                <CardContent className="flex-1">
-                  <Box className="flex items-center justify-between mb-4">
-                    <Typography variant="h6">
+              <StyledPaper elevation={1} className="p-6">
+                <Box className="mb-6">
+                  <Typography variant="h5" gutterBottom>
+                    Suscripción
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Gestiona tu plan y funcionalidades
+                  </Typography>
+                </Box>
+
+                <Divider className="mb-4" />
+
+                {/* Plan Actual */}
+                <Box className="mb-6">
+                  <Box className="flex items-center justify-between mb-3">
+                    <Typography variant="subtitle2" color="text.secondary">
                       Plan Actual
                     </Typography>
                     <Chip
                       label={subscriptionStatus.plan}
+                      size="small"
                       color={subscriptionStatus.isPremium ? 'primary' : 'default'}
                       icon={subscriptionStatus.isPremium ? <StarIcon /> : undefined}
                     />
                   </Box>
 
-                  <Divider className="mb-4" />
-
-                  {subscriptionStatus.isPremium ? (
-                    <>
-                      <Typography variant="body2" color="text.secondary" className="mb-3">
-                        Disfrutas de todos los beneficios Premium:
-                      </Typography>
-                      <ul className="space-y-2">
-                        {premiumFeatures.map((feature, index) => (
-                          <li key={index} className="flex items-start gap-2">
-                            <CheckCircleIcon className="text-green-500 mt-1 flex-shrink-0" sx={{ fontSize: 20 }} />
-                            <Typography variant="body2">{feature}</Typography>
-                          </li>
-                        ))}
-                      </ul>
-                    </>
-                  ) : (
-                    <>
-                      <Typography variant="body2" color="text.secondary" className="mb-3">
-                        Características actuales:
-                      </Typography>
-                      <ul className="space-y-2 mb-4">
-                        {subscriptionStatus.features.map((feature, index) => (
-                          <li key={index} className="flex items-start gap-2">
-                            <CheckCircleIcon className="text-gray-400 mt-1 flex-shrink-0" sx={{ fontSize: 20 }} />
-                            <Typography variant="body2">{feature}</Typography>
-                          </li>
-                        ))}
-                      </ul>
-
-                      <Divider className="my-4" />
-
-                      <Box className="bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20 p-4 rounded-lg mb-4">
-                        <Box className="flex items-center gap-2 mb-2">
-                          <StarIcon className="text-yellow-500" sx={{ fontSize: 24 }} />
-                          <Typography variant="subtitle1" fontWeight="bold">
-                            Premium
-                          </Typography>
-                        </Box>
-                        <Typography variant="body2" color="text.secondary" className="mb-3">
-                          Desbloquea todo el potencial:
-                        </Typography>
-                        <ul className="space-y-2">
-                          {premiumFeatures.slice(0, 3).map((feature, index) => (
-                            <li key={index} className="flex items-start gap-2">
-                              <CheckCircleIcon className="text-green-500 mt-0.5 flex-shrink-0" sx={{ fontSize: 18 }} />
-                              <Typography variant="body2">{feature}</Typography>
-                            </li>
-                          ))}
-                          <li>
-                            <Typography variant="body2" color="text.secondary">Y mucho más...</Typography>
-                          </li>
-                        </ul>
+                  <Box className="space-y-2">
+                    {subscriptionStatus.features.map((feature, index) => (
+                      <Box key={index} className="flex items-start gap-2">
+                        <CheckCircleIcon
+                          className="mt-0.5 flex-shrink-0"
+                          sx={{ fontSize: 18, color: 'success.main' }}
+                        />
+                        <Typography variant="body2">{feature}</Typography>
                       </Box>
-                    </>
-                  )}
-                </CardContent>
+                    ))}
+                  </Box>
+                </Box>
 
                 {!subscriptionStatus.isPremium && (
-                  <CardActions className="p-4 pt-0">
-                    <Button
-                      fullWidth
-                      variant="contained"
-                      color="primary"
-                      onClick={handleUpgradeToPremium}
-                      startIcon={<StarIcon />}
-                      size="large"
-                    >
-                      Mejorar a Premium
-                    </Button>
-                  </CardActions>
+                  <>
+                    <Divider className="my-4" />
+
+                    {/* Premium Features */}
+                    <Box className="mb-6">
+                      <Box className="flex items-center gap-2 mb-3">
+                        <StarIcon sx={{ fontSize: 20, color: 'primary.main' }} />
+                        <Typography variant="subtitle1" fontWeight="medium">
+                          Premium
+                        </Typography>
+                      </Box>
+
+                      <Typography variant="body2" color="text.secondary" className="mb-3">
+                        Desbloquea funcionalidades avanzadas:
+                      </Typography>
+
+                      <Box className="space-y-2">
+                        {premiumFeatures.map((feature, index) => (
+                          <Box key={index} className="flex items-start gap-2">
+                            <CheckCircleIcon
+                              className="mt-0.5 flex-shrink-0"
+                              sx={{ fontSize: 18, color: 'primary.main' }}
+                            />
+                            <Typography variant="body2">{feature}</Typography>
+                          </Box>
+                        ))}
+                      </Box>
+                    </Box>
+
+                    <Box className="flex justify-center">
+                      <Button
+                        variant="contained"
+                        color="primary"
+                        onClick={handleUpgradeToPremium}
+                        startIcon={<StarIcon />}
+                        size="large"
+                      >
+                        Mejorar a Premium
+                      </Button>
+                    </Box>
+                  </>
                 )}
-              </StyledCard>
+              </StyledPaper>
             </div>
           </div>
 
