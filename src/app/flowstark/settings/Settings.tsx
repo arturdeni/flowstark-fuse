@@ -1,5 +1,5 @@
 // src/app/flowstark/settings/Settings.tsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Typography,
   Box,
@@ -17,6 +17,7 @@ import {
   Tabs,
   Tab,
   Grid,
+  CircularProgress,
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import FusePageSimple from '@fuse/core/FusePageSimple';
@@ -31,6 +32,9 @@ import {
   Language as LanguageIcon,
   Badge as BadgeIcon,
 } from '@mui/icons-material';
+import useAuth from '@fuse/core/FuseAuthProvider/useAuth';
+import { userProfileService } from '@/services/userProfileService';
+import type { UserProfile } from '@/services/userProfileService';
 
 const Root = styled(FusePageSimple)(({ theme }) => ({
   '& .FusePageSimple-header': {
@@ -55,6 +59,10 @@ const StyledPaper = styled(Paper)(() => ({
 }));
 
 function Settings() {
+  const { authState } = useAuth();
+  const user = authState?.user;
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [userType, setUserType] = useState<'autonomo' | 'empresa'>('autonomo');
 
   const [formData, setFormData] = useState({
@@ -80,6 +88,54 @@ function Settings() {
     message: '',
     severity: 'success' as 'success' | 'error' | 'warning' | 'info',
   });
+
+  // Cargar datos del usuario al montar el componente
+  useEffect(() => {
+    const loadUserProfile = async () => {
+      try {
+        setLoading(true);
+        const profile = await userProfileService.getUserProfile();
+
+        if (profile) {
+          setFormData({
+            name: profile.name || '',
+            nifCif: profile.nifCif || '',
+            street: profile.street || '',
+            number: profile.number || '',
+            postalCode: profile.postalCode || '',
+            city: profile.city || '',
+            province: profile.province || '',
+            country: profile.country || '',
+            commercialName: profile.commercialName || '',
+            phone: profile.phone || '',
+            email: profile.email || (user?.email as string) || '',
+            website: profile.website || '',
+          });
+
+          if (profile.userType) {
+            setUserType(profile.userType);
+          }
+        } else if (user) {
+          // Si no hay perfil pero hay usuario, usar datos del usuario
+          setFormData((prev) => ({
+            ...prev,
+            email: (user.email as string) || '',
+          }));
+        }
+      } catch (error) {
+        console.error('Error loading user profile:', error);
+        setSnackbar({
+          open: true,
+          message: 'Error al cargar el perfil',
+          severity: 'error',
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadUserProfile();
+  }, [user]);
 
   // Estado de suscripción (simulado - debería venir del backend)
   const [subscriptionStatus] = useState({
@@ -112,13 +168,44 @@ function Settings() {
     setUserType(newValue);
   };
 
-  const handleSaveProfile = () => {
-    // Aquí iría la lógica para guardar los datos del perfil
-    setSnackbar({
-      open: true,
-      message: 'Perfil actualizado correctamente',
-      severity: 'success',
-    });
+  const handleSaveProfile = async () => {
+    try {
+      setSaving(true);
+
+      // Preparar datos para guardar
+      const profileData: Partial<UserProfile> = {
+        userType,
+        name: formData.name,
+        nifCif: formData.nifCif,
+        street: formData.street,
+        number: formData.number,
+        postalCode: formData.postalCode,
+        city: formData.city,
+        province: formData.province,
+        country: formData.country,
+        commercialName: formData.commercialName,
+        phone: formData.phone,
+        website: formData.website,
+      };
+
+      // Guardar en Firebase
+      await userProfileService.updateUserProfile(profileData);
+
+      setSnackbar({
+        open: true,
+        message: 'Perfil actualizado correctamente',
+        severity: 'success',
+      });
+    } catch (error) {
+      console.error('Error saving profile:', error);
+      setSnackbar({
+        open: true,
+        message: 'Error al guardar el perfil',
+        severity: 'error',
+      });
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleUpgradeToPremium = () => {
@@ -133,6 +220,26 @@ function Settings() {
   const closeSnackbar = () => {
     setSnackbar({ ...snackbar, open: false });
   };
+
+  // Mostrar loader mientras se cargan los datos
+  if (loading) {
+    return (
+      <Root
+        header={
+          <Box className="p-6">
+            <Typography variant="h4" component="h1" gutterBottom>
+              Configuración
+            </Typography>
+          </Box>
+        }
+        content={
+          <Box className="flex items-center justify-center h-full">
+            <CircularProgress />
+          </Box>
+        }
+      />
+    );
+  }
 
   return (
     <Root
@@ -351,8 +458,10 @@ function Settings() {
                     color="primary"
                     onClick={handleSaveProfile}
                     size="large"
+                    disabled={saving}
+                    startIcon={saving ? <CircularProgress size={20} color="inherit" /> : undefined}
                   >
-                    Guardar Cambios
+                    {saving ? 'Guardando...' : 'Guardar Cambios'}
                   </Button>
                 </Box>
               </StyledPaper>
