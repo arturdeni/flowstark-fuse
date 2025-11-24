@@ -162,7 +162,7 @@ function FirebaseSignUpForm() {
 								<span>
 									Acepto los{' '}
 									<a
-										href="/terms-and-conditions"
+										href="https://www.flowstark.com/terminos-y-condiciones"
 										target="_blank"
 										rel="noopener noreferrer"
 									>
@@ -170,7 +170,7 @@ function FirebaseSignUpForm() {
 									</a>{' '}
 									y la{' '}
 									<a
-										href="/privacy-policy"
+										href="https://www.flowstark.com/politica-de-privacidad"
 										target="_blank"
 										rel="noopener noreferrer"
 									>

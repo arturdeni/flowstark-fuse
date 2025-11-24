@@ -34,9 +34,9 @@ const STRIPE_CONFIG = {
 // Límites por plan
 const PLAN_LIMITS = {
   free: {
-    maxClients: 5,
-    maxServices: 2,
-    maxSubscriptions: 10,
+    maxClients: 50,
+    maxServices: 30,
+    maxSubscriptions: 30,
   },
   premium: {
     maxClients: -1, // Ilimitado

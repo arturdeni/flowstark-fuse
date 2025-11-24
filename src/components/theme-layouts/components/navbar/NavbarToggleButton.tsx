@@ -4,7 +4,6 @@ import { useAppDispatch } from 'src/store/hooks';
 import _ from 'lodash';
 import useThemeMediaQuery from '@fuse/hooks/useThemeMediaQuery';
 import FuseSvgIcon from '@fuse/core/FuseSvgIcon';
-import clsx from 'clsx';
 import { IconButtonProps } from '@mui/material/IconButton/IconButton';
 import useFuseLayoutSettings from '@fuse/core/FuseLayout/useFuseLayoutSettings';
 import useFuseSettings from '@fuse/core/FuseSettings/hooks/useFuseSettings';
@@ -18,24 +17,45 @@ export type NavbarToggleButtonProps = IconButtonProps;
  * The navbar toggle button.
  */
 function NavbarToggleButton(props: NavbarToggleButtonProps) {
-	const {
-		className = '',
-		children = (
-			<FuseSvgIcon
-				size={20}
-				color="action"
-			>
-				heroicons-outline:bars-3
-			</FuseSvgIcon>
-		),
-		...rest
-	} = props;
+	const { className = '', children, ...rest } = props;
 
 	const dispatch = useAppDispatch();
 	const isMobile = useThemeMediaQuery((theme) => theme.breakpoints.down('lg'));
 	const { config } = useFuseLayoutSettings();
 	const { setSettings } = useFuseSettings();
 	const navbar = useAppSelector(selectFuseNavbar);
+
+	// Determinar si el menú está abierto según el contexto
+	let isMenuOpen = false;
+
+	if (isMobile) {
+		if (
+			config?.navbar?.style === 'style-2' ||
+			config?.navbar?.style === 'style-3' ||
+			config?.navbar?.style === 'style-3-dense'
+		) {
+			isMenuOpen = navbar.foldedOpen;
+		} else {
+			isMenuOpen = navbar.open;
+		}
+	} else {
+		// En desktop, el menú está "cerrado/plegado" cuando folded es true
+		if (config?.navbar?.style === 'style-2') {
+			isMenuOpen = !config?.navbar?.folded;
+		} else {
+			isMenuOpen = navbar.open;
+		}
+	}
+
+	// Icono por defecto basado en el estado del menú
+	const defaultIcon = children || (
+		<FuseSvgIcon
+			size={20}
+			color="action"
+		>
+			{isMenuOpen ? 'heroicons-outline:x-mark' : 'heroicons-outline:bars-3'}
+		</FuseSvgIcon>
+	);
 
 	const handleClick = () => {
 		if (isMobile) {
@@ -69,9 +89,9 @@ function NavbarToggleButton(props: NavbarToggleButtonProps) {
 		<IconButton
 			onClick={handleClick}
 			{...rest}
-			className={clsx('border border-divider', className)}
+			className={className}
 		>
-			{children}
+			{defaultIcon}
 		</IconButton>
 	);
 }
