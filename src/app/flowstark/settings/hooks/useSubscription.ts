@@ -34,18 +34,34 @@ export const useSubscription = () => {
   const user = authState?.user;
 
   useEffect(() => {
-    if (!user?.uid) {
+    console.log('useSubscription: useEffect triggered');
+    console.log('useSubscription: authState:', authState);
+    console.log('useSubscription: user object:', user);
+    console.log('useSubscription: user.uid:', user?.uid);
+    console.log('useSubscription: user.id:', (user as any)?.id);
+
+    // Intentar con user.id en lugar de user.uid
+    const userId = user?.uid || (user as any)?.id;
+
+    if (!userId) {
+      console.log('useSubscription: No user ID found (tried uid and id)');
       setLoading(false);
       return;
     }
 
+    console.log('useSubscription: Setting up listener for user:', userId);
+
     // Escuchar cambios en tiempo real usando Firebase v8 compat
-    const unsubscribe = db.collection('users').doc(user.uid as string).onSnapshot(
+    const unsubscribe = db.collection('users').doc(userId).onSnapshot(
       (docSnap) => {
+        console.log('useSubscription: Snapshot received, exists:', docSnap.exists);
+
         if (docSnap.exists) {
           const data = docSnap.data();
+          console.log('useSubscription: Document data:', data);
 
           if (data && data.subscription) {
+            console.log('useSubscription: Subscription data found:', data.subscription);
             setSubscription({
               ...data.subscription,
               currentPeriodEnd: data.subscription.currentPeriodEnd?.toDate(),
@@ -57,16 +73,19 @@ export const useSubscription = () => {
             });
           } else {
             // Si no tiene subscription, asignar plan free por defecto
+            console.log('useSubscription: No subscription field found, using default free plan');
             setSubscription({
               plan: 'free',
               status: 'active',
               limits: {
-                maxClients: 5,
-                maxServices: 2,
-                maxSubscriptions: 10
+                maxClients: 50,
+                maxServices: 30,
+                maxSubscriptions: 30
               }
             });
           }
+        } else {
+          console.log('useSubscription: Document does not exist');
         }
 
         setLoading(false);
@@ -78,9 +97,9 @@ export const useSubscription = () => {
     );
 
     return () => unsubscribe();
-  }, [user?.uid]);
+  }, [user?.uid, (user as any)?.id]);
 
-  const isPremium = subscription?.plan === 'premium' && subscription?.status === 'active';
+  const isPremium = subscription?.plan === 'premium' && (subscription?.status === 'active' || subscription?.status === 'trialing');
   const isTrial = subscription?.status === 'trialing';
   const isCanceled = subscription?.status === 'canceled' || subscription?.cancelAtPeriodEnd;
 
