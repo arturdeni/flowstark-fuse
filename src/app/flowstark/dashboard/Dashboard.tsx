@@ -53,7 +53,7 @@ function Dashboard() {
       header={
         <Box className="p-6">
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Typography variant="h4" component="h1" className="font-medium tracking-tight">
+            <Typography variant="h4" component="h1" className="font-medium tracking-tight" sx={{ color: '#154241' }}>
               Dashboard
             </Typography>
             <Button

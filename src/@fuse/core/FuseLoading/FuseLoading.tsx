@@ -26,9 +26,6 @@ function FuseLoading(props: FuseLoadingProps) {
 				'flex flex-1 min-h-full h-full w-full self-center flex-col items-center justify-center p-6',
 				!showLoading ? 'hidden' : ''
 			)}
-			sx={{
-				backgroundColor: 'background.default'
-			}}
 		>
 			<Box
 				id="spinner"

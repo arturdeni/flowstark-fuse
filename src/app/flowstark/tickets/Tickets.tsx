@@ -170,8 +170,7 @@ const Tickets: React.FC = () => {
             component="h1"
             variant="h4"
             className="font-medium tracking-tight"
-            color="text.primary"
-          >
+            sx={{ color: '#154241' }}          >
             Tickets
           </Typography>
           <Typography

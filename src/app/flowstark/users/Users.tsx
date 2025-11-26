@@ -102,7 +102,7 @@ function Users() {
     <Root
       header={
         <Box className="p-6">
-          <Typography variant="h4" component="h1" className="font-medium tracking-tight">
+          <Typography variant="h4" component="h1" className="font-medium tracking-tight" sx={{ color: '#154241' }}>
             Clientes
           </Typography>
         </Box>
