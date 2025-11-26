@@ -35,11 +35,17 @@ export const DashboardServicePopularity: React.FC<DashboardServicePopularityProp
         return colors[index % colors.length];
     };
 
+    const cardStyle = {
+        backgroundColor: 'rgba(255, 255, 255, 0.85)',
+        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.08)',
+        border: '1px solid rgba(0, 0, 0, 0.05)',
+    };
+
     if (loading) {
         return (
-            <Card>
-                <CardHeader 
-                    title="Popularidad de Servicios" 
+            <Card sx={cardStyle}>
+                <CardHeader
+                    title="Popularidad de Servicios"
                     titleTypographyProps={{ variant: 'h6' }}
                 />
                 <Divider />
@@ -54,9 +60,9 @@ export const DashboardServicePopularity: React.FC<DashboardServicePopularityProp
 
     if (servicePopularity.length === 0) {
         return (
-            <Card>
-                <CardHeader 
-                    title="Popularidad de Servicios" 
+            <Card sx={cardStyle}>
+                <CardHeader
+                    title="Popularidad de Servicios"
                     titleTypographyProps={{ variant: 'h6' }}
                 />
                 <Divider />
@@ -73,9 +79,9 @@ export const DashboardServicePopularity: React.FC<DashboardServicePopularityProp
     const maxSubscriptions = Math.max(...servicePopularity.map(s => s.subscriptions));
 
     return (
-        <Card>
-            <CardHeader 
-                title="Popularidad de Servicios" 
+        <Card sx={cardStyle}>
+            <CardHeader
+                title="Popularidad de Servicios"
                 titleTypographyProps={{ variant: 'h6' }}
                 action={
                     <Chip

@@ -39,7 +39,7 @@ export const DashboardCharts: React.FC<DashboardChartsProps> = ({
 }) => {
     // Datos para el gráfico de estado de suscripciones (sin pausadas)
     const statusData = [
-        { name: 'Activas', value: metrics.activeSubscriptions, color: '#4CAF50' },
+        { name: 'Activas', value: metrics.activeSubscriptions, color: '#154241' },
         { name: 'Canceladas', value: metrics.cancelledSubscriptions, color: '#F44336' },
     ].filter(item => item.value > 0);
 
@@ -93,9 +93,15 @@ export const DashboardCharts: React.FC<DashboardChartsProps> = ({
         <Grid container spacing={3} sx={{ mb: 4 }}>
             {/* Gráfico de estado de suscripciones */}
             <Grid item xs={12} md={6}>
-                <Card>
-                    <CardHeader 
-                        title="Estado de Suscripciones" 
+                <Card
+                    sx={{
+                        backgroundColor: 'rgba(255, 255, 255, 0.85)',
+                        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.08)',
+                        border: '1px solid rgba(0, 0, 0, 0.05)',
+                    }}
+                >
+                    <CardHeader
+                        title="Estado de Suscripciones"
                         titleTypographyProps={{ variant: 'h6' }}
                     />
                     <Divider />
@@ -129,9 +135,15 @@ export const DashboardCharts: React.FC<DashboardChartsProps> = ({
 
             {/* Gráfico de evolución de ingresos */}
             <Grid item xs={12} md={6}>
-                <Card>
-                    <CardHeader 
-                        title="Evolución de Ingresos Mensuales" 
+                <Card
+                    sx={{
+                        backgroundColor: 'rgba(255, 255, 255, 0.85)',
+                        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.08)',
+                        border: '1px solid rgba(0, 0, 0, 0.05)',
+                    }}
+                >
+                    <CardHeader
+                        title="Evolución de Ingresos Mensuales"
                         titleTypographyProps={{ variant: 'h6' }}
                     />
                     <Divider />
@@ -160,9 +172,15 @@ export const DashboardCharts: React.FC<DashboardChartsProps> = ({
 
             {/* Gráfico de evolución de suscripciones */}
             <Grid item xs={12} md={8}>
-                <Card>
-                    <CardHeader 
-                        title="Evolución de Suscripciones" 
+                <Card
+                    sx={{
+                        backgroundColor: 'rgba(255, 255, 255, 0.85)',
+                        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.08)',
+                        border: '1px solid rgba(0, 0, 0, 0.05)',
+                    }}
+                >
+                    <CardHeader
+                        title="Evolución de Suscripciones"
                         titleTypographyProps={{ variant: 'h6' }}
                     />
                     <Divider />
@@ -175,10 +193,10 @@ export const DashboardCharts: React.FC<DashboardChartsProps> = ({
                                     <YAxis />
                                     <Tooltip content={<CustomTooltip />} />
                                     <Legend />
-                                    <Line 
-                                        type="monotone" 
-                                        dataKey="activas" 
-                                        stroke="#4CAF50" 
+                                    <Line
+                                        type="monotone"
+                                        dataKey="activas"
+                                        stroke="#154241"
                                         strokeWidth={3}
                                         name="Suscripciones Activas"
                                     />
@@ -207,9 +225,15 @@ export const DashboardCharts: React.FC<DashboardChartsProps> = ({
 
             {/* Gráfico de comparación mensual (barras) */}
             <Grid item xs={12} md={4}>
-                <Card>
-                    <CardHeader 
-                        title="Nuevas vs Canceladas" 
+                <Card
+                    sx={{
+                        backgroundColor: 'rgba(255, 255, 255, 0.85)',
+                        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.08)',
+                        border: '1px solid rgba(0, 0, 0, 0.05)',
+                    }}
+                >
+                    <CardHeader
+                        title="Nuevas vs Canceladas"
                         titleTypographyProps={{ variant: 'h6' }}
                     />
                     <Divider />
@@ -222,9 +246,9 @@ export const DashboardCharts: React.FC<DashboardChartsProps> = ({
                                     <YAxis />
                                     <Tooltip content={<CustomTooltip />} />
                                     <Legend />
-                                    <Bar 
-                                        dataKey="nuevas" 
-                                        fill="#4CAF50" 
+                                    <Bar
+                                        dataKey="nuevas"
+                                        fill="#154241"
                                         name="Nuevas"
                                         radius={[2, 2, 0, 0]}
                                     />

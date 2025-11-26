@@ -46,40 +46,63 @@ const MetricCard: React.FC<MetricCardProps> = ({
     color,
     trend
 }) => (
-    <Card sx={{ height: '100%', position: 'relative', overflow: 'visible' }}>
-        <CardContent sx={{ pb: 2 }}>
-            <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
-                <Box sx={{ flex: 1 }}>
-                    <Typography color="textSecondary" variant="body2" sx={{ mb: 1 }}>
-                        {title}
-                    </Typography>
-                    <Typography variant="h4" component="div" sx={{ fontWeight: 'bold', mb: 0.5 }}>
+    <Card
+        sx={{
+            height: '100%',
+            minHeight: 140,
+            position: 'relative',
+            overflow: 'visible',
+            backgroundColor: 'rgba(255, 255, 255, 0.85)',
+            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.08)',
+            border: '1px solid rgba(0, 0, 0, 0.05)',
+            transition: 'all 0.3s ease',
+            '&:hover': {
+                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.12)',
+                transform: 'translateY(-2px)',
+            }
+        }}
+    >
+        <CardContent sx={{ p: 2.5, height: '100%', display: 'flex', flexDirection: 'column', '&:last-child': { pb: 2.5 } }}>
+            <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', mb: 1.5 }}>
+                <Typography color="textSecondary" variant="body2" sx={{ fontSize: '0.875rem', lineHeight: 1.4 }}>
+                    {title}
+                </Typography>
+                <Box
+                    sx={{
+                        color: `${color}.main`,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        ml: 1,
+                        '& svg': {
+                            fontSize: 28,
+                        }
+                    }}
+                >
+                    {icon}
+                </Box>
+            </Box>
+            <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                <Box>
+                    <Typography variant="h4" component="div" sx={{ fontWeight: 'bold', mb: 0.5, fontSize: '1.75rem', lineHeight: 1.2 }}>
                         {value}
                     </Typography>
                     {subtitle && (
-                        <Typography variant="body2" color="textSecondary">
+                        <Typography variant="body2" color="textSecondary" sx={{ fontSize: '0.813rem', lineHeight: 1.3 }}>
                             {subtitle}
                         </Typography>
                     )}
-                    {trend && (
+                </Box>
+                {trend && (
+                    <Box sx={{ mt: 1 }}>
                         <Chip
                             size="small"
                             label={`${trend.isPositive ? '+' : ''}${trend.value.toFixed(1)}%`}
                             color={trend.isPositive ? 'success' : 'error'}
-                            sx={{ mt: 1, fontSize: '0.75rem' }}
+                            sx={{ fontSize: '0.75rem', height: 22 }}
                         />
-                    )}
-                </Box>
-                <Avatar
-                    sx={{
-                        bgcolor: `${color}.main`,
-                        color: 'white',
-                        width: 56,
-                        height: 56,
-                    }}
-                >
-                    {icon}
-                </Avatar>
+                    </Box>
+                )}
             </Box>
         </CardContent>
     </Card>

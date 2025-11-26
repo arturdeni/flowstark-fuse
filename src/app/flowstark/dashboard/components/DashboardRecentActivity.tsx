@@ -123,9 +123,16 @@ export const DashboardRecentActivity: React.FC<DashboardRecentActivityProps> = (
     return (
         <Box sx={{ display: 'flex', gap: 3, flexDirection: { xs: 'column', lg: 'row' } }}>
             {/* Actividad Reciente */}
-            <Card sx={{ flex: 1 }}>
-                <CardHeader 
-                    title="Actividad Reciente" 
+            <Card
+                sx={{
+                    flex: 1,
+                    backgroundColor: 'rgba(255, 255, 255, 0.85)',
+                    boxShadow: '0 1px 3px rgba(0, 0, 0, 0.08)',
+                    border: '1px solid rgba(0, 0, 0, 0.05)',
+                }}
+            >
+                <CardHeader
+                    title="Actividad Reciente"
                     titleTypographyProps={{ variant: 'h6' }}
                 />
                 <Divider />
@@ -176,9 +183,16 @@ export const DashboardRecentActivity: React.FC<DashboardRecentActivityProps> = (
             </Card>
 
             {/* Próximas Renovaciones */}
-            <Card sx={{ flex: 1 }}>
-                <CardHeader 
-                    title="Próximas Renovaciones" 
+            <Card
+                sx={{
+                    flex: 1,
+                    backgroundColor: 'rgba(255, 255, 255, 0.85)',
+                    boxShadow: '0 1px 3px rgba(0, 0, 0, 0.08)',
+                    border: '1px solid rgba(0, 0, 0, 0.05)',
+                }}
+            >
+                <CardHeader
+                    title="Próximas Renovaciones"
                     titleTypographyProps={{ variant: 'h6' }}
                 />
                 <Divider />
