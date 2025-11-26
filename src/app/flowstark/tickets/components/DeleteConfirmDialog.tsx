@@ -90,7 +90,7 @@ export const DeleteConfirmDialog: React.FC<DeleteConfirmDialogProps> = ({
                 </Typography>
               )}
               <Typography variant="body2">
-                <strong>Monto:</strong> {formatCurrency(ticketInfo.amount)}
+                <strong>Precio:</strong> {formatCurrency(ticketInfo.amount)}
               </Typography>
               <Typography variant="body2">
                 <strong>Fecha de Vencimiento:</strong> {formatDate(ticketInfo.dueDate)}

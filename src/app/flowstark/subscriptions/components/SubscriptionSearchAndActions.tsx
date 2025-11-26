@@ -46,11 +46,11 @@ export const SubscriptionSearchAndActions: React.FC<SubscriptionSearchAndActions
     };
 
     return (
-        <Box 
-            sx={{ 
-                display: 'flex', 
-                gap: 2, 
-                alignItems: 'center', 
+        <Box
+            sx={{
+                display: 'flex',
+                gap: 2,
+                alignItems: 'center',
                 mb: 3,
                 flexWrap: 'wrap'
             }}
@@ -100,10 +100,17 @@ export const SubscriptionSearchAndActions: React.FC<SubscriptionSearchAndActions
             {/* Botón de nueva suscripción */}
             <Button
                 variant="contained"
+                color="primary"
                 startIcon={<AddIcon />}
                 onClick={onAddNew}
                 disabled={loading}
                 size="small"
+                sx={{
+                    mr: 1,
+                    '&:hover': {
+                        backgroundColor: '#2C645E'
+                    }
+                }}
             >
                 Nueva Suscripción
             </Button>

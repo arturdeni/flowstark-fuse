@@ -144,8 +144,13 @@ function FirebaseSignInForm() {
 					disabled={_.isEmpty(dirtyFields) || !isValid}
 					type="submit"
 					size="large"
+					sx={{
+						'&:hover': {
+							backgroundColor: '#2C645E'
+						}
+					}}
 				>
-					Continua
+					Continuar
 				</Button>
 			</form>
 		</div>

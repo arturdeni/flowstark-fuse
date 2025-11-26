@@ -49,7 +49,12 @@ export const UserSearchAndActions: React.FC<UserSearchAndActionsProps> = ({
                 startIcon={<AddIcon />}
                 onClick={onAddNew}
                 disabled={loading}
-                sx={{ mr: 1 }}
+                sx={{
+                    mr: 1,
+                    '&:hover': {
+                        backgroundColor: '#2C645E'
+                    }
+                }}
             >
                 Nuevo Cliente
             </Button>

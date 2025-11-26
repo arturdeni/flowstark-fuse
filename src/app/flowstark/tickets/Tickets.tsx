@@ -165,7 +165,7 @@ const Tickets: React.FC = () => {
   return (
     <Root
       header={
-        <Box sx={{ py: 2 }}>
+        <Box className="p-6">
           <Typography
             component="h1"
             variant="h4"
@@ -194,6 +194,7 @@ const Tickets: React.FC = () => {
             paidCount={ticketStats.paid}
             pendingCount={ticketStats.pending}
             loading={loading}
+            tickets={filteredTickets}
             onSearchChange={setSearchTerm}
             onStatusFilterChange={setStatusFilter}
             onAddTicket={() => handleOpenForm()}

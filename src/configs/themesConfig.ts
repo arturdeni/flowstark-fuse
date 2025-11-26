@@ -57,8 +57,8 @@ export const themesConfig: FuseThemesType = {
 				contrastText: '#FFFFFF'
 			},
 			action: {
-				hover: 'rgba(232, 243, 240, 0.6)', // Tono verdoso suave para filas impares
-				selected: 'rgba(232, 243, 240, 0.9)' // Versión más intensa para hover
+				hover: '#fafafa', // Tono gris muy claro casi blanco para filas impares
+				selected: '#f5f5f5' // Versión ligeramente más oscura para hover
 			}
 		}
 	},

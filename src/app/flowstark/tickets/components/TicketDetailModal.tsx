@@ -145,10 +145,10 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
       maxWidth="md"
       fullWidth
       PaperProps={{
-        sx: { borderRadius: 2 }
+        sx: { borderRadius: 2, bgcolor: '#fafafa' }
       }}
     >
-      <DialogTitle sx={{ pb: 1 }}>
+      <DialogTitle sx={{ pb: 1, bgcolor: 'white' }}>
         <Box display="flex" alignItems="center" justifyContent="space-between">
           <Box display="flex" alignItems="center" gap={1}>
             <ReceiptIcon color="primary" />
@@ -162,16 +162,16 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
         </Box>
       </DialogTitle>
 
-      <DialogContent>
+      <DialogContent sx={{ bgcolor: '#fafafa' }}>
         {/* Contenido visible para el PDF */}
         <div ref={pdfContentRef}>
           <PDFContent ticket={currentTicket} />
         </div>
       </DialogContent>
 
-      <DialogActions sx={{ px: 3, pb: 2 }}>
-        <Box sx={{ display: 'flex', gap: 1, width: '100%', justifyContent: 'space-between' }}>
-          <Box sx={{ display: 'flex', gap: 1 }}>
+      <DialogActions sx={{ px: 3, pb: 2, bgcolor: 'white', borderTop: '1px solid #e0e0e0' }}>
+        <Box sx={{ display: 'flex', gap: 1, width: '100%', justifyContent: 'space-between', flexWrap: 'wrap' }}>
+          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
             {/* Botón descargar PDF */}
             <Button
               startIcon={<DownloadIcon />}
@@ -258,16 +258,16 @@ const PDFContent: React.FC<{ ticket: TicketWithRelations }> = ({ ticket }) => {
   const isOverdue = ticket.status === 'pending' && new Date() > ticket.dueDate;
 
   return (
-    <Box sx={{ py: 1 }}>
+    <Box sx={{ py: 2 }}>
       {/* Encabezado del PDF */}
-      <Box sx={{ textAlign: 'center', mb: 4, borderBottom: '2px solid #1976d2', pb: 2 }}>
+      <Box sx={{ textAlign: 'center', mb: 3, bgcolor: 'white', borderRadius: 2, p: 3 }}>
         <Typography variant="h4" sx={{ fontWeight: 'bold', color: '#1976d2', mb: 1 }}>
           TICKET DE PAGO
         </Typography>
         <Typography variant="h6" sx={{ color: '#666' }}>
           ID: {ticket.id || 'Sin ID'}
         </Typography>
-        <Typography variant="body2" sx={{ color: '#666' }}>
+        <Typography variant="body2" sx={{ color: '#888', mt: 1 }}>
           Generado el {formatDate(new Date())}
         </Typography>
       </Box>
@@ -275,49 +275,58 @@ const PDFContent: React.FC<{ ticket: TicketWithRelations }> = ({ ticket }) => {
       <Grid container spacing={3}>
         {/* Estado y Información Básica */}
         <Grid item xs={12}>
-          <Box sx={{ mb: 3 }}>
+          <Box sx={{ bgcolor: 'white', borderRadius: 2, p: 3 }}>
             <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 2, color: '#1976d2' }}>
               Estado del Ticket
             </Typography>
 
             <Box sx={{ display: 'flex', gap: 2, mb: 3, flexWrap: 'wrap' }}>
-              <Box sx={{
-                px: 2, py: 1,
-                backgroundColor: ticket.status === 'paid' ? '#4caf50' : '#ff9800',
-                color: 'white',
-                borderRadius: 1,
-                fontWeight: 'bold'
-              }}>
-                {ticket.status === 'paid' ? 'PAGADO' : 'PENDIENTE'}
-              </Box>
+              <Chip
+                label={ticket.status === 'paid' ? 'PAGADO' : 'PENDIENTE'}
+                sx={{
+                  backgroundColor: ticket.status === 'paid' ? '#4caf50' : '#ff9800',
+                  color: 'white',
+                  fontWeight: 'bold',
+                  fontSize: '0.875rem'
+                }}
+              />
 
-              <Box sx={{
-                px: 2, py: 1,
-                backgroundColor: ticket.isManual ? '#2196f3' : '#757575',
-                color: 'white',
-                borderRadius: 1
-              }}>
-                {ticket.isManual ? 'Manual' : 'Automático'}
-              </Box>
+              <Chip
+                label={ticket.isManual ? 'Manual' : 'Automático'}
+                sx={{
+                  backgroundColor: ticket.isManual ? '#2196f3' : '#757575',
+                  color: 'white',
+                  fontSize: '0.875rem'
+                }}
+              />
 
               {isOverdue && (
-                <Box sx={{
-                  px: 2, py: 1,
-                  backgroundColor: '#f44336',
-                  color: 'white',
-                  borderRadius: 1,
-                  fontWeight: 'bold'
-                }}>
-                  VENCIDO
-                </Box>
+                <Chip
+                  label="VENCIDO"
+                  sx={{
+                    backgroundColor: '#f44336',
+                    color: 'white',
+                    fontWeight: 'bold',
+                    fontSize: '0.875rem'
+                  }}
+                />
               )}
             </Box>
 
             <Grid container spacing={2}>
               <Grid item xs={12} sm={6} md={3}>
-                <Box sx={{ border: '1px solid #ddd', p: 2, borderRadius: 1 }}>
-                  <Typography variant="body2" sx={{ color: '#666', fontWeight: 'bold' }}>
-                    MONTO
+                <Box sx={{
+                  bgcolor: '#f5f5f5',
+                  p: 2.5,
+                  borderRadius: 2,
+                  border: '1px solid #e0e0e0',
+                  height: '100%',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'center'
+                }}>
+                  <Typography variant="caption" sx={{ color: '#888', fontWeight: 'bold', mb: 0.5 }}>
+                    PRECIO
                   </Typography>
                   <Typography variant="h5" sx={{ color: '#1976d2', fontWeight: 'bold' }}>
                     {formatCurrency(ticket.amount)}
@@ -326,22 +335,40 @@ const PDFContent: React.FC<{ ticket: TicketWithRelations }> = ({ ticket }) => {
               </Grid>
 
               <Grid item xs={12} sm={6} md={3}>
-                <Box sx={{ border: '1px solid #ddd', p: 2, borderRadius: 1 }}>
-                  <Typography variant="body2" sx={{ color: '#666', fontWeight: 'bold' }}>
+                <Box sx={{
+                  bgcolor: '#f5f5f5',
+                  p: 2.5,
+                  borderRadius: 2,
+                  border: '1px solid #e0e0e0',
+                  height: '100%',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'center'
+                }}>
+                  <Typography variant="caption" sx={{ color: '#888', fontWeight: 'bold', mb: 0.5 }}>
                     VENCIMIENTO
                   </Typography>
-                  <Typography variant="body1" sx={{ color: isOverdue ? '#f44336' : '#333', fontWeight: 'bold' }}>
+                  <Typography variant="h6" sx={{ color: isOverdue ? '#f44336' : '#333', fontWeight: 'bold' }}>
                     {formatDateOnly(ticket.dueDate)}
                   </Typography>
                 </Box>
               </Grid>
 
               <Grid item xs={12} sm={6} md={3}>
-                <Box sx={{ border: '1px solid #ddd', p: 2, borderRadius: 1 }}>
-                  <Typography variant="body2" sx={{ color: '#666', fontWeight: 'bold' }}>
+                <Box sx={{
+                  bgcolor: '#f5f5f5',
+                  p: 2.5,
+                  borderRadius: 2,
+                  border: '1px solid #e0e0e0',
+                  height: '100%',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'center'
+                }}>
+                  <Typography variant="caption" sx={{ color: '#888', fontWeight: 'bold', mb: 0.5 }}>
                     GENERACIÓN
                   </Typography>
-                  <Typography variant="body1" sx={{ fontWeight: 'bold' }}>
+                  <Typography variant="h6" sx={{ color: '#333', fontWeight: 'bold' }}>
                     {formatDateOnly(ticket.generatedDate)}
                   </Typography>
                 </Box>
@@ -349,11 +376,20 @@ const PDFContent: React.FC<{ ticket: TicketWithRelations }> = ({ ticket }) => {
 
               {ticket.paidDate && (
                 <Grid item xs={12} sm={6} md={3}>
-                  <Box sx={{ border: '1px solid #ddd', p: 2, borderRadius: 1 }}>
-                    <Typography variant="body2" sx={{ color: '#666', fontWeight: 'bold' }}>
+                  <Box sx={{
+                    bgcolor: '#f5f5f5',
+                    p: 2.5,
+                    borderRadius: 2,
+                    border: '1px solid #e0e0e0',
+                    height: '100%',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'center'
+                  }}>
+                    <Typography variant="caption" sx={{ color: '#888', fontWeight: 'bold', mb: 0.5 }}>
                       FECHA DE PAGO
                     </Typography>
-                    <Typography variant="body1" sx={{ color: '#4caf50', fontWeight: 'bold' }}>
+                    <Typography variant="h6" sx={{ color: '#4caf50', fontWeight: 'bold' }}>
                       {formatDateOnly(ticket.paidDate)}
                     </Typography>
                   </Box>
@@ -366,32 +402,42 @@ const PDFContent: React.FC<{ ticket: TicketWithRelations }> = ({ ticket }) => {
         {/* Información del Cliente */}
         {ticket.clientInfo && (
           <Grid item xs={12} md={6}>
-            <Box sx={{ border: '2px solid #e0e0e0', borderRadius: 2, p: 2 }}>
+            <Box sx={{
+              bgcolor: 'white',
+              borderRadius: 2,
+              p: 3,
+              border: '1px solid #e0e0e0',
+              height: '100%',
+              display: 'flex',
+              flexDirection: 'column'
+            }}>
               <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#1976d2', mb: 2 }}>
                 Información del Cliente
               </Typography>
 
-              <Typography variant="body1" sx={{ fontWeight: 'bold', mb: 1 }}>
-                {ticket.clientInfo.firstName} {ticket.clientInfo.lastName}
-              </Typography>
-
-              {ticket.clientInfo.email && (
-                <Typography variant="body2" sx={{ mb: 0.5 }}>
-                  <strong>Email:</strong> {ticket.clientInfo.email}
+              <Box sx={{ flexGrow: 1 }}>
+                <Typography variant="body1" sx={{ fontWeight: 'bold', mb: 1.5, color: '#333' }}>
+                  {ticket.clientInfo.firstName} {ticket.clientInfo.lastName}
                 </Typography>
-              )}
 
-              {ticket.clientInfo.phone && (
-                <Typography variant="body2" sx={{ mb: 0.5 }}>
-                  <strong>Teléfono:</strong> {ticket.clientInfo.phone}
-                </Typography>
-              )}
+                {ticket.clientInfo.email && (
+                  <Typography variant="body2" sx={{ mb: 1, color: '#666' }}>
+                    <strong>Email:</strong> {ticket.clientInfo.email}
+                  </Typography>
+                )}
 
-              {ticket.clientInfo.address && (
-                <Typography variant="body2">
-                  <strong>Dirección:</strong> {ticket.clientInfo.address}
-                </Typography>
-              )}
+                {ticket.clientInfo.phone && (
+                  <Typography variant="body2" sx={{ mb: 1, color: '#666' }}>
+                    <strong>Teléfono:</strong> {ticket.clientInfo.phone}
+                  </Typography>
+                )}
+
+                {ticket.clientInfo.address && (
+                  <Typography variant="body2" sx={{ color: '#666' }}>
+                    <strong>Dirección:</strong> {ticket.clientInfo.address}
+                  </Typography>
+                )}
+              </Box>
             </Box>
           </Grid>
         )}
@@ -399,24 +445,52 @@ const PDFContent: React.FC<{ ticket: TicketWithRelations }> = ({ ticket }) => {
         {/* Información del Servicio */}
         {ticket.serviceInfo && (
           <Grid item xs={12} md={6}>
-            <Box sx={{ border: '2px solid #e0e0e0', borderRadius: 2, p: 2 }}>
+            <Box sx={{
+              bgcolor: 'white',
+              borderRadius: 2,
+              p: 3,
+              border: '1px solid #e0e0e0',
+              height: '100%',
+              display: 'flex',
+              flexDirection: 'column'
+            }}>
               <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#1976d2', mb: 2 }}>
                 Información del Servicio
               </Typography>
 
-              <Typography variant="body1" sx={{ fontWeight: 'bold', mb: 1 }}>
-                {ticket.serviceInfo.name}
-              </Typography>
-
-              {ticket.serviceInfo.description && (
-                <Typography variant="body2" sx={{ mb: 1 }}>
-                  {ticket.serviceInfo.description}
+              <Box sx={{ flexGrow: 1 }}>
+                <Typography variant="body1" sx={{ fontWeight: 'bold', mb: 1.5, color: '#333' }}>
+                  {ticket.serviceInfo.name}
                 </Typography>
-              )}
 
-              <Typography variant="body2">
-                <strong>Precio base:</strong> {formatCurrency(ticket.serviceInfo.price)}
-              </Typography>
+                {ticket.serviceInfo.description && (
+                  <Typography variant="body2" sx={{ mb: 1.5, color: '#666' }}>
+                    {ticket.serviceInfo.description}
+                  </Typography>
+                )}
+
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                  <Typography variant="body2" sx={{ color: '#666' }}>
+                    <strong>Precio base:</strong> {formatCurrency(ticket.serviceInfo.basePrice)}
+                  </Typography>
+
+                  <Typography variant="body2" sx={{ color: '#666' }}>
+                    <strong>IVA:</strong> {ticket.serviceInfo.vat}%
+                  </Typography>
+
+                  {ticket.serviceInfo.retention !== undefined && ticket.serviceInfo.retention > 0 && (
+                    <Typography variant="body2" sx={{ color: '#666' }}>
+                      <strong>Retención:</strong> {ticket.serviceInfo.retention}%
+                    </Typography>
+                  )}
+
+                  {ticket.serviceInfo.finalPrice !== undefined && (
+                    <Typography variant="body2" sx={{ color: '#1976d2', fontWeight: 'bold', mt: 0.5 }}>
+                      <strong>Precio final:</strong> {formatCurrency(ticket.serviceInfo.finalPrice)}
+                    </Typography>
+                  )}
+                </Box>
+              </Box>
             </Box>
           </Grid>
         )}
@@ -424,11 +498,16 @@ const PDFContent: React.FC<{ ticket: TicketWithRelations }> = ({ ticket }) => {
         {/* Descripción/Notas */}
         {ticket.description && (
           <Grid item xs={12}>
-            <Box sx={{ border: '1px solid #e0e0e0', borderRadius: 1, p: 2, backgroundColor: '#fafafa' }}>
-              <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#1976d2', mb: 1 }}>
+            <Box sx={{
+              bgcolor: 'white',
+              borderRadius: 2,
+              p: 3,
+              border: '1px solid #e0e0e0'
+            }}>
+              <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#1976d2', mb: 2 }}>
                 Descripción/Notas
               </Typography>
-              <Typography variant="body2">
+              <Typography variant="body2" sx={{ color: '#666', lineHeight: 1.7 }}>
                 {ticket.description}
               </Typography>
             </Box>
@@ -437,21 +516,26 @@ const PDFContent: React.FC<{ ticket: TicketWithRelations }> = ({ ticket }) => {
 
         {/* Información de Auditoría */}
         <Grid item xs={12}>
-          <Box sx={{ borderTop: '1px solid #ddd', pt: 2, mt: 2 }}>
-            <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#666', mb: 2 }}>
+          <Box sx={{
+            bgcolor: '#f5f5f5',
+            borderRadius: 2,
+            p: 2.5,
+            border: '1px solid #e0e0e0'
+          }}>
+            <Typography variant="subtitle2" sx={{ fontWeight: 'bold', color: '#888', mb: 1.5 }}>
               Información de Auditoría
             </Typography>
             <Grid container spacing={2}>
               {ticket.createdAt && (
                 <Grid item xs={12} sm={6}>
-                  <Typography variant="body2">
+                  <Typography variant="body2" sx={{ color: '#666' }}>
                     <strong>Creado:</strong> {formatDate(ticket.createdAt)}
                   </Typography>
                 </Grid>
               )}
               {ticket.updatedAt && (
                 <Grid item xs={12} sm={6}>
-                  <Typography variant="body2">
+                  <Typography variant="body2" sx={{ color: '#666' }}>
                     <strong>Actualizado:</strong> {formatDate(ticket.updatedAt)}
                   </Typography>
                 </Grid>

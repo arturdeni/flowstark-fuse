@@ -230,7 +230,7 @@ export const TicketsTable: React.FC<TicketsTableProps> = ({
                                     direction={orderBy === 'amount' ? order : 'asc'}
                                     onClick={() => handleRequestSort('amount')}
                                 >
-                                    Monto
+                                    Precio
                                 </TableSortLabel>
                             </HeaderTableCell>
                             <HeaderTableCell>
@@ -315,7 +315,7 @@ export const TicketsTable: React.FC<TicketsTableProps> = ({
                                             )}
                                         </CompactTableCell>
 
-                                        {/* Monto */}
+                                        {/* Precio */}
                                         <CompactTableCell>
                                             <Typography variant="body2" fontWeight={500}>
                                                 {formatCurrency(ticket.amount)}

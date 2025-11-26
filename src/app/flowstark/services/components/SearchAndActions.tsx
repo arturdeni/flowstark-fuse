@@ -49,7 +49,11 @@ export const SearchAndActions: React.FC<SearchAndActionsProps> = ({
         startIcon={<AddIcon />}
         onClick={onAddNew}
         disabled={loading}
-        sx={{ mr: 1 }}
+        sx={{ mr: 1,
+          '&:hover': {
+							backgroundColor: '#2C645E'
+						}
+         }}
       >
         Nuevo Servicio
       </Button>

@@ -69,7 +69,7 @@ export interface Ticket {
 	id?: string;
 	subscriptionId: string;
 	dueDate: Date; // Fecha de vencimiento (basada en paymentDate de la suscripción)
-	amount: number; // Monto calculado desde el servicio
+	amount: number; // Precio calculado desde el servicio
 	status: 'paid' | 'pending'; // Estado: pagado o pendiente
 	generatedDate: Date; // Fecha en que se generó el ticket
 	paidDate?: Date; // Fecha en que se marcó como pagado (opcional)

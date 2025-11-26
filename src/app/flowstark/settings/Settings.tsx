@@ -206,7 +206,7 @@ function Settings() {
     <Root
       header={
         <Box className="p-6">
-          <Typography variant="h4" component="h1" gutterBottom>
+          <Typography variant="h4" component="h1" className="font-medium tracking-tight">
             Configuración
           </Typography>
         </Box>

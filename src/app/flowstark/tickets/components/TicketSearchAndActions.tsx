@@ -14,7 +14,10 @@ import {
 import {
   Add as AddIcon,
   Refresh as RefreshIcon,
+  Download as DownloadIcon,
 } from '@mui/icons-material';
+import { TicketWithRelations } from '../../../../types/models';
+import { downloadTicketsXML } from '../utils/xmlGenerator';
 
 interface TicketSearchAndActionsProps {
   searchTerm: string;
@@ -23,6 +26,7 @@ interface TicketSearchAndActionsProps {
   paidCount: number;
   pendingCount: number;
   loading: boolean;
+  tickets: TicketWithRelations[];
   onSearchChange: (term: string) => void;
   onStatusFilterChange: (status: 'all' | 'pending' | 'paid') => void;
   onAddTicket: () => void;
@@ -36,6 +40,7 @@ export const TicketSearchAndActions: React.FC<TicketSearchAndActionsProps> = ({
   paidCount,
   pendingCount,
   loading,
+  tickets,
   onSearchChange,
   onStatusFilterChange,
   onAddTicket,
@@ -47,6 +52,10 @@ export const TicketSearchAndActions: React.FC<TicketSearchAndActionsProps> = ({
 
   const handleStatusChange = (event: SelectChangeEvent) => {
     onStatusFilterChange(event.target.value as 'all' | 'pending' | 'paid');
+  };
+
+  const handleDownloadXML = () => {
+    downloadTicketsXML(tickets);
   };
 
   return (
@@ -83,6 +92,23 @@ export const TicketSearchAndActions: React.FC<TicketSearchAndActionsProps> = ({
           </Select>
         </FormControl>
 
+        {/* Botón de descarga XML */}
+        {ticketCount > 0 && (
+          <Button
+            variant="outlined"
+            size="small"
+            startIcon={<DownloadIcon />}
+            onClick={handleDownloadXML}
+            disabled={loading}
+            sx={{
+              textTransform: 'none',
+              fontWeight: 500,
+            }}
+          >
+            Descargar XML
+          </Button>
+        )}
+
         {/* Botones de acción */}
         <Box sx={{ display: 'flex', gap: 1 }}>
           <Button
@@ -97,10 +123,17 @@ export const TicketSearchAndActions: React.FC<TicketSearchAndActionsProps> = ({
 
           <Button
             variant="contained"
+            color="primary"
             startIcon={<AddIcon />}
             onClick={onAddTicket}
             disabled={loading}
             size="small"
+            sx={{
+              mr: 1,
+              '&:hover': {
+                backgroundColor: '#2C645E'
+              }
+            }}
           >
             Nuevo Ticket
           </Button>

@@ -309,7 +309,7 @@ export const TicketForm: React.FC<TicketFormProps> = ({
           <Box display="flex" alignItems="center" gap={1}>
             <ReceiptIcon color="primary" />
             <Typography variant="h6">
-              {isEditMode ? 'Editar Ticket' : 'Nuevo Ticket'}
+              {isEditMode ? 'Editar Ticket' : 'Nuevo Ticket Manual'}
             </Typography>
           </Box>
         </DialogTitle>
