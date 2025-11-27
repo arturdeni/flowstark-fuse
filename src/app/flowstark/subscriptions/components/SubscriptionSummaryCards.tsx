@@ -43,9 +43,16 @@ export const SubscriptionSummaryCards: React.FC<SubscriptionSummaryCardsProps> =
     const totalCount = subscriptions.length;
 
     return (
-        <Grid container spacing={2} sx={{ mb: 3 }}>
+        <Grid container spacing={3} sx={{ mb: 4 }}>
             <Grid item xs={12} sm={6} md={3}>
-                <Card>
+                <Card
+                    elevation={1}
+                    sx={{
+                        backgroundColor: 'rgba(255, 255, 255, 0.85)',
+                        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.08)',
+                        border: '1px solid rgba(0, 0, 0, 0.05)',
+                    }}
+                >
                     <CardContent>
                         <Typography color="textSecondary" gutterBottom variant="body2">
                             Activas
@@ -58,7 +65,14 @@ export const SubscriptionSummaryCards: React.FC<SubscriptionSummaryCardsProps> =
             </Grid>
 
             <Grid item xs={12} sm={6} md={3}>
-                <Card>
+                <Card
+                    elevation={1}
+                    sx={{
+                        backgroundColor: 'rgba(255, 255, 255, 0.85)',
+                        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.08)',
+                        border: '1px solid rgba(0, 0, 0, 0.05)',
+                    }}
+                >
                     <CardContent>
                         <Typography color="textSecondary" gutterBottom variant="body2">
                             Finalizando
@@ -71,7 +85,14 @@ export const SubscriptionSummaryCards: React.FC<SubscriptionSummaryCardsProps> =
             </Grid>
 
             <Grid item xs={12} sm={6} md={3}>
-                <Card>
+                <Card
+                    elevation={1}
+                    sx={{
+                        backgroundColor: 'rgba(255, 255, 255, 0.85)',
+                        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.08)',
+                        border: '1px solid rgba(0, 0, 0, 0.05)',
+                    }}
+                >
                     <CardContent>
                         <Typography color="textSecondary" gutterBottom variant="body2">
                             Caducadas
@@ -84,7 +105,14 @@ export const SubscriptionSummaryCards: React.FC<SubscriptionSummaryCardsProps> =
             </Grid>
 
             <Grid item xs={12} sm={6} md={3}>
-                <Card>
+                <Card
+                    elevation={1}
+                    sx={{
+                        backgroundColor: 'rgba(255, 255, 255, 0.85)',
+                        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.08)',
+                        border: '1px solid rgba(0, 0, 0, 0.05)',
+                    }}
+                >
                     <CardContent>
                         <Typography color="textSecondary" gutterBottom variant="body2">
                             Total de Suscripciones
