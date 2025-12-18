@@ -2,6 +2,7 @@
 import { subscriptionsService } from './subscriptionsService';
 import { servicesService } from './servicesService';
 import { ticketsService } from './ticketsService';
+import { clientsService } from './clientsService';
 import { ServiceFrequency } from '../types/models';
 
 export interface ProportionalTicketConfig {
@@ -151,6 +152,10 @@ class AutomaticTicketService {
 			const subscription = await subscriptionsService.getSubscriptionById(subscriptionId);
 			const service = await servicesService.getServiceById(subscription.serviceId);
 
+			// 5.5. Obtener el método de pago del cliente
+			const client = await clientsService.getClientById(subscription.clientId);
+			const paymentMethod = client.paymentMethod?.type || undefined;
+
 			const description = this.generateProportionalDescription(
 				service.name,
 				startDate,
@@ -169,7 +174,8 @@ class AutomaticTicketService {
 				isManual: false, // Es automático
 				description,
 				serviceStart: startDate,
-				serviceEnd: proportionalEndDate
+				serviceEnd: proportionalEndDate,
+				paymentMethod
 			});
 
 			console.log(`✅ Ticket proporcional creado exitosamente:`, {

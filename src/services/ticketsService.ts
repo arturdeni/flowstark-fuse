@@ -273,11 +273,16 @@ export const ticketsService = {
 			// Usar imports dinámicos para evitar circular dependencies
 			const { subscriptionsService } = await import('./subscriptionsService');
 			const { servicesService } = await import('./servicesService');
+			const { clientsService } = await import('./clientsService');
 			const { calculateServicePeriod } = await import('../utils/servicePeriodCalculator');
 
 			// Obtener datos de la suscripción y servicio
 			const subscription = await subscriptionsService.getSubscriptionById(subscriptionId);
 			const service = await servicesService.getServiceById(subscription.serviceId);
+
+			// Obtener el método de pago del cliente
+			const client = await clientsService.getClientById(subscription.clientId);
+			const paymentMethod = client.paymentMethod?.type || undefined;
 
 			// Calcular período de servicio
 			const servicePeriod = calculateServicePeriod(
@@ -297,7 +302,8 @@ export const ticketsService = {
 				isManual: true,
 				description: description || servicePeriod.description,
 				serviceStart: servicePeriod.start,
-				serviceEnd: servicePeriod.end
+				serviceEnd: servicePeriod.end,
+				paymentMethod
 			});
 		} catch (error) {
 			console.error('Error creating manual ticket with period:', error);

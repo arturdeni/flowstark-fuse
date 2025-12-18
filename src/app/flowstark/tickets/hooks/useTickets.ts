@@ -32,6 +32,9 @@ export const useTickets = () => {
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'paid'>(
     'all'
   );
+  const [paymentMethodFilter, setPaymentMethodFilter] = useState<'all' | 'card' | 'transfer' | 'cash' | 'direct_debit'>('all');
+  const [startDateFilter, setStartDateFilter] = useState<Date | null>(null);
+  const [endDateFilter, setEndDateFilter] = useState<Date | null>(null);
 
   // Snackbar
   const [snackbar, setSnackbar] = useState<SnackbarState>({
@@ -81,8 +84,12 @@ export const useTickets = () => {
         ? servicesMap.get(subscription.serviceId)
         : undefined;
 
+      // Si el ticket no tiene paymentMethod, obtenerlo del cliente
+      const paymentMethod = ticket.paymentMethod || client?.paymentMethod?.type;
+
       return {
         ...ticket,
+        paymentMethod,
         subscriptionInfo: subscription,
         clientInfo: client,
         serviceInfo: service,
@@ -164,8 +171,29 @@ export const useTickets = () => {
       filtered = filtered.filter((ticket) => ticket.status === statusFilter);
     }
 
+    // Filtrar por método de pago
+    if (paymentMethodFilter !== 'all') {
+      filtered = filtered.filter((ticket) => ticket.paymentMethod === paymentMethodFilter);
+    }
+
+    // Filtrar por fecha desde
+    if (startDateFilter) {
+      filtered = filtered.filter((ticket) => {
+        const ticketDate = new Date(ticket.dueDate);
+        return ticketDate >= startDateFilter;
+      });
+    }
+
+    // Filtrar por fecha hasta
+    if (endDateFilter) {
+      filtered = filtered.filter((ticket) => {
+        const ticketDate = new Date(ticket.dueDate);
+        return ticketDate <= endDateFilter;
+      });
+    }
+
     return filtered;
-  }, [tickets, searchTerm, statusFilter]);
+  }, [tickets, searchTerm, statusFilter, paymentMethodFilter, startDateFilter, endDateFilter]);
 
   // Crear ticket
   const createTicket = async (
@@ -256,6 +284,9 @@ export const useTickets = () => {
     services,
     searchTerm,
     statusFilter,
+    paymentMethodFilter,
+    startDateFilter,
+    endDateFilter,
     loading,
     error,
     snackbar,
@@ -263,6 +294,9 @@ export const useTickets = () => {
     // Acciones
     setSearchTerm,
     setStatusFilter,
+    setPaymentMethodFilter,
+    setStartDateFilter,
+    setEndDateFilter,
     refreshData, // Este botón ahora solo actualiza la vista local con datos de Firebase
     createTicket,
     updateTicket,

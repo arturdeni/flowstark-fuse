@@ -77,6 +77,7 @@ export interface Ticket {
 	description?: string; // Descripción opcional del ticket
 	serviceStart: Date; // Fecha de inicio del período de servicio
 	serviceEnd: Date; // Fecha de fin del período de servicio
+	paymentMethod?: string; // Método de pago del cliente (card, transfer, cash, direct_debit)
 	createdAt?: Date;
 	updatedAt?: Date;
 }

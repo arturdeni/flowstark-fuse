@@ -3,13 +3,8 @@ import React from 'react';
 import {
   Box,
   TextField,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
   Button,
   Typography,
-  SelectChangeEvent,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -21,28 +16,24 @@ import { downloadTicketsXML } from '../utils/xmlGenerator';
 
 interface TicketSearchAndActionsProps {
   searchTerm: string;
-  statusFilter: 'all' | 'pending' | 'paid';
   ticketCount: number;
   paidCount: number;
   pendingCount: number;
   loading: boolean;
   tickets: TicketWithRelations[];
   onSearchChange: (term: string) => void;
-  onStatusFilterChange: (status: 'all' | 'pending' | 'paid') => void;
   onAddTicket: () => void;
   onRefresh: () => void;
 }
 
 export const TicketSearchAndActions: React.FC<TicketSearchAndActionsProps> = ({
   searchTerm,
-  statusFilter,
   ticketCount,
   paidCount,
   pendingCount,
   loading,
   tickets,
   onSearchChange,
-  onStatusFilterChange,
   onAddTicket,
   onRefresh,
 }) => {
@@ -50,16 +41,12 @@ export const TicketSearchAndActions: React.FC<TicketSearchAndActionsProps> = ({
     onSearchChange(event.target.value);
   };
 
-  const handleStatusChange = (event: SelectChangeEvent) => {
-    onStatusFilterChange(event.target.value as 'all' | 'pending' | 'paid');
-  };
-
   const handleDownloadXML = () => {
     downloadTicketsXML(tickets);
   };
 
   return (
-    <Box sx={{ mb: 3 }}>
+    <Box sx={{ mb: 1 }}>
       <Box
         sx={{
           display: 'flex',
@@ -77,20 +64,6 @@ export const TicketSearchAndActions: React.FC<TicketSearchAndActionsProps> = ({
           size="small"
           sx={{ minWidth: 200, flex: 1 }}
         />
-
-        {/* Filtro por estado */}
-        <FormControl size="small" sx={{ minWidth: 120 }}>
-          <InputLabel id="status-filter-label">Estado</InputLabel>
-          <Select
-            value={statusFilter}
-            label="Estado"
-            onChange={handleStatusChange}
-          >
-            <MenuItem value="all">Todos los estados</MenuItem>
-            <MenuItem value="pending">Pendientes</MenuItem>
-            <MenuItem value="paid">Pagados</MenuItem>
-          </Select>
-        </FormControl>
 
         {/* Botón de descarga XML */}
         {ticketCount > 0 && (
@@ -138,27 +111,6 @@ export const TicketSearchAndActions: React.FC<TicketSearchAndActionsProps> = ({
             Nuevo Ticket
           </Button>
         </Box>
-      </Box>
-
-      {/* Información adicional con estadísticas */}
-      <Box sx={{ display: 'flex', gap: 3, alignItems: 'center' }}>
-        <Typography variant="body2" color="text.secondary">
-          {ticketCount === 0
-            ? 'No se encontraron tickets'
-            : `Mostrando ${ticketCount} ticket${ticketCount !== 1 ? 's' : ''}`
-          }
-        </Typography>
-
-        {ticketCount > 0 && (
-          <>
-            <Typography variant="body2" color="success.main">
-              {paidCount} pagados
-            </Typography>
-            <Typography variant="body2" color="warning.main">
-              {pendingCount} pendientes
-            </Typography>
-          </>
-        )}
       </Box>
     </Box>
   );

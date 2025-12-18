@@ -48,12 +48,12 @@ const StatusChip = styled(Chip)<{ status: 'paid' | 'pending' }>(({ theme, status
     height: 24,
     fontWeight: 500,
     ...(status === 'paid' && {
-        backgroundColor: theme.palette.success.light,
-        color: theme.palette.success.dark,
+        backgroundColor: '#E8F5E9',
+        color: '#2C645E',
     }),
     ...(status === 'pending' && {
-        backgroundColor: theme.palette.warning.light,
-        color: theme.palette.warning.dark,
+        backgroundColor: '#FFF3E0',
+        color: '#E65100',
     }),
 }));
 
@@ -127,6 +127,20 @@ export const TicketsTable: React.FC<TicketsTableProps> = ({
     // Función para obtener el nombre del servicio
     const getServiceName = (ticket: TicketWithRelations) => {
         return ticket.serviceInfo?.name || 'Servicio no encontrado';
+    };
+
+    // Función para obtener el texto del método de pago
+    const getPaymentMethodText = (paymentMethod?: string): string => {
+        if (!paymentMethod) return '-';
+
+        const paymentMethods: Record<string, string> = {
+            card: 'Tarjeta',
+            transfer: 'Transferencia',
+            cash: 'Efectivo',
+            direct_debit: 'Domiciliación',
+        };
+
+        return paymentMethods[paymentMethod] || paymentMethod;
     };
 
     // Función para determinar si una fecha está vencida
@@ -338,12 +352,9 @@ export const TicketsTable: React.FC<TicketsTableProps> = ({
 
                                         {/* Tipo */}
                                         <CompactTableCell>
-                                            <Chip
-                                                label={ticket.isManual ? 'Manual' : 'Automático'}
-                                                size="small"
-                                                variant="outlined"
-                                                color={ticket.isManual ? 'primary' : 'default'}
-                                            />
+                                            <Typography variant="body2" fontWeight={500}>
+                                                {getPaymentMethodText(ticket.paymentMethod)}
+                                            </Typography>
                                         </CompactTableCell>
 
                                         {/* Acciones */}

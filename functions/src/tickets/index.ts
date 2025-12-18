@@ -169,6 +169,17 @@ async function generateTicketsForUser(
       servicesMap.set(doc.id, { id: doc.id, ...doc.data() } as Service);
     });
 
+    // Obtener clientes para obtener el método de pago
+    const clientsSnapshot = await db
+      .collection("users")
+      .doc(userId)
+      .collection("clients")
+      .get();
+    const clientsMap = new Map<string, any>();
+    clientsSnapshot.docs.forEach((doc) => {
+      clientsMap.set(doc.id, { id: doc.id, ...doc.data() });
+    });
+
     // Obtener tickets existentes para evitar duplicados
     const ticketsSnapshot = await db
       .collection("users")
@@ -224,6 +235,10 @@ async function generateTicketsForUser(
           service.name
         );
 
+        // Obtener el método de pago del cliente
+        const client = clientsMap.get(subscription.clientId);
+        const paymentMethod = client?.paymentMethod?.type || undefined;
+
         // Crear nuevo ticket automático con período de servicio
         const ticketData = {
           subscriptionId: subscription.id,
@@ -236,6 +251,8 @@ async function generateTicketsForUser(
           // ✅ NUEVOS CAMPOS: Período de servicio
           serviceStart: admin.firestore.Timestamp.fromDate(servicePeriod.start),
           serviceEnd: admin.firestore.Timestamp.fromDate(servicePeriod.end),
+          // ✅ NUEVO CAMPO: Método de pago del cliente
+          paymentMethod,
           createdAt: admin.firestore.Timestamp.now(),
           updatedAt: admin.firestore.Timestamp.now(),
         };

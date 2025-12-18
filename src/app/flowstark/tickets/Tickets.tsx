@@ -9,6 +9,7 @@ import {
   TicketsTable,
   TicketForm,
   TicketSearchAndActions,
+  TicketFilters,
   TicketDetailModal,
   DeleteConfirmDialog,
   PaymentDateDialog,
@@ -48,6 +49,9 @@ const Tickets: React.FC = () => {
     services,
     searchTerm,
     statusFilter,
+    paymentMethodFilter,
+    startDateFilter,
+    endDateFilter,
     loading,
     error,
     snackbar,
@@ -55,6 +59,9 @@ const Tickets: React.FC = () => {
     // Acciones
     setSearchTerm,
     setStatusFilter,
+    setPaymentMethodFilter,
+    setStartDateFilter,
+    setEndDateFilter,
     refreshData, // Ahora solo actualiza la vista local
     createTicket,
     updateTicket,
@@ -188,17 +195,48 @@ const Tickets: React.FC = () => {
           {/* Barra de búsqueda y acciones */}
           <TicketSearchAndActions
             searchTerm={searchTerm}
-            statusFilter={statusFilter}
             ticketCount={ticketStats.total}
             paidCount={ticketStats.paid}
             pendingCount={ticketStats.pending}
             loading={loading}
             tickets={filteredTickets}
             onSearchChange={setSearchTerm}
-            onStatusFilterChange={setStatusFilter}
             onAddTicket={() => handleOpenForm()}
             onRefresh={refreshData} // Solo actualiza la vista local
           />
+
+          {/* Filtros avanzados */}
+          <TicketFilters
+            statusFilter={statusFilter}
+            paymentMethodFilter={paymentMethodFilter}
+            startDateFilter={startDateFilter}
+            endDateFilter={endDateFilter}
+            onStatusFilterChange={setStatusFilter}
+            onPaymentMethodFilterChange={setPaymentMethodFilter}
+            onStartDateChange={setStartDateFilter}
+            onEndDateChange={setEndDateFilter}
+          />
+
+          {/* Información adicional con estadísticas */}
+          <Box sx={{ display: 'flex', gap: 3, alignItems: 'center', mb: 3 }}>
+            <Typography variant="body2" color="text.secondary">
+              {ticketStats.total === 0
+                ? 'No se encontraron tickets'
+                : `Mostrando ${ticketStats.total} ticket${ticketStats.total !== 1 ? 's' : ''}`
+              }
+            </Typography>
+
+            {ticketStats.total > 0 && (
+              <>
+                <Typography variant="body2" sx={{ color: '#2C645E', fontWeight: 500 }}>
+                  {ticketStats.paid} pagados
+                </Typography>
+                <Typography variant="body2" sx={{ color: '#E65100', fontWeight: 500 }}>
+                  {ticketStats.pending} pendientes
+                </Typography>
+              </>
+            )}
+          </Box>
 
           {/* Mensaje informativo sobre la generación automática */}
           {ticketStats.total === 0 && !loading && (
