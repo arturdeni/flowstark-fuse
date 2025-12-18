@@ -4,6 +4,7 @@ import { Box, Snackbar, Alert, Typography } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import FusePageSimple from '@fuse/core/FusePageSimple';
 import { useTickets } from './hooks/useTickets';
+import { useTicketSelection } from './hooks/useTicketSelection';
 import { TicketWithRelations } from '../../../types/models';
 import {
   TicketsTable,
@@ -70,6 +71,18 @@ const Tickets: React.FC = () => {
     markAsPending,
     closeSnackbar,
   } = useTickets();
+
+  // Hook de selección de tickets
+  const {
+    selectedTickets,
+    selectedCount,
+    isSelected,
+    isAllSelected,
+    isIndeterminate,
+    toggleTicketSelection,
+    toggleSelectAll,
+    clearSelection,
+  } = useTicketSelection(filteredTickets);
 
   // Estadísticas de tickets
   const ticketStats = useMemo(() => {
@@ -203,6 +216,9 @@ const Tickets: React.FC = () => {
             onSearchChange={setSearchTerm}
             onAddTicket={() => handleOpenForm()}
             onRefresh={refreshData} // Solo actualiza la vista local
+            selectedTickets={selectedTickets}
+            selectedCount={selectedCount}
+            onClearSelection={clearSelection}
           />
 
           {/* Filtros avanzados */}
@@ -270,6 +286,11 @@ const Tickets: React.FC = () => {
             onViewDetail={handleViewDetail}
             onMarkAsPaid={handleMarkAsPaidClick}
             onMarkAsPending={markAsPending}
+            isSelected={isSelected}
+            isAllSelected={isAllSelected}
+            isIndeterminate={isIndeterminate}
+            onToggleSelection={toggleTicketSelection}
+            onToggleSelectAll={toggleSelectAll}
           />
 
           {/* Formulario para añadir/editar ticket */}

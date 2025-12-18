@@ -10,6 +10,7 @@ import {
   Add as AddIcon,
   Refresh as RefreshIcon,
   Download as DownloadIcon,
+  Clear as ClearIcon,
 } from '@mui/icons-material';
 import { TicketWithRelations } from '../../../../types/models';
 import { downloadTicketsXML } from '../utils/xmlGenerator';
@@ -24,6 +25,10 @@ interface TicketSearchAndActionsProps {
   onSearchChange: (term: string) => void;
   onAddTicket: () => void;
   onRefresh: () => void;
+  // Props para selección
+  selectedTickets?: TicketWithRelations[];
+  selectedCount?: number;
+  onClearSelection?: () => void;
 }
 
 export const TicketSearchAndActions: React.FC<TicketSearchAndActionsProps> = ({
@@ -36,13 +41,18 @@ export const TicketSearchAndActions: React.FC<TicketSearchAndActionsProps> = ({
   onSearchChange,
   onAddTicket,
   onRefresh,
+  selectedTickets = [],
+  selectedCount = 0,
+  onClearSelection,
 }) => {
   const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     onSearchChange(event.target.value);
   };
 
   const handleDownloadXML = () => {
-    downloadTicketsXML(tickets);
+    // Si hay tickets seleccionados, descargar solo esos, sino descargar todos
+    const ticketsToDownload = selectedCount > 0 ? selectedTickets : tickets;
+    downloadTicketsXML(ticketsToDownload);
   };
 
   return (
@@ -65,6 +75,28 @@ export const TicketSearchAndActions: React.FC<TicketSearchAndActionsProps> = ({
           sx={{ minWidth: 200, flex: 1 }}
         />
 
+        {/* Mostrar cantidad de seleccionados */}
+        {selectedCount > 0 && (
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Typography variant="body2" color="primary" fontWeight={500}>
+              {selectedCount} seleccionado{selectedCount !== 1 ? 's' : ''}
+            </Typography>
+            <Button
+              variant="text"
+              size="small"
+              startIcon={<ClearIcon />}
+              onClick={onClearSelection}
+              sx={{
+                textTransform: 'none',
+                minWidth: 'auto',
+                px: 1,
+              }}
+            >
+              Limpiar
+            </Button>
+          </Box>
+        )}
+
         {/* Botón de descarga XML */}
         {ticketCount > 0 && (
           <Button
@@ -78,7 +110,9 @@ export const TicketSearchAndActions: React.FC<TicketSearchAndActionsProps> = ({
               fontWeight: 500,
             }}
           >
-            Descargar XML
+            {selectedCount > 0
+              ? `Descargar ${selectedCount} XML`
+              : 'Descargar XML'}
           </Button>
         )}
 

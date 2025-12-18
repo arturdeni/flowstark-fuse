@@ -16,6 +16,7 @@ import {
     CircularProgress,
     TableSortLabel,
     Tooltip,
+    Checkbox,
 } from '@mui/material';
 import {
     Edit as EditIcon,
@@ -73,6 +74,12 @@ interface TicketsTableProps {
     onViewDetail: (ticket: TicketWithRelations) => void;
     onMarkAsPaid: (ticketId: string) => void;
     onMarkAsPending: (ticketId: string) => void;
+    // Props para selección
+    isSelected?: (ticketId: string) => boolean;
+    isAllSelected?: boolean;
+    isIndeterminate?: boolean;
+    onToggleSelection?: (ticketId: string) => void;
+    onToggleSelectAll?: () => void;
 }
 
 export const TicketsTable: React.FC<TicketsTableProps> = ({
@@ -87,6 +94,12 @@ export const TicketsTable: React.FC<TicketsTableProps> = ({
     onViewDetail,
     onMarkAsPaid,
     onMarkAsPending,
+    // Props de selección
+    isSelected,
+    isAllSelected = false,
+    isIndeterminate = false,
+    onToggleSelection,
+    onToggleSelectAll,
 }) => {
     const [order, setOrder] = useState<Order>('desc');
     const [orderBy, setOrderBy] = useState<OrderBy>('dueDate');
@@ -211,6 +224,26 @@ export const TicketsTable: React.FC<TicketsTableProps> = ({
                 <Table size="small" aria-label="tabla de tickets">
                     <TableHead>
                         <TableRow>
+                            {/* Checkbox para seleccionar todos */}
+                            {onToggleSelectAll && (
+                                <HeaderTableCell padding="checkbox">
+                                    <Checkbox
+                                        checked={isAllSelected}
+                                        indeterminate={isIndeterminate}
+                                        onChange={onToggleSelectAll}
+                                        inputProps={{ 'aria-label': 'seleccionar todos los tickets' }}
+                                        sx={{
+                                            color: '#154241',
+                                            '&.Mui-checked': {
+                                                color: '#154241',
+                                            },
+                                            '&.MuiCheckbox-indeterminate': {
+                                                color: '#154241',
+                                            },
+                                        }}
+                                    />
+                                </HeaderTableCell>
+                            )}
                             <HeaderTableCell>
                                 <TableSortLabel
                                     active={orderBy === 'dueDate'}
@@ -263,7 +296,7 @@ export const TicketsTable: React.FC<TicketsTableProps> = ({
                     <TableBody>
                         {paginatedTickets.length === 0 ? (
                             <TableRow>
-                                <CompactTableCell colSpan={7} align="center">
+                                <CompactTableCell colSpan={onToggleSelectAll ? 8 : 7} align="center">
                                     <Typography variant="body2" color="text.secondary" sx={{ py: 3 }}>
                                         No se encontraron tickets
                                     </Typography>
@@ -274,11 +307,13 @@ export const TicketsTable: React.FC<TicketsTableProps> = ({
                                 const clientName = getClientName(ticket);
                                 const serviceName = getServiceName(ticket);
                                 const overdue = isOverdue(ticket.dueDate, ticket.status);
+                                const ticketSelected = isSelected ? isSelected(ticket.id!) : false;
 
                                 return (
                                     <TableRow
                                         key={ticket.id}
                                         hover
+                                        selected={ticketSelected}
                                         sx={{
                                             '&:hover': {
                                                 backgroundColor: 'action.hover',
@@ -291,6 +326,23 @@ export const TicketsTable: React.FC<TicketsTableProps> = ({
                                             }),
                                         }}
                                     >
+                                        {/* Checkbox de selección */}
+                                        {onToggleSelection && (
+                                            <CompactTableCell padding="checkbox">
+                                                <Checkbox
+                                                    checked={ticketSelected}
+                                                    onChange={() => onToggleSelection(ticket.id!)}
+                                                    inputProps={{ 'aria-label': `seleccionar ticket ${ticket.id}` }}
+                                                    sx={{
+                                                        color: '#154241',
+                                                        '&.Mui-checked': {
+                                                            color: '#154241',
+                                                        },
+                                                    }}
+                                                />
+                                            </CompactTableCell>
+                                        )}
+
                                         {/* Fecha de Vencimiento */}
                                         <CompactTableCell>
                                             <Box>
