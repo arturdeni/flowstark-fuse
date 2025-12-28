@@ -29,6 +29,9 @@ export interface UseUsersReturn {
   ) => Promise<void>;
   updateUser: (id: string, userData: Partial<Client>) => Promise<void>;
   deleteUser: (id: string) => Promise<void>;
+  importClients: (
+    clientsData: Omit<Client, 'id' | 'registeredDate' | 'active' | 'createdAt' | 'updatedAt'>[]
+  ) => Promise<void>;
   showSnackbar: (
     message: string,
     severity?: 'success' | 'error' | 'warning' | 'info'
@@ -210,6 +213,41 @@ export const useUsers = (): UseUsersReturn => {
     }
   };
 
+  // Importar múltiples clientes
+  const importClients = async (
+    clientsData: Omit<Client, 'id' | 'registeredDate' | 'active' | 'createdAt' | 'updatedAt'>[]
+  ) => {
+    setLoading(true);
+    try {
+      const result = await clientsService.importBulkClients(clientsData);
+
+      if (result.success > 0) {
+        showSnackbar(
+          `Se importaron ${result.success} cliente${result.success !== 1 ? 's' : ''} correctamente`,
+          'success'
+        );
+      }
+
+      if (result.failed > 0) {
+        showSnackbar(
+          `${result.failed} cliente${result.failed !== 1 ? 's' : ''} no se ${result.failed !== 1 ? 'pudieron' : 'pudo'} importar`,
+          'warning'
+        );
+      }
+
+      await updateUsersWithSubscriptions();
+    } catch (error) {
+      console.error('Error importing clients:', error);
+      showSnackbar(
+        `Error al importar clientes: ${error instanceof Error ? error.message : 'Error desconocido'}`,
+        'error'
+      );
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Mostrar notificación
   const showSnackbar = (
     message: string,
@@ -244,6 +282,7 @@ export const useUsers = (): UseUsersReturn => {
     createUser,
     updateUser,
     deleteUser,
+    importClients,
     showSnackbar,
     closeSnackbar,
   };

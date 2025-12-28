@@ -190,5 +190,56 @@ export const clientsService = {
 			console.error(`Error deleting client with ID ${id}: `, error);
 			throw error;
 		}
+	},
+
+	// Importar múltiples clientes de forma masiva
+	importBulkClients: async (
+		clientsData: Omit<Client, 'id' | 'registeredDate' | 'active' | 'createdAt' | 'updatedAt'>[]
+	): Promise<{ success: number; failed: number; errors: string[] }> => {
+		try {
+			const currentUser = firebase.auth().currentUser;
+
+			if (!currentUser) {
+				throw new Error('No user logged in');
+			}
+
+			const timestamp = firebase.firestore.Timestamp.now();
+			const results = {
+				success: 0,
+				failed: 0,
+				errors: [] as string[]
+			};
+
+			// Usar batch para optimizar las escrituras
+			const batch = db.batch();
+			const clientsCollection = db.collection('users').doc(currentUser.uid).collection('clients');
+
+			clientsData.forEach((clientData, index) => {
+				try {
+					const clientWithDates = {
+						...clientData,
+						registeredDate: timestamp,
+						active: true,
+						createdAt: timestamp,
+						updatedAt: timestamp
+					};
+
+					const docRef = clientsCollection.doc(); // Genera un ID automáticamente
+					batch.set(docRef, clientWithDates);
+					results.success++;
+				} catch (error) {
+					results.failed++;
+					results.errors.push(`Fila ${index + 2}: ${error instanceof Error ? error.message : 'Error desconocido'}`);
+				}
+			});
+
+			// Ejecutar todas las escrituras en batch
+			await batch.commit();
+
+			return results;
+		} catch (error) {
+			console.error('Error importing bulk clients: ', error);
+			throw error;
+		}
 	}
 };

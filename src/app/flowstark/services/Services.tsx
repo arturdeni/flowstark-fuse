@@ -10,7 +10,8 @@ import {
   ServiceForm,
   SearchAndActions,
   DeleteConfirmDialog,
-  ServiceDetailModal, // Nuevo componente
+  ServiceDetailModal,
+  ImportServicesModal,
 } from './components';
 
 const Root = styled(FusePageSimple)(({ theme }) => ({
@@ -37,6 +38,7 @@ const Services: React.FC = () => {
   // NUEVO: Estado para el modal de detalles
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [serviceToView, setServiceToView] = useState<Service | null>(null);
+  const [importModalOpen, setImportModalOpen] = useState(false);
 
   const {
     // Estados
@@ -50,6 +52,7 @@ const Services: React.FC = () => {
     createService,
     updateService,
     deleteService,
+    importServices,
 
     // Handlers
     handleSearchChange,
@@ -103,6 +106,18 @@ const Services: React.FC = () => {
     setServiceToView(null);
   };
 
+  const handleOpenImportModal = () => {
+    setImportModalOpen(true);
+  };
+
+  const handleCloseImportModal = () => {
+    setImportModalOpen(false);
+  };
+
+  const handleImportServices = async (services: Partial<Service>[]) => {
+    await importServices(services as Omit<Service, 'id' | 'active' | 'activeSubscriptions' | 'createdAt' | 'updatedAt'>[]);
+  };
+
   return (
     <Root
       header={
@@ -119,7 +134,7 @@ const Services: React.FC = () => {
             searchTerm={searchTerm}
             onSearchChange={handleSearchChange}
             onAddNew={() => handleOpenForm()}
-            onRefresh={refreshData}
+            onImport={handleOpenImportModal}
             loading={loading}
           />
 
@@ -159,6 +174,14 @@ const Services: React.FC = () => {
             loading={loading}
             onConfirm={handleConfirmDelete}
             onCancel={handleCancelDelete}
+          />
+
+          {/* Modal de importación de servicios */}
+          <ImportServicesModal
+            open={importModalOpen}
+            loading={loading}
+            onClose={handleCloseImportModal}
+            onImport={handleImportServices}
           />
 
           {/* Snackbar para notificaciones */}

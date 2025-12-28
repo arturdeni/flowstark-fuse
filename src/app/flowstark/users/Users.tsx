@@ -16,6 +16,7 @@ import {
   UsersTable,
   UserForm,
   DeleteConfirmDialog,
+  ImportClientsModal,
 } from './components';
 
 const Root = styled(FusePageSimple)(({ theme }) => ({
@@ -36,6 +37,7 @@ function Users() {
   const [formOpen, setFormOpen] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState<string | null>(null);
+  const [importModalOpen, setImportModalOpen] = useState(false);
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(25);
 
@@ -50,6 +52,7 @@ function Users() {
     createUser,
     updateUser,
     deleteUser,
+    importClients,
     closeSnackbar,
   } = useUsers();
 
@@ -98,6 +101,18 @@ function Users() {
     setUserToDelete(null);
   };
 
+  const handleOpenImportModal = () => {
+    setImportModalOpen(true);
+  };
+
+  const handleCloseImportModal = () => {
+    setImportModalOpen(false);
+  };
+
+  const handleImportClients = async (clients: Partial<Client>[]) => {
+    await importClients(clients as Omit<Client, 'id' | 'registeredDate' | 'active' | 'createdAt' | 'updatedAt'>[]);
+  };
+
   return (
     <Root
       header={
@@ -115,7 +130,7 @@ function Users() {
             loading={loading}
             onSearchChange={handleSearchChange}
             onAddNew={() => handleOpenForm()}
-            onRefresh={refreshData}
+            onImport={handleOpenImportModal}
           />
 
           {/* Tabla de usuarios */}
@@ -146,6 +161,14 @@ function Users() {
             loading={loading}
             onConfirm={handleConfirmDelete}
             onCancel={handleCancelDelete}
+          />
+
+          {/* Modal de importación de clientes */}
+          <ImportClientsModal
+            open={importModalOpen}
+            loading={loading}
+            onClose={handleCloseImportModal}
+            onImport={handleImportClients}
           />
 
           {/* Snackbar para notificaciones */}

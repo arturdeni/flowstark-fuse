@@ -9,7 +9,7 @@ import {
 import {
     Add as AddIcon,
     Search as SearchIcon,
-    Refresh as RefreshIcon,
+    CloudUpload as ImportIcon,
 } from '@mui/icons-material';
 
 interface UserSearchAndActionsProps {
@@ -17,7 +17,7 @@ interface UserSearchAndActionsProps {
     loading: boolean;
     onSearchChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
     onAddNew: () => void;
-    onRefresh: () => void;
+    onImport: () => void;
 }
 
 export const UserSearchAndActions: React.FC<UserSearchAndActionsProps> = ({
@@ -25,7 +25,7 @@ export const UserSearchAndActions: React.FC<UserSearchAndActionsProps> = ({
     loading,
     onSearchChange,
     onAddNew,
-    onRefresh,
+    onImport,
 }) => {
     return (
         <Box sx={{ display: 'flex', mb: 3 }}>
@@ -61,11 +61,11 @@ export const UserSearchAndActions: React.FC<UserSearchAndActionsProps> = ({
             <Button
                 variant="outlined"
                 color="primary"
-                startIcon={<RefreshIcon />}
-                onClick={onRefresh}
+                startIcon={<ImportIcon />}
+                onClick={onImport}
                 disabled={loading}
             >
-                Actualizar
+                Importar
             </Button>
         </Box>
     );

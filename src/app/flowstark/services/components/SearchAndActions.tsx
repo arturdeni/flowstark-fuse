@@ -9,14 +9,14 @@ import {
 import {
   Add as AddIcon,
   Search as SearchIcon,
-  Refresh as RefreshIcon,
+  CloudUpload as ImportIcon,
 } from '@mui/icons-material';
 
 interface SearchAndActionsProps {
   searchTerm: string;
   onSearchChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onAddNew: () => void;
-  onRefresh: () => void;
+  onImport: () => void;
   loading?: boolean;
 }
 
@@ -24,7 +24,7 @@ export const SearchAndActions: React.FC<SearchAndActionsProps> = ({
   searchTerm,
   onSearchChange,
   onAddNew,
-  onRefresh,
+  onImport,
   loading = false,
 }) => {
   return (
@@ -60,11 +60,11 @@ export const SearchAndActions: React.FC<SearchAndActionsProps> = ({
       <Button
         variant="outlined"
         color="primary"
-        startIcon={<RefreshIcon />}
-        onClick={onRefresh}
+        startIcon={<ImportIcon />}
+        onClick={onImport}
         disabled={loading}
       >
-        Actualizar
+        Importar
       </Button>
     </Box>
   );

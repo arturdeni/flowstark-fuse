@@ -226,5 +226,56 @@ export const servicesService = {
 			console.error('Error getting active services: ', error);
 			throw error;
 		}
+	},
+
+	// Importar múltiples servicios de forma masiva
+	importBulkServices: async (
+		servicesData: Omit<Service, 'id' | 'active' | 'activeSubscriptions' | 'createdAt' | 'updatedAt'>[]
+	): Promise<{ success: number; failed: number; errors: string[] }> => {
+		try {
+			const currentUser = firebase.auth().currentUser;
+
+			if (!currentUser) {
+				throw new Error('No user logged in');
+			}
+
+			const timestamp = firebase.firestore.Timestamp.now();
+			const results = {
+				success: 0,
+				failed: 0,
+				errors: [] as string[]
+			};
+
+			// Usar batch para optimizar las escrituras
+			const batch = db.batch();
+			const servicesCollection = db.collection('users').doc(currentUser.uid).collection('services');
+
+			servicesData.forEach((serviceData, index) => {
+				try {
+					const serviceWithDates = {
+						...serviceData,
+						active: true,
+						activeSubscriptions: 0,
+						createdAt: timestamp,
+						updatedAt: timestamp
+					};
+
+					const docRef = servicesCollection.doc(); // Genera un ID automáticamente
+					batch.set(docRef, serviceWithDates);
+					results.success++;
+				} catch (error) {
+					results.failed++;
+					results.errors.push(`Fila ${index + 2}: ${error instanceof Error ? error.message : 'Error desconocido'}`);
+				}
+			});
+
+			// Ejecutar todas las escrituras en batch
+			await batch.commit();
+
+			return results;
+		} catch (error) {
+			console.error('Error importing bulk services: ', error);
+			throw error;
+		}
 	}
 };

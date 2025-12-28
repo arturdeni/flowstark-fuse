@@ -190,6 +190,41 @@ export const useServices = () => {
     }
   };
 
+  // Importar múltiples servicios
+  const importServices = async (
+    servicesData: Omit<Service, 'id' | 'active' | 'activeSubscriptions' | 'createdAt' | 'updatedAt'>[]
+  ) => {
+    setLoading(true);
+    try {
+      const result = await servicesService.importBulkServices(servicesData);
+
+      if (result.success > 0) {
+        showSnackbar(
+          `Se importaron ${result.success} servicio${result.success !== 1 ? 's' : ''} correctamente`,
+          'success'
+        );
+      }
+
+      if (result.failed > 0) {
+        showSnackbar(
+          `${result.failed} servicio${result.failed !== 1 ? 's' : ''} no se ${result.failed !== 1 ? 'pudieron' : 'pudo'} importar`,
+          'warning'
+        );
+      }
+
+      await refreshData();
+    } catch (error) {
+      console.error('Error importing services:', error);
+      showSnackbar(
+        `Error al importar servicios: ${error instanceof Error ? error.message : 'Error desconocido'}`,
+        'error'
+      );
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Handlers para paginación
   const handleChangePage = (event: unknown, newPage: number) => {
     setPage(newPage);
@@ -256,6 +291,7 @@ export const useServices = () => {
     createService,
     updateService,
     deleteService,
+    importServices,
     // recalculateSubscriptionCounts - ELIMINADO (ya no se necesita por separado)
 
     // Handlers
