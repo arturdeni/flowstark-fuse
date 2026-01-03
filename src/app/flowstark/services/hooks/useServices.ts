@@ -238,8 +238,8 @@ export const useServices = () => {
   };
 
   // Handlers para búsqueda
-  const handleSearchChange = (value: string) => {
-    setSearchTerm(value);
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchTerm(e.target.value);
     setPage(0); // Reset página al buscar
   };
 
