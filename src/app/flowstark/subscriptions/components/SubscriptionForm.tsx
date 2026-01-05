@@ -321,9 +321,10 @@ export const SubscriptionForm: React.FC<SubscriptionFormProps> = ({
                             <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 2 }}>
                                 {/* Fecha de inicio */}
                                 <DatePicker
-                                    label="Fecha de Inicio *"
+                                    label="Fecha de Inicio"
                                     value={formData.startDate}
                                     onChange={(date) => handleDateChange('startDate', date)}
+                                    minDate={new Date()}
                                     slotProps={{
                                         textField: {
                                             variant: 'outlined',

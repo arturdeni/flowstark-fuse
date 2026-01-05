@@ -41,7 +41,6 @@ interface FormData {
     vat: number | string;
     retention: number | string;
     frequency: 'monthly' | 'quarterly' | 'four_monthly' | 'biannual' | 'annual';
-    renovation: 'first_day' | 'last_day';
 }
 
 export const ServiceForm: React.FC<ServiceFormProps> = ({
@@ -60,7 +59,6 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
         vat: 21,
         retention: 0,
         frequency: 'monthly',
-        renovation: 'first_day',
     });
 
     const [validationError, setValidationError] = useState<string>('');
@@ -77,7 +75,6 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
                 vat: selectedService.vat || 21,
                 retention: (selectedService as any).retention || 0,
                 frequency: selectedService.frequency || 'monthly',
-                renovation: selectedService.renovation || 'first_day',
             });
         } else {
             setFormData({
@@ -88,7 +85,6 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
                 vat: 21,
                 retention: 0,
                 frequency: 'monthly',
-                renovation: 'first_day',
             });
         }
 
@@ -499,39 +495,23 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
                     <Typography variant="h6" gutterBottom>
                         Configuración de facturación
                     </Typography>
-                    
-                    <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 2 }}>
-                        <FormControl size="small" required>
-                            <InputLabel id="frequency-select-label">Frecuencia de Renovación</InputLabel>
-                            <Select
-                                labelId="frequency-select-label"
-                                name="frequency"
-                                value={formData.frequency}
-                                label="Frecuencia de Renovación"
-                                onChange={handleInputChange}
-                            >
-                                <MenuItem value="monthly">Mensual</MenuItem>
-                                <MenuItem value="quarterly">Trimestral</MenuItem>
-                                <MenuItem value="four_monthly">Cuatrimestral</MenuItem>
-                                <MenuItem value="biannual">Semestral</MenuItem>
-                                <MenuItem value="annual">Anual</MenuItem>
-                            </Select>
-                        </FormControl>
 
-                        <FormControl size="small">
-                            <InputLabel id="renovation-select-label">Día de Renovación</InputLabel>
-                            <Select
-                                labelId="renovation-select-label"
-                                name="renovation"
-                                value={formData.renovation}
-                                label="Día de Renovación"
-                                onChange={handleInputChange}
-                            >
-                                <MenuItem value="first_day">Primer día del período</MenuItem>
-                                <MenuItem value="last_day">Último día del período</MenuItem>
-                            </Select>
-                        </FormControl>
-                    </Box>
+                    <FormControl size="small" required fullWidth>
+                        <InputLabel id="frequency-select-label">Frecuencia de Renovación</InputLabel>
+                        <Select
+                            labelId="frequency-select-label"
+                            name="frequency"
+                            value={formData.frequency}
+                            label="Frecuencia de Renovación"
+                            onChange={handleInputChange}
+                        >
+                            <MenuItem value="monthly">Mensual</MenuItem>
+                            <MenuItem value="quarterly">Trimestral</MenuItem>
+                            <MenuItem value="four_monthly">Cuatrimestral</MenuItem>
+                            <MenuItem value="biannual">Semestral</MenuItem>
+                            <MenuItem value="annual">Anual</MenuItem>
+                        </Select>
+                    </FormControl>
                 </Box>
             </DialogContent>
 

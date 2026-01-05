@@ -15,11 +15,14 @@ export interface ProportionalTicketConfig {
 
 class AutomaticTicketService {
 	/**
-	 * Calcula los días entre dos fechas
+	 * Calcula los días entre dos fechas (INCLUSIVO)
+	 * Ejemplo: del 5 al 31 de enero = 27 días (5, 6, 7, ..., 31)
 	 */
 	private calculateDaysBetween(startDate: Date, endDate: Date): number {
 		const timeDiff = endDate.getTime() - startDate.getTime();
-		return Math.ceil(timeDiff / (1000 * 3600 * 24));
+		const daysDifference = Math.ceil(timeDiff / (1000 * 3600 * 24));
+		// Sumar 1 para contar inclusivamente (ambos días cuentan)
+		return daysDifference + 1;
 	}
 
 	/**
@@ -31,7 +34,7 @@ class AutomaticTicketService {
 			[ServiceFrequency.QUARTERLY]: 90,
 			[ServiceFrequency.FOUR_MONTHLY]: 120,
 			[ServiceFrequency.BIANNUAL]: 180,
-			[ServiceFrequency.ANNUAL]: 360
+			[ServiceFrequency.ANNUAL]: 365
 		};
 
 		return dayMappings[frequency];
@@ -104,50 +107,27 @@ class AutomaticTicketService {
 	}
 
 	/**
-	 * Calcula la siguiente fecha de pago después de generar un ticket proporcional
-	 * Para pagos anticipados mensuales: el día 1 del mes siguiente
-	 */
-	private calculateNextPaymentDate(currentPaymentDate: Date, frequency: ServiceFrequency): Date {
-		const nextDate = new Date(currentPaymentDate);
-
-		switch (frequency) {
-			case ServiceFrequency.MONTHLY:
-				// Para mensual: el día 1 del mes siguiente
-				nextDate.setMonth(nextDate.getMonth() + 1);
-				nextDate.setDate(1);
-				break;
-			case ServiceFrequency.QUARTERLY:
-				// Para trimestral: 3 meses después
-				nextDate.setMonth(nextDate.getMonth() + 3);
-				break;
-			case ServiceFrequency.FOUR_MONTHLY:
-				// Para cuatrimestral: 4 meses después
-				nextDate.setMonth(nextDate.getMonth() + 4);
-				break;
-			case ServiceFrequency.BIANNUAL:
-				// Para semestral: 6 meses después
-				nextDate.setMonth(nextDate.getMonth() + 6);
-				break;
-			case ServiceFrequency.ANNUAL:
-				// Para anual: 1 año después
-				nextDate.setFullYear(nextDate.getFullYear() + 1);
-				break;
-			default:
-				// Por defecto: 1 mes después
-				nextDate.setMonth(nextDate.getMonth() + 1);
-		}
-
-		return nextDate;
-	}
-
-	/**
 	 * Crea un ticket automático para el período proporcional de una nueva suscripción
 	 */
 	async createProportionalTicket(config: ProportionalTicketConfig): Promise<void> {
 		try {
 			const { subscriptionId, startDate, nextPaymentDate, servicePrice, frequency } = config;
 
-			// 1. Validar que las fechas sean coherentes
+			// 1. ✅ VALIDAR QUE LA SUSCRIPCIÓN YA HA COMENZADO (no es futura)
+			const today = new Date();
+			today.setHours(0, 0, 0, 0);
+
+			const startDateOnly = new Date(startDate);
+			startDateOnly.setHours(0, 0, 0, 0);
+
+			if (startDateOnly > today) {
+				console.log(
+					'No se genera ticket proporcional: la suscripción es futura (startDate > hoy). La Cloud Function lo generará cuando llegue la fecha.'
+				);
+				return;
+			}
+
+			// 2. Validar que las fechas sean coherentes
 			if (startDate >= nextPaymentDate) {
 				console.log(
 					'No se requiere ticket proporcional: la fecha de inicio es igual o posterior al próximo pago'
@@ -176,14 +156,36 @@ class AutomaticTicketService {
 				return;
 			}
 
-			// 4. Calcular precio proporcional
+			// 4. ✅ Calcular precio proporcional
 			const totalDaysInPeriod = this.getTotalDaysForFrequency(frequency);
-			const proportionalPrice = this.calculateProportionalPrice(servicePrice, daysUsed, totalDaysInPeriod);
+
+			// ✅ CASO ESPECIAL: Si startDate es día 1 del mes y paymentDate es último día del mismo mes,
+			// significa que el ticket cubre TODO el mes → precio COMPLETO
+			const isStartDayOne = startDate.getDate() === 1;
+			const isFullMonthCoverage =
+				startDate.getMonth() === nextPaymentDate.getMonth() &&
+				startDate.getFullYear() === nextPaymentDate.getFullYear();
+
+			const proportionalPrice =
+				isStartDayOne && isFullMonthCoverage
+					? servicePrice // Precio completo si cubre el mes entero
+					: this.calculateProportionalPrice(servicePrice, daysUsed, totalDaysInPeriod);
 
 			if (proportionalPrice <= 0) {
 				console.log('No se crea ticket proporcional: precio calculado es 0');
 				return;
 			}
+
+			console.log('📊 Cálculo de precio:', {
+				startDate: startDate.toDateString(),
+				nextPaymentDate: nextPaymentDate.toDateString(),
+				daysUsed,
+				totalDaysInPeriod,
+				isStartDayOne,
+				isFullMonthCoverage,
+				servicePrice,
+				proportionalPrice
+			});
 
 			// 5. ✅ CORREGIDO: Obtener información del servicio correctamente
 			const subscription = await subscriptionsService.getSubscriptionById(subscriptionId);
@@ -201,25 +203,18 @@ class AutomaticTicketService {
 				totalDaysInPeriod
 			);
 
-			// 6. Crear el ticket proporcional
+			// 6. ✅ Crear el ticket proporcional con dueDate = HOY
 			await ticketsService.createTicket({
 				subscriptionId,
-				dueDate: nextPaymentDate, // El ticket vence en la próxima fecha de pago
+				dueDate: today, // ✅ El ticket vence HOY (no en nextPaymentDate)
 				amount: proportionalPrice,
 				status: 'pending',
-				generatedDate: new Date(),
+				generatedDate: today,
 				isManual: false, // Es automático
 				description,
 				serviceStart: startDate,
 				serviceEnd: proportionalEndDate,
 				paymentMethod
-			});
-
-			// 7. ✅ ACTUALIZAR LA PAYMENTDATE DE LA SUSCRIPCIÓN
-			// Para pagos anticipados mensuales, la siguiente fecha de pago es el día 1 del mes siguiente
-			const newPaymentDate = this.calculateNextPaymentDate(nextPaymentDate, frequency);
-			await subscriptionsService.updateSubscription(subscriptionId, {
-				paymentDate: newPaymentDate
 			});
 
 			console.log(`✅ Ticket proporcional creado exitosamente:`, {
@@ -229,8 +224,7 @@ class AutomaticTicketService {
 				totalDaysInPeriod,
 				proportionalPrice,
 				period: `${startDate.toDateString()} - ${proportionalEndDate.toDateString()}`,
-				oldPaymentDate: nextPaymentDate.toDateString(),
-				newPaymentDate: newPaymentDate.toDateString()
+				nextPaymentDate: nextPaymentDate.toDateString()
 			});
 		} catch (error) {
 			console.error('Error creating proportional ticket:', error);
@@ -273,7 +267,7 @@ class AutomaticTicketService {
 				subscriptionId: subscription.id!,
 				startDate: subscription.startDate,
 				nextPaymentDate: subscription.paymentDate,
-				servicePrice: service.basePrice,
+				servicePrice: service.finalPrice || service.basePrice, // Usar finalPrice (con IVA) o basePrice como fallback
 				frequency: service.frequency as ServiceFrequency
 			};
 
@@ -327,7 +321,7 @@ class AutomaticTicketService {
 							subscriptionId: subscription.id,
 							startDate: subscription.startDate,
 							nextPaymentDate: subscription.paymentDate,
-							servicePrice: service.basePrice,
+							servicePrice: service.finalPrice || service.basePrice, // Usar finalPrice (con IVA)
 							frequency: service.frequency as ServiceFrequency
 						};
 

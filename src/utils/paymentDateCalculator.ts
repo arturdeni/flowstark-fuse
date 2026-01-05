@@ -26,6 +26,17 @@ export const calculatePaymentDate = (
 
 	const nextPaymentDate = new Date(startDate);
 
+	// ✅ CASO ESPECIAL: Para pagos anticipados que empiezan el día 1 del mes,
+	// la primera fecha de cobro es el mismo día de inicio (no hay período proporcional)
+	const isStartingOnFirstDay = startDate.getDate() === 1;
+	const isAdvancePayment = paymentType === 'advance';
+	const isFirstDayRenovation = renovation === 'first_day';
+
+	if (isAdvancePayment && isFirstDayRenovation && isStartingOnFirstDay) {
+		// No sumar período - la fecha de cobro es el día de inicio
+		return nextPaymentDate;
+	}
+
 	// Calcular la próxima fecha basada en frecuencia
 	switch (frequency) {
 		case 'monthly':
