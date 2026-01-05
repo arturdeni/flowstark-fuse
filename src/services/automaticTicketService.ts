@@ -104,6 +104,43 @@ class AutomaticTicketService {
 	}
 
 	/**
+	 * Calcula la siguiente fecha de pago después de generar un ticket proporcional
+	 * Para pagos anticipados mensuales: el día 1 del mes siguiente
+	 */
+	private calculateNextPaymentDate(currentPaymentDate: Date, frequency: ServiceFrequency): Date {
+		const nextDate = new Date(currentPaymentDate);
+
+		switch (frequency) {
+			case ServiceFrequency.MONTHLY:
+				// Para mensual: el día 1 del mes siguiente
+				nextDate.setMonth(nextDate.getMonth() + 1);
+				nextDate.setDate(1);
+				break;
+			case ServiceFrequency.QUARTERLY:
+				// Para trimestral: 3 meses después
+				nextDate.setMonth(nextDate.getMonth() + 3);
+				break;
+			case ServiceFrequency.FOUR_MONTHLY:
+				// Para cuatrimestral: 4 meses después
+				nextDate.setMonth(nextDate.getMonth() + 4);
+				break;
+			case ServiceFrequency.BIANNUAL:
+				// Para semestral: 6 meses después
+				nextDate.setMonth(nextDate.getMonth() + 6);
+				break;
+			case ServiceFrequency.ANNUAL:
+				// Para anual: 1 año después
+				nextDate.setFullYear(nextDate.getFullYear() + 1);
+				break;
+			default:
+				// Por defecto: 1 mes después
+				nextDate.setMonth(nextDate.getMonth() + 1);
+		}
+
+		return nextDate;
+	}
+
+	/**
 	 * Crea un ticket automático para el período proporcional de una nueva suscripción
 	 */
 	async createProportionalTicket(config: ProportionalTicketConfig): Promise<void> {
@@ -178,13 +215,22 @@ class AutomaticTicketService {
 				paymentMethod
 			});
 
+			// 7. ✅ ACTUALIZAR LA PAYMENTDATE DE LA SUSCRIPCIÓN
+			// Para pagos anticipados mensuales, la siguiente fecha de pago es el día 1 del mes siguiente
+			const newPaymentDate = this.calculateNextPaymentDate(nextPaymentDate, frequency);
+			await subscriptionsService.updateSubscription(subscriptionId, {
+				paymentDate: newPaymentDate
+			});
+
 			console.log(`✅ Ticket proporcional creado exitosamente:`, {
 				subscriptionId,
 				serviceName: service.name,
 				daysUsed,
 				totalDaysInPeriod,
 				proportionalPrice,
-				period: `${startDate.toDateString()} - ${proportionalEndDate.toDateString()}`
+				period: `${startDate.toDateString()} - ${proportionalEndDate.toDateString()}`,
+				oldPaymentDate: nextPaymentDate.toDateString(),
+				newPaymentDate: newPaymentDate.toDateString()
 			});
 		} catch (error) {
 			console.error('Error creating proportional ticket:', error);

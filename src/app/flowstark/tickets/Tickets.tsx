@@ -245,7 +245,7 @@ const Tickets: React.FC = () => {
             {ticketStats.total > 0 && (
               <>
                 <Typography variant="body2" sx={{ color: '#2C645E', fontWeight: 500 }}>
-                  {ticketStats.paid} pagados
+                  {ticketStats.paid} cobrados
                 </Typography>
                 <Typography variant="body2" sx={{ color: '#E65100', fontWeight: 500 }}>
                   {ticketStats.pending} pendientes

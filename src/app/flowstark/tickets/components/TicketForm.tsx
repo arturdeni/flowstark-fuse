@@ -573,7 +573,7 @@ export const TicketForm: React.FC<TicketFormProps> = ({
 
               <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 2 }}>
                 <DatePicker
-                  label="Fecha de Vencimiento"
+                  label="Fecha"
                   format="dd/MM/yyyy"
                   value={formData.dueDate}
                   onChange={(date) =>
@@ -606,7 +606,7 @@ export const TicketForm: React.FC<TicketFormProps> = ({
                     }
                   >
                     <MenuItem value="pending">Pendiente</MenuItem>
-                    <MenuItem value="paid">Pagado</MenuItem>
+                    <MenuItem value="paid">Cobrado</MenuItem>
                   </Select>
                 </FormControl>
               </Box>

@@ -64,7 +64,7 @@ export const TicketFilters: React.FC<TicketFiltersProps> = ({
           >
             <MenuItem value="all">Todos los estados</MenuItem>
             <MenuItem value="pending">Pendientes</MenuItem>
-            <MenuItem value="paid">Pagados</MenuItem>
+            <MenuItem value="paid">Cobrados</MenuItem>
           </Select>
         </FormControl>
 

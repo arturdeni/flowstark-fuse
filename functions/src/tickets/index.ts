@@ -14,6 +14,8 @@ const db = admin.firestore();
 interface Subscription {
   id: string;
   serviceId: string;
+  clientId: string;
+  startDate: admin.firestore.Timestamp;
   paymentDate: admin.firestore.Timestamp;
   paymentType: "advance" | "arrears";
   status: string;
@@ -227,13 +229,38 @@ async function generateTicketsForUser(
           continue;
         }
 
-        // ✅ CALCULAR PERÍODO DE SERVICIO
-        const servicePeriod = calculateServicePeriod(
-          paymentDate,
-          subscription.paymentType as PaymentType,
-          service.frequency as ServiceFrequency,
-          service.name
+        // ✅ DETECTAR SI ES EL PRIMER TICKET (necesita cálculo proporcional)
+        const isFirstTicket = await checkIfFirstTicket(
+          userId,
+          subscription.id,
+          existingTickets
         );
+
+        // ✅ CALCULAR PERÍODO DE SERVICIO (proporcional o completo)
+        const servicePeriod = isFirstTicket
+          ? calculateProportionalPeriod(
+              subscription.startDate.toDate(),
+              paymentDate,
+              subscription.paymentType as PaymentType,
+              service.frequency as ServiceFrequency,
+              service.name
+            )
+          : calculateServicePeriod(
+              paymentDate,
+              subscription.paymentType as PaymentType,
+              service.frequency as ServiceFrequency,
+              service.name
+            );
+
+        // ✅ CALCULAR PRECIO (proporcional o completo)
+        const ticketAmount = isFirstTicket
+          ? calculateProportionalPrice(
+              subscription.startDate.toDate(),
+              paymentDate,
+              service.finalPrice || service.basePrice || 0,
+              service.frequency as ServiceFrequency
+            )
+          : service.finalPrice || service.basePrice || 0;
 
         // Obtener el método de pago del cliente
         const client = clientsMap.get(subscription.clientId);
@@ -243,7 +270,7 @@ async function generateTicketsForUser(
         const ticketData = {
           subscriptionId: subscription.id,
           dueDate: subscription.paymentDate,
-          amount: service.finalPrice || service.basePrice || 0,
+          amount: ticketAmount,
           status: "pending",
           generatedDate: admin.firestore.Timestamp.now(),
           isManual: false,
@@ -477,4 +504,99 @@ function isSameDate(date1: Date, date2: Date): boolean {
     date1.getMonth() === date2.getMonth() &&
     date1.getDate() === date2.getDate()
   );
+}
+
+/**
+ * Verifica si este es el primer ticket de una suscripción
+ */
+async function checkIfFirstTicket(
+  userId: string,
+  subscriptionId: string,
+  existingTickets: any[]
+): Promise<boolean> {
+  // Buscar si ya existe algún ticket (manual o automático) para esta suscripción
+  const hasExistingTickets = existingTickets.some(
+    (ticket: any) => ticket.subscriptionId === subscriptionId
+  );
+
+  return !hasExistingTickets;
+}
+
+/**
+ * Calcula el período proporcional para el primer ticket
+ * Solo para pagos ANTICIPADOS
+ */
+function calculateProportionalPeriod(
+  startDate: Date,
+  paymentDate: Date,
+  paymentType: PaymentType,
+  frequency: ServiceFrequency,
+  serviceName: string
+): ServicePeriod {
+  const frequencyText = getFrequencyText(frequency);
+
+  // Para pagos anticipados, el período proporcional va desde startDate hasta el día anterior a paymentDate
+  if (paymentType === PaymentType.ADVANCE) {
+    const start = new Date(startDate);
+    const end = new Date(paymentDate);
+    end.setDate(end.getDate() - 1); // Un día antes del pago
+
+    const daysUsed = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+    const description = `${serviceName} - ${frequencyText} anticipado PROPORCIONAL (${formatDateRange(start, end)}) - ${daysUsed} días`;
+
+    return { start, end, description };
+  } else {
+    // Para pagos vencidos en el primer ticket, no hay período proporcional
+    // El ticket cubre desde startDate hasta paymentDate
+    const start = new Date(startDate);
+    const end = new Date(paymentDate);
+
+    const description = `${serviceName} - ${frequencyText} vencido (${formatDateRange(start, end)})`;
+
+    return { start, end, description };
+  }
+}
+
+/**
+ * Calcula el precio proporcional basado en los días utilizados
+ */
+function calculateProportionalPrice(
+  startDate: Date,
+  paymentDate: Date,
+  fullPrice: number,
+  frequency: ServiceFrequency
+): number {
+  // Calcular días utilizados
+  const end = new Date(paymentDate);
+  end.setDate(end.getDate() - 1); // Un día antes del pago
+
+  const daysUsed = Math.ceil((end.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+
+  // Obtener días totales del período según frecuencia
+  const totalDays = getDaysForFrequency(frequency);
+
+  // Calcular precio proporcional
+  const proportionalPrice = (fullPrice * daysUsed) / totalDays;
+
+  return Math.round(proportionalPrice * 100) / 100; // Redondear a 2 decimales
+}
+
+/**
+ * Obtiene el número total de días según la frecuencia (aproximado)
+ */
+function getDaysForFrequency(frequency: ServiceFrequency): number {
+  switch (frequency) {
+    case ServiceFrequency.MONTHLY:
+      return 30;
+    case ServiceFrequency.QUARTERLY:
+      return 90;
+    case ServiceFrequency.FOUR_MONTHLY:
+      return 120;
+    case ServiceFrequency.BIANNUAL:
+      return 180;
+    case ServiceFrequency.ANNUAL:
+      return 365;
+    default:
+      return 30;
+  }
 }

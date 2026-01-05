@@ -156,11 +156,6 @@ export const TicketsTable: React.FC<TicketsTableProps> = ({
         return paymentMethods[paymentMethod] || paymentMethod;
     };
 
-    // Función para determinar si una fecha está vencida
-    const isOverdue = (dueDate: Date, status: string) => {
-        return status === 'pending' && new Date() > dueDate;
-    };
-
     // Ordenar tickets
     const sortedTickets = React.useMemo(() => {
         return [...tickets].sort((a, b) => {
@@ -250,7 +245,7 @@ export const TicketsTable: React.FC<TicketsTableProps> = ({
                                     direction={orderBy === 'dueDate' ? order : 'asc'}
                                     onClick={() => handleRequestSort('dueDate')}
                                 >
-                                    Fecha de Vencimiento
+                                    Fecha
                                 </TableSortLabel>
                             </HeaderTableCell>
                             <HeaderTableCell>
@@ -306,7 +301,6 @@ export const TicketsTable: React.FC<TicketsTableProps> = ({
                             paginatedTickets.map((ticket) => {
                                 const clientName = getClientName(ticket);
                                 const serviceName = getServiceName(ticket);
-                                const overdue = isOverdue(ticket.dueDate, ticket.status);
                                 const ticketSelected = isSelected ? isSelected(ticket.id!) : false;
 
                                 return (
@@ -318,12 +312,6 @@ export const TicketsTable: React.FC<TicketsTableProps> = ({
                                             '&:hover': {
                                                 backgroundColor: 'action.hover',
                                             },
-                                            ...(overdue && {
-                                                backgroundColor: 'error.light',
-                                                '&:hover': {
-                                                    backgroundColor: 'error.main',
-                                                },
-                                            }),
                                         }}
                                     >
                                         {/* Checkbox de selección */}
@@ -343,18 +331,11 @@ export const TicketsTable: React.FC<TicketsTableProps> = ({
                                             </CompactTableCell>
                                         )}
 
-                                        {/* Fecha de Vencimiento */}
+                                        {/* Fecha */}
                                         <CompactTableCell>
-                                            <Box>
-                                                <Typography variant="body2" fontWeight={500}>
-                                                    {formatDate(ticket.dueDate)}
-                                                </Typography>
-                                                {overdue && (
-                                                    <Typography variant="caption" color="error">
-                                                        Vencido
-                                                    </Typography>
-                                                )}
-                                            </Box>
+                                            <Typography variant="body2" fontWeight={500}>
+                                                {formatDate(ticket.dueDate)}
+                                            </Typography>
                                         </CompactTableCell>
 
                                         {/* Cliente */}
@@ -391,13 +372,13 @@ export const TicketsTable: React.FC<TicketsTableProps> = ({
                                         {/* Estado */}
                                         <CompactTableCell>
                                             <StatusChip
-                                                label={ticket.status === 'paid' ? 'Pagado' : 'Pendiente'}
+                                                label={ticket.status === 'paid' ? 'Cobrado' : 'Pendiente'}
                                                 status={ticket.status}
                                                 size="small"
                                             />
                                             {ticket.paidDate && ticket.status === 'paid' && (
                                                 <Typography variant="caption" color="text.secondary" display="block">
-                                                    Pagado: {formatDate(ticket.paidDate)}
+                                                    Cobrado: {formatDate(ticket.paidDate)}
                                                 </Typography>
                                             )}
                                         </CompactTableCell>
@@ -433,7 +414,7 @@ export const TicketsTable: React.FC<TicketsTableProps> = ({
 
                                                 {/* Botón cambiar estado */}
                                                 {ticket.status === 'pending' ? (
-                                                    <Tooltip title="Marcar como pagado">
+                                                    <Tooltip title="Marcar como cobrado">
                                                         <IconButton
                                                             size="small"
                                                             onClick={(e) => {

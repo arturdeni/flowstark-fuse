@@ -136,8 +136,6 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
     }).format(amount);
   };
 
-  const isOverdue = currentTicket.status === 'pending' && new Date() > currentTicket.dueDate;
-
   return (
     <Dialog
       open={open}
@@ -191,7 +189,7 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
                 color="success"
                 onClick={handleMarkAsPaid}
               >
-                Marcar como Pagado
+                Marcar como Cobrado
               </Button>
             ) : currentTicket.status === 'paid' && onMarkAsPending ? (
               <Button
@@ -255,8 +253,6 @@ const PDFContent: React.FC<{ ticket: TicketWithRelations }> = ({ ticket }) => {
     }).format(amount);
   };
 
-  const isOverdue = ticket.status === 'pending' && new Date() > ticket.dueDate;
-
   return (
     <Box sx={{ py: 2 }}>
       {/* Encabezado del PDF */}
@@ -282,7 +278,7 @@ const PDFContent: React.FC<{ ticket: TicketWithRelations }> = ({ ticket }) => {
 
             <Box sx={{ display: 'flex', gap: 2, mb: 3, flexWrap: 'wrap' }}>
               <Chip
-                label={ticket.status === 'paid' ? 'PAGADO' : 'PENDIENTE'}
+                label={ticket.status === 'paid' ? 'COBRADO' : 'PENDIENTE'}
                 sx={{
                   backgroundColor: ticket.status === 'paid' ? '#4caf50' : '#ff9800',
                   color: 'white',
@@ -299,18 +295,6 @@ const PDFContent: React.FC<{ ticket: TicketWithRelations }> = ({ ticket }) => {
                   fontSize: '0.875rem'
                 }}
               />
-
-              {isOverdue && (
-                <Chip
-                  label="VENCIDO"
-                  sx={{
-                    backgroundColor: '#f44336',
-                    color: 'white',
-                    fontWeight: 'bold',
-                    fontSize: '0.875rem'
-                  }}
-                />
-              )}
             </Box>
 
             <Grid container spacing={2}>
@@ -346,9 +330,9 @@ const PDFContent: React.FC<{ ticket: TicketWithRelations }> = ({ ticket }) => {
                   justifyContent: 'center'
                 }}>
                   <Typography variant="caption" sx={{ color: '#888', fontWeight: 'bold', mb: 0.5 }}>
-                    VENCIMIENTO
+                    FECHA
                   </Typography>
-                  <Typography variant="h6" sx={{ color: isOverdue ? '#f44336' : '#333', fontWeight: 'bold' }}>
+                  <Typography variant="h6" sx={{ color: '#333', fontWeight: 'bold' }}>
                     {formatDateOnly(ticket.dueDate)}
                   </Typography>
                 </Box>
@@ -387,7 +371,7 @@ const PDFContent: React.FC<{ ticket: TicketWithRelations }> = ({ ticket }) => {
                     justifyContent: 'center'
                   }}>
                     <Typography variant="caption" sx={{ color: '#888', fontWeight: 'bold', mb: 0.5 }}>
-                      FECHA DE PAGO
+                      FECHA DE COBRO
                     </Typography>
                     <Typography variant="h6" sx={{ color: '#4caf50', fontWeight: 'bold' }}>
                       {formatDateOnly(ticket.paidDate)}

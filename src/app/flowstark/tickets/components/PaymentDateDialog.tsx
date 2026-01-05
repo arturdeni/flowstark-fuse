@@ -102,19 +102,19 @@ export const PaymentDateDialog: React.FC<PaymentDateDialogProps> = ({
                 <DialogTitle>
                     <Box display="flex" alignItems="center" gap={1}>
                         <PaymentIcon color="success" />
-                        Marcar como Pagado
+                        Marcar como Cobrado
                     </Box>
                 </DialogTitle>
 
                 <DialogContent>
                     <Typography variant="body1" gutterBottom>
-                        ¿Cuándo fue pagado este ticket?
+                        ¿Cuándo fue cobrado este ticket?
                     </Typography>
 
                     {/* Campo de fecha */}
                     <Box sx={{ mt: 2, mb: 2 }}>
                         <DatePicker
-                            label="Fecha de pago"
+                            label="Fecha de cobro"
                             value={paidDate}
                             onChange={handleDateChange}
                             format="dd/MM/yyyy"
@@ -123,7 +123,7 @@ export const PaymentDateDialog: React.FC<PaymentDateDialogProps> = ({
                                 textField: {
                                     required: true,
                                     error: !!dateError,
-                                    helperText: dateError || 'Fecha en la que se realizó el pago (hoy o anterior)',
+                                    helperText: dateError || 'Fecha en la que se realizó el cobro (hoy o anterior)',
                                     size: 'small',
                                     variant: 'outlined',
                                     fullWidth: true,
@@ -149,7 +149,7 @@ export const PaymentDateDialog: React.FC<PaymentDateDialogProps> = ({
                         variant="contained"
                         startIcon={loading ? <CircularProgress size={16} /> : null}
                     >
-                        {loading ? 'Marcando...' : 'Marcar como Pagado'}
+                        {loading ? 'Marcando...' : 'Marcar como Cobrado'}
                     </Button>
                 </DialogActions>
             </Dialog>

@@ -251,10 +251,10 @@ export const useTickets = () => {
     try {
       await ticketsService.markAsPaid(id, paidDate);
       await loadData();
-      showSnackbar('Ticket marcado como pagado', 'success');
+      showSnackbar('Ticket marcado como cobrado', 'success');
     } catch (error) {
       console.error('Error marking ticket as paid:', error);
-      showSnackbar('Error al marcar el ticket como pagado', 'error');
+      showSnackbar('Error al marcar el ticket como cobrado', 'error');
     } finally {
       setLoading(false);
     }
