@@ -23,7 +23,7 @@ import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFnsV3';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { es } from 'date-fns/locale';
-import { startOfMonth } from 'date-fns';
+import { startOfMonth, startOfQuarter, startOfYear } from 'date-fns';
 import {
     Person as PersonIcon,
     Inventory as InventoryIcon,
@@ -209,6 +209,54 @@ export const SubscriptionForm: React.FC<SubscriptionFormProps> = ({
         return `${service.name} - ${price.toFixed(2)}€ - ${frequency}`;
     };
 
+    // Función para calcular la fecha mínima permitida según el periodo del servicio
+    const getMinStartDate = (): Date => {
+        const selectedService = services.find(s => s.id === formData.serviceId);
+
+        if (!selectedService) {
+            // Si no hay servicio seleccionado, usar el mes actual como predeterminado
+            return startOfMonth(new Date());
+        }
+
+        const now = new Date();
+
+        switch (selectedService.frequency) {
+            case 'quarterly':
+                // Trimestral: inicio del trimestre actual
+                return startOfQuarter(now);
+
+            case 'four_monthly':
+                // Cuatrimestral: inicio del cuatrimestre actual (enero, mayo, septiembre)
+                const currentMonth = now.getMonth(); // 0-11
+                let fourMonthlyStartMonth: number;
+
+                if (currentMonth >= 0 && currentMonth <= 3) {
+                    fourMonthlyStartMonth = 0; // Enero
+                } else if (currentMonth >= 4 && currentMonth <= 7) {
+                    fourMonthlyStartMonth = 4; // Mayo
+                } else {
+                    fourMonthlyStartMonth = 8; // Septiembre
+                }
+
+                return new Date(now.getFullYear(), fourMonthlyStartMonth, 1);
+
+            case 'biannual':
+                // Semestral: inicio del semestre actual (enero o julio)
+                const currentMonthForBiannual = now.getMonth();
+                const biannualStartMonth = currentMonthForBiannual >= 6 ? 6 : 0;
+                return new Date(now.getFullYear(), biannualStartMonth, 1);
+
+            case 'annual':
+                // Anual: inicio del año actual
+                return startOfYear(now);
+
+            case 'monthly':
+            default:
+                // Mensual o cualquier otro: inicio del mes actual
+                return startOfMonth(now);
+        }
+    };
+
     return (
         <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={es}>
             <Dialog
@@ -325,7 +373,7 @@ export const SubscriptionForm: React.FC<SubscriptionFormProps> = ({
                                     label="Fecha de Inicio"
                                     value={formData.startDate}
                                     onChange={(date) => handleDateChange('startDate', date)}
-                                    minDate={startOfMonth(new Date())}
+                                    minDate={getMinStartDate()}
                                     slotProps={{
                                         textField: {
                                             variant: 'outlined',

@@ -26,37 +26,64 @@ class AutomaticTicketService {
 	}
 
 	/**
-	 * Calcula los días reales de un mes específico
-	 */
-	private getActualDaysInMonth(date: Date): number {
-		const year = date.getFullYear();
-		const month = date.getMonth();
-		// Crear fecha del primer día del mes siguiente y restar 1 día para obtener el último día del mes actual
-		const lastDay = new Date(year, month + 1, 0);
-		return lastDay.getDate();
-	}
-
-	/**
 	 * Obtiene el número total de días según la frecuencia
-	 * Para frecuencia mensual, usa los días reales del mes en cuestión
-	 * Para otras frecuencias, usa valores aproximados
+	 * Calcula los días REALES del período específico basándose en la fecha de referencia
 	 */
 	private getTotalDaysForFrequency(frequency: ServiceFrequency, referenceDate?: Date): number {
-		// Si es mensual y tenemos una fecha de referencia, usar días reales del mes
-		if (frequency === ServiceFrequency.MONTHLY && referenceDate) {
-			return this.getActualDaysInMonth(referenceDate);
+		if (!referenceDate) {
+			// Fallback: valores aproximados si no hay fecha de referencia
+			const dayMappings: Record<ServiceFrequency, number> = {
+				[ServiceFrequency.MONTHLY]: 30,
+				[ServiceFrequency.QUARTERLY]: 90,
+				[ServiceFrequency.FOUR_MONTHLY]: 120,
+				[ServiceFrequency.BIANNUAL]: 180,
+				[ServiceFrequency.ANNUAL]: 365
+			};
+			return dayMappings[frequency];
 		}
 
-		// Para otras frecuencias, usar valores aproximados
-		const dayMappings: Record<ServiceFrequency, number> = {
-			[ServiceFrequency.MONTHLY]: 30, // Fallback si no hay fecha de referencia
-			[ServiceFrequency.QUARTERLY]: 90,
-			[ServiceFrequency.FOUR_MONTHLY]: 120,
-			[ServiceFrequency.BIANNUAL]: 180,
-			[ServiceFrequency.ANNUAL]: 365
-		};
+		// ✅ Calcular días reales del período basándose en la fecha de inicio
+		const startDate = new Date(referenceDate);
+		startDate.setHours(0, 0, 0, 0);
 
-		return dayMappings[frequency];
+		// Calcular fecha de fin del período sumando la frecuencia
+		const endDate = new Date(startDate);
+
+		switch (frequency) {
+			case ServiceFrequency.MONTHLY:
+				// Para mensual: último día del mismo mes
+				endDate.setMonth(endDate.getMonth() + 1, 0);
+				break;
+			case ServiceFrequency.QUARTERLY:
+				// Para trimestral: 3 meses después, último día del mes
+				endDate.setMonth(endDate.getMonth() + 3, 0);
+				break;
+			case ServiceFrequency.FOUR_MONTHLY:
+				// Para cuatrimestral: 4 meses después, último día del mes
+				endDate.setMonth(endDate.getMonth() + 4, 0);
+				break;
+			case ServiceFrequency.BIANNUAL:
+				// Para semestral: 6 meses después, último día del mes
+				endDate.setMonth(endDate.getMonth() + 6, 0);
+				break;
+			case ServiceFrequency.ANNUAL:
+				// Para anual: 1 año después, último día del mes
+				endDate.setFullYear(endDate.getFullYear() + 1);
+				endDate.setMonth(endDate.getMonth(), 0); // Último día del mes
+				break;
+			default:
+				return 30; // Fallback
+		}
+
+		// Calcular días entre startDate (día 1 del mes) y endDate (último día del período)
+		// Para calcular el total de días del período completo
+		const periodStartDate = new Date(startDate);
+		periodStartDate.setDate(1); // Primer día del mes de inicio
+
+		const diffTime = endDate.getTime() - periodStartDate.getTime();
+		const totalDays = Math.ceil(diffTime / (1000 * 3600 * 24)) + 1; // +1 para incluir ambos días
+
+		return totalDays;
 	}
 
 	/**
@@ -71,23 +98,9 @@ class AutomaticTicketService {
 
 	/**
 	 * Calcula la fecha de fin del período proporcional
-	 *
-	 * IMPORTANTE:
-	 * - Si startDate === paymentDate (suscripción retroactiva del día 1), el período es el mes completo
-	 * - Si startDate < paymentDate (período proporcional normal), el período termina un día antes de paymentDate
 	 */
 	private calculateProportionalEndDate(startDate: Date, nextPaymentDate: Date): Date {
-		// ✅ CASO ESPECIAL: Si ambas fechas son iguales, significa que queremos el período completo del mes
-		// Por ejemplo: startDate = 1 enero, paymentDate = 1 enero → período = 1-31 enero
-		if (this.isSameDay(startDate, nextPaymentDate)) {
-			const endDate = new Date(nextPaymentDate);
-			// Ir al último día del mes
-			endDate.setMonth(endDate.getMonth() + 1, 0);
-			return endDate;
-		}
-
-		// ✅ CASO NORMAL: Período proporcional termina un día antes del próximo pago
-		// Por ejemplo: startDate = 8 enero, paymentDate = 1 febrero → período = 8-31 enero
+		// El período proporcional termina un día antes del próximo pago
 		const endDate = new Date(nextPaymentDate);
 		endDate.setDate(endDate.getDate() - 1);
 		return endDate;
@@ -182,9 +195,7 @@ class AutomaticTicketService {
 			// IMPORTANTE: Si startDate === paymentDate pero ambos son <= hoy,
 			// SÍ debemos generar el ticket (es una suscripción retroactiva)
 			if (startDate > nextPaymentDate) {
-				console.log(
-					'⚠️ No se requiere ticket proporcional: startDate es posterior a paymentDate'
-				);
+				console.log('⚠️ No se requiere ticket proporcional: startDate es posterior a paymentDate');
 				return;
 			}
 
@@ -298,20 +309,11 @@ class AutomaticTicketService {
 			});
 
 			// 7. ✅ ACTUALIZAR paymentDate de la suscripción a la PRÓXIMA fecha de cobro
-			// Importar calculateNextPaymentDate desde paymentDateCalculator
-			const { calculateNextPaymentDate } = await import('../utils/paymentDateCalculator');
-			const newPaymentDate = calculateNextPaymentDate(
-				nextPaymentDate,
-				service,
-				subscription.paymentType || 'advance'
-			);
-
-			if (newPaymentDate) {
-				await subscriptionsService.updateSubscription(subscriptionId, {
-					paymentDate: newPaymentDate
-				});
-				console.log(`✅ PaymentDate actualizado a: ${newPaymentDate.toDateString()}`);
-			}
+			// El nextPaymentDate que recibimos YA es la próxima fecha de cobro calculada correctamente
+			await subscriptionsService.updateSubscription(subscriptionId, {
+				paymentDate: nextPaymentDate
+			});
+			console.log(`✅ PaymentDate actualizado a: ${nextPaymentDate.toDateString()}`);
 		} catch (error) {
 			console.error('Error creating proportional ticket:', error);
 			throw error;
@@ -342,16 +344,31 @@ class AutomaticTicketService {
 			// La validación de si generar o no el ticket se hace dentro de createProportionalTicket
 			// basándose en si startDate <= hoy
 
-			// 5. Crear configuración para el ticket proporcional
+			// 5. ✅ Calcular el VERDADERO nextPaymentDate (el SIGUIENTE pago después del actual)
+			// Para pagos anticipados: subscription.paymentDate === startDate
+			// Necesitamos calcular cuándo será el PRÓXIMO pago
+			const { calculateNextPaymentDate } = await import('../utils/paymentDateCalculator');
+			const realNextPaymentDate = calculateNextPaymentDate(
+				subscription.paymentDate,
+				service,
+				subscription.paymentType || 'advance'
+			);
+
+			if (!realNextPaymentDate) {
+				console.log('No se pudo calcular el próximo pago, abortando');
+				return;
+			}
+
+			// 6. Crear configuración para el ticket proporcional
 			const config: ProportionalTicketConfig = {
 				subscriptionId: subscription.id!,
 				startDate: subscription.startDate,
-				nextPaymentDate: subscription.paymentDate,
+				nextPaymentDate: realNextPaymentDate, // ✅ Usamos el PRÓXIMO pago, no el actual
 				servicePrice: service.finalPrice || service.basePrice, // Usar finalPrice (con IVA) o basePrice como fallback
 				frequency: service.frequency as ServiceFrequency
 			};
 
-			// 6. Crear el ticket proporcional
+			// 7. Crear el ticket proporcional
 			await this.createProportionalTicket(config);
 		} catch (error) {
 			console.error('Error processing new subscription for proportional ticket:', error);
@@ -397,19 +414,26 @@ class AutomaticTicketService {
 					if (daysSinceStart > 0) {
 						const service = await servicesService.getServiceById(subscription.serviceId);
 
+						// ✅ Calcular el VERDADERO nextPaymentDate (el SIGUIENTE pago después del actual)
+						const { calculateNextPaymentDate } = await import('../utils/paymentDateCalculator');
+						const realNextPaymentDate = calculateNextPaymentDate(
+							subscription.paymentDate,
+							service,
+							subscription.paymentType || 'advance'
+						);
+
+						if (!realNextPaymentDate) continue;
+
 						const config: ProportionalTicketConfig = {
 							subscriptionId: subscription.id,
 							startDate: subscription.startDate,
-							nextPaymentDate: subscription.paymentDate,
+							nextPaymentDate: realNextPaymentDate, // ✅ Usamos el PRÓXIMO pago, no el actual
 							servicePrice: service.finalPrice || service.basePrice, // Usar finalPrice (con IVA)
 							frequency: service.frequency as ServiceFrequency
 						};
 
 						// Verificar si ya existe el ticket
-						const proportionalEndDate = this.calculateProportionalEndDate(
-							subscription.startDate,
-							subscription.paymentDate
-						);
+						const proportionalEndDate = this.calculateProportionalEndDate(subscription.startDate, realNextPaymentDate);
 
 						const ticketExists = await this.checkIfProportionalTicketExists(
 							subscription.id,
