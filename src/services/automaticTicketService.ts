@@ -26,11 +26,30 @@ class AutomaticTicketService {
 	}
 
 	/**
-	 * Obtiene el número total de días según la frecuencia
+	 * Calcula los días reales de un mes específico
 	 */
-	private getTotalDaysForFrequency(frequency: ServiceFrequency): number {
+	private getActualDaysInMonth(date: Date): number {
+		const year = date.getFullYear();
+		const month = date.getMonth();
+		// Crear fecha del primer día del mes siguiente y restar 1 día para obtener el último día del mes actual
+		const lastDay = new Date(year, month + 1, 0);
+		return lastDay.getDate();
+	}
+
+	/**
+	 * Obtiene el número total de días según la frecuencia
+	 * Para frecuencia mensual, usa los días reales del mes en cuestión
+	 * Para otras frecuencias, usa valores aproximados
+	 */
+	private getTotalDaysForFrequency(frequency: ServiceFrequency, referenceDate?: Date): number {
+		// Si es mensual y tenemos una fecha de referencia, usar días reales del mes
+		if (frequency === ServiceFrequency.MONTHLY && referenceDate) {
+			return this.getActualDaysInMonth(referenceDate);
+		}
+
+		// Para otras frecuencias, usar valores aproximados
 		const dayMappings: Record<ServiceFrequency, number> = {
-			[ServiceFrequency.MONTHLY]: 30,
+			[ServiceFrequency.MONTHLY]: 30, // Fallback si no hay fecha de referencia
 			[ServiceFrequency.QUARTERLY]: 90,
 			[ServiceFrequency.FOUR_MONTHLY]: 120,
 			[ServiceFrequency.BIANNUAL]: 180,
@@ -52,9 +71,23 @@ class AutomaticTicketService {
 
 	/**
 	 * Calcula la fecha de fin del período proporcional
+	 *
+	 * IMPORTANTE:
+	 * - Si startDate === paymentDate (suscripción retroactiva del día 1), el período es el mes completo
+	 * - Si startDate < paymentDate (período proporcional normal), el período termina un día antes de paymentDate
 	 */
 	private calculateProportionalEndDate(startDate: Date, nextPaymentDate: Date): Date {
-		// La fecha de fin del período proporcional es un día antes del próximo pago
+		// ✅ CASO ESPECIAL: Si ambas fechas son iguales, significa que queremos el período completo del mes
+		// Por ejemplo: startDate = 1 enero, paymentDate = 1 enero → período = 1-31 enero
+		if (this.isSameDay(startDate, nextPaymentDate)) {
+			const endDate = new Date(nextPaymentDate);
+			// Ir al último día del mes
+			endDate.setMonth(endDate.getMonth() + 1, 0);
+			return endDate;
+		}
+
+		// ✅ CASO NORMAL: Período proporcional termina un día antes del próximo pago
+		// Por ejemplo: startDate = 8 enero, paymentDate = 1 febrero → período = 8-31 enero
 		const endDate = new Date(nextPaymentDate);
 		endDate.setDate(endDate.getDate() - 1);
 		return endDate;
@@ -108,34 +141,70 @@ class AutomaticTicketService {
 
 	/**
 	 * Crea un ticket automático para el período proporcional de una nueva suscripción
+	 *
+	 * CASOS MANEJADOS:
+	 * 1. Suscripción futura (startDate > hoy): NO genera ticket, espera a Cloud Function
+	 * 2. Suscripción actual/retroactiva (startDate <= hoy): Genera ticket AHORA con dueDate = hoy
+	 *    - Si startDate = hoy: Genera ticket con período desde hoy
+	 *    - Si startDate < hoy: Genera ticket retroactivo con período desde startDate
 	 */
 	async createProportionalTicket(config: ProportionalTicketConfig): Promise<void> {
 		try {
 			const { subscriptionId, startDate, nextPaymentDate, servicePrice, frequency } = config;
 
-			// 1. ✅ VALIDAR QUE LA SUSCRIPCIÓN YA HA COMENZADO (no es futura)
+			// 1. ✅ Normalizar fechas
 			const today = new Date();
 			today.setHours(0, 0, 0, 0);
 
 			const startDateOnly = new Date(startDate);
 			startDateOnly.setHours(0, 0, 0, 0);
 
+			const nextPaymentDateOnly = new Date(nextPaymentDate);
+			nextPaymentDateOnly.setHours(0, 0, 0, 0);
+
+			// 2. ✅ CASO 1: Suscripción futura (startDate > hoy)
+			// No generar ticket ahora, la Cloud Function lo generará cuando llegue startDate
 			if (startDateOnly > today) {
 				console.log(
-					'No se genera ticket proporcional: la suscripción es futura (startDate > hoy). La Cloud Function lo generará cuando llegue la fecha.'
+					`📅 Suscripción futura: startDate (${startDate.toDateString()}) > hoy (${today.toDateString()}). No se genera ticket ahora.`
 				);
 				return;
 			}
 
-			// 2. Validar que las fechas sean coherentes
-			if (startDate >= nextPaymentDate) {
+			// 3. ✅ CASO 2: Suscripción actual o retroactiva (startDate <= hoy)
+			// Generar ticket AHORA con dueDate = hoy
+
+			console.log(
+				`✅ Suscripción actual/retroactiva: startDate (${startDate.toDateString()}) <= hoy (${today.toDateString()}). Generando ticket...`
+			);
+
+			// 4. ✅ Validar coherencia de fechas
+			// IMPORTANTE: Si startDate === paymentDate pero ambos son <= hoy,
+			// SÍ debemos generar el ticket (es una suscripción retroactiva)
+			if (startDate > nextPaymentDate) {
 				console.log(
-					'No se requiere ticket proporcional: la fecha de inicio es igual o posterior al próximo pago'
+					'⚠️ No se requiere ticket proporcional: startDate es posterior a paymentDate'
 				);
 				return;
 			}
 
-			// 2. Calcular el período proporcional
+			// ✅ CASO ESPECIAL: Si startDate === paymentDate (ambos iguales)
+			// Y si paymentDate <= hoy, significa que debemos generar el ticket del mes completo
+			if (this.isSameDay(startDate, nextPaymentDate)) {
+				if (nextPaymentDateOnly <= today) {
+					console.log(
+						`✅ Suscripción retroactiva con startDate === paymentDate. Generando ticket completo del período.`
+					);
+					// Continuar para generar el ticket del mes completo
+				} else {
+					console.log(
+						`📅 Suscripción con startDate === paymentDate en el futuro. La Cloud Function lo generará.`
+					);
+					return;
+				}
+			}
+
+			// 5. Calcular el período proporcional
 			const proportionalEndDate = this.calculateProportionalEndDate(startDate, nextPaymentDate);
 			const daysUsed = this.calculateDaysBetween(startDate, proportionalEndDate);
 
@@ -156,8 +225,9 @@ class AutomaticTicketService {
 				return;
 			}
 
-			// 4. ✅ Calcular precio proporcional
-			const totalDaysInPeriod = this.getTotalDaysForFrequency(frequency);
+			// 4. ✅ Calcular precio proporcional usando días reales del mes
+			// Usar la fecha de inicio como referencia para obtener los días reales del mes
+			const totalDaysInPeriod = this.getTotalDaysForFrequency(frequency, startDate);
 
 			// ✅ CASO ESPECIAL: Si startDate es día 1 del mes y paymentDate es último día del mismo mes,
 			// significa que el ticket cubre TODO el mes → precio COMPLETO
@@ -226,6 +296,22 @@ class AutomaticTicketService {
 				period: `${startDate.toDateString()} - ${proportionalEndDate.toDateString()}`,
 				nextPaymentDate: nextPaymentDate.toDateString()
 			});
+
+			// 7. ✅ ACTUALIZAR paymentDate de la suscripción a la PRÓXIMA fecha de cobro
+			// Importar calculateNextPaymentDate desde paymentDateCalculator
+			const { calculateNextPaymentDate } = await import('../utils/paymentDateCalculator');
+			const newPaymentDate = calculateNextPaymentDate(
+				nextPaymentDate,
+				service,
+				subscription.paymentType || 'advance'
+			);
+
+			if (newPaymentDate) {
+				await subscriptionsService.updateSubscription(subscriptionId, {
+					paymentDate: newPaymentDate
+				});
+				console.log(`✅ PaymentDate actualizado a: ${newPaymentDate.toDateString()}`);
+			}
 		} catch (error) {
 			console.error('Error creating proportional ticket:', error);
 			throw error;
@@ -252,15 +338,9 @@ class AutomaticTicketService {
 				return;
 			}
 
-			// 4. Verificar que es una suscripción nueva (startDate reciente)
-			const now = new Date();
-			const daysSinceStart = this.calculateDaysBetween(subscription.startDate, now);
-
-			// Solo procesar si la suscripción se creó recientemente (menos de 7 días)
-			if (daysSinceStart > 7) {
-				console.log('Suscripción no es reciente, omitiendo ticket proporcional');
-				return;
-			}
+			// 4. ✅ NO validar antigüedad - las suscripciones retroactivas también necesitan tickets
+			// La validación de si generar o no el ticket se hace dentro de createProportionalTicket
+			// basándose en si startDate <= hoy
 
 			// 5. Crear configuración para el ticket proporcional
 			const config: ProportionalTicketConfig = {

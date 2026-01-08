@@ -3,6 +3,12 @@ import { Subscription, Service } from '../types/models';
 
 /**
  * Calcula la fecha de cobro para una suscripción
+ *
+ * IMPORTANTE: Esta función calcula la PRIMERA fecha de cobro cuando se crea la suscripción.
+ * Para pagos anticipados, la primera fecha de cobro es SIEMPRE la fecha de inicio.
+ *
+ * Para recalcular la SIGUIENTE fecha de cobro (después de generar un ticket),
+ * usar calculateNextPaymentDate() en su lugar.
  */
 export const calculatePaymentDate = (
 	subscription: Subscription,
@@ -20,24 +26,20 @@ export const calculatePaymentDate = (
 	}
 
 	const startDate = new Date(subscription.startDate);
-	const frequency = service.frequency;
 	const paymentType = subscription.paymentType || 'advance';
-	const renovation = service.renovation || 'first_day';
 
-	const nextPaymentDate = new Date(startDate);
-
-	// ✅ CASO ESPECIAL: Para pagos anticipados que empiezan el día 1 del mes,
-	// la primera fecha de cobro es el mismo día de inicio (no hay período proporcional)
-	const isStartingOnFirstDay = startDate.getDate() === 1;
-	const isAdvancePayment = paymentType === 'advance';
-	const isFirstDayRenovation = renovation === 'first_day';
-
-	if (isAdvancePayment && isFirstDayRenovation && isStartingOnFirstDay) {
-		// No sumar período - la fecha de cobro es el día de inicio
-		return nextPaymentDate;
+	// ✅ PARA PAGOS ANTICIPADOS: La primera fecha de cobro es SIEMPRE la fecha de inicio
+	// Esto es porque el cliente paga por adelantado desde el día que empieza el servicio
+	if (paymentType === 'advance') {
+		return new Date(startDate);
 	}
 
-	// Calcular la próxima fecha basada en frecuencia
+	// ✅ PARA PAGOS VENCIDOS: La fecha de cobro es después del primer período
+	const frequency = service.frequency;
+	const renovation = service.renovation || 'first_day';
+	const nextPaymentDate = new Date(startDate);
+
+	// Sumar el período correspondiente
 	switch (frequency) {
 		case 'monthly':
 			nextPaymentDate.setMonth(nextPaymentDate.getMonth() + 1);
@@ -66,26 +68,62 @@ export const calculatePaymentDate = (
 		nextPaymentDate.setMonth(nextPaymentDate.getMonth() + 1, 0);
 	}
 
-	// Si es pago vencido, agregar un período más
-	if (paymentType === 'arrears') {
-		switch (frequency) {
-			case 'monthly':
-				nextPaymentDate.setMonth(nextPaymentDate.getMonth() + 1);
-				break;
-			case 'quarterly':
-				nextPaymentDate.setMonth(nextPaymentDate.getMonth() + 3);
-				break;
-			case 'four_monthly':
-				nextPaymentDate.setMonth(nextPaymentDate.getMonth() + 4);
-				break;
-			case 'biannual':
-				nextPaymentDate.setMonth(nextPaymentDate.getMonth() + 6);
-				break;
-			case 'annual':
-				nextPaymentDate.setFullYear(nextPaymentDate.getFullYear() + 1);
-				break;
-		}
+	return nextPaymentDate;
+};
+
+/**
+ * Calcula la SIGUIENTE fecha de cobro después de generar un ticket
+ *
+ * Esta función se usa para recalcular paymentDate después de que la Cloud Function
+ * genera un ticket automático.
+ *
+ * Para pagos anticipados con renovación first_day:
+ * - Si el ticket se generó el día 15 → próximo cobro: día 1 del mes siguiente
+ * - Si el ticket se generó el día 1 → próximo cobro: día 1 del mes siguiente
+ */
+export const calculateNextPaymentDate = (
+	currentPaymentDate: Date,
+	service: Service,
+	paymentType: 'advance' | 'arrears' = 'advance'
+): Date | null => {
+	if (!service.frequency) {
+		console.warn('Missing frequency for next payment calculation');
+		return null;
 	}
+
+	const frequency = service.frequency;
+	const renovation = service.renovation || 'first_day';
+	const nextPaymentDate = new Date(currentPaymentDate);
+
+	// Sumar el período correspondiente
+	switch (frequency) {
+		case 'monthly':
+			nextPaymentDate.setMonth(nextPaymentDate.getMonth() + 1);
+			break;
+		case 'quarterly':
+			nextPaymentDate.setMonth(nextPaymentDate.getMonth() + 3);
+			break;
+		case 'four_monthly':
+			nextPaymentDate.setMonth(nextPaymentDate.getMonth() + 4);
+			break;
+		case 'biannual':
+			nextPaymentDate.setMonth(nextPaymentDate.getMonth() + 6);
+			break;
+		case 'annual':
+			nextPaymentDate.setFullYear(nextPaymentDate.getFullYear() + 1);
+			break;
+		default:
+			return null;
+	}
+
+	// Ajustar según el día de renovación
+	if (renovation === 'first_day') {
+		nextPaymentDate.setDate(1);
+	} else if (renovation === 'last_day') {
+		// Último día del mes
+		nextPaymentDate.setMonth(nextPaymentDate.getMonth() + 1, 0);
+	}
+	// Si renovation === 'same_day', mantener el mismo día del mes
 
 	return nextPaymentDate;
 };
@@ -222,6 +260,9 @@ export const getSubscriptionsNeedingRecalculation = (
 
 /**
  * Recalcula automáticamente las fechas de pago para múltiples suscripciones
+ *
+ * Esta función se usa para RECALCULAR la siguiente fecha de cobro después
+ * de que se generó un ticket (cuando paymentDate <= hoy).
  */
 export const recalculatePaymentDates = (
 	subscriptions: Subscription[],
@@ -239,7 +280,20 @@ export const recalculatePaymentDates = (
 			return;
 		}
 
-		const newPaymentDate = calculatePaymentDate(subscription, service, currentDate);
+		// ✅ Si la suscripción NO tiene paymentDate, calcular la primera fecha
+		if (!subscription.paymentDate) {
+			const newPaymentDate = calculatePaymentDate(subscription, service, currentDate);
+			results.push({ subscription, newPaymentDate });
+			return;
+		}
+
+		// ✅ Si la suscripción YA tiene paymentDate, calcular la SIGUIENTE fecha
+		// (esto significa que ya se generó un ticket y necesitamos la próxima fecha)
+		const newPaymentDate = calculateNextPaymentDate(
+			subscription.paymentDate,
+			service,
+			subscription.paymentType || 'advance'
+		);
 		results.push({ subscription, newPaymentDate });
 	});
 

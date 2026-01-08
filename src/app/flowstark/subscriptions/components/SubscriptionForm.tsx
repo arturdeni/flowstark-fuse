@@ -23,6 +23,7 @@ import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFnsV3';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { es } from 'date-fns/locale';
+import { startOfMonth } from 'date-fns';
 import {
     Person as PersonIcon,
     Inventory as InventoryIcon,
@@ -324,7 +325,7 @@ export const SubscriptionForm: React.FC<SubscriptionFormProps> = ({
                                     label="Fecha de Inicio"
                                     value={formData.startDate}
                                     onChange={(date) => handleDateChange('startDate', date)}
-                                    minDate={new Date()}
+                                    minDate={startOfMonth(new Date())}
                                     slotProps={{
                                         textField: {
                                             variant: 'outlined',
