@@ -236,10 +236,24 @@ async function generateTicketsForUser(
           existingTickets
         );
 
+        // ✅ VERIFICAR SI REALMENTE NECESITA CÁLCULO PROPORCIONAL
+        // Si startDate == paymentDate, NO es proporcional (es el ticket del período completo)
+        const startDate = subscription.startDate.toDate();
+        const needsProportional = isFirstTicket && !isSameDate(startDate, paymentDate);
+
+        console.log(`🔍 Verificación de ticket proporcional:`, {
+          subscriptionId: subscription.id,
+          serviceName: service.name,
+          isFirstTicket,
+          startDate: startDate.toISOString(),
+          paymentDate: paymentDate.toISOString(),
+          needsProportional
+        });
+
         // ✅ CALCULAR PERÍODO DE SERVICIO (proporcional o completo)
-        const servicePeriod = isFirstTicket
+        const servicePeriod = needsProportional
           ? calculateProportionalPeriod(
-              subscription.startDate.toDate(),
+              startDate,
               paymentDate,
               subscription.paymentType as PaymentType,
               service.frequency as ServiceFrequency,
@@ -253,9 +267,9 @@ async function generateTicketsForUser(
             );
 
         // ✅ CALCULAR PRECIO (proporcional o completo)
-        const ticketAmount = isFirstTicket
+        const ticketAmount = needsProportional
           ? calculateProportionalPrice(
-              subscription.startDate.toDate(),
+              startDate,
               paymentDate,
               service.finalPrice || service.basePrice || 0,
               service.frequency as ServiceFrequency
@@ -297,6 +311,27 @@ async function generateTicketsForUser(
         console.log(
           `   📅 Período: ${formatDate(servicePeriod.start)} - ${formatDate(servicePeriod.end)}`
         );
+
+        // ✅ ACTUALIZAR paymentDate de la suscripción al próximo pago
+        const nextPaymentDate = calculateNextPaymentDate(
+          paymentDate,
+          getMonthsForFrequency(service.frequency as ServiceFrequency)
+        );
+
+        await db
+          .collection("users")
+          .doc(userId)
+          .collection("subscriptions")
+          .doc(subscription.id)
+          .update({
+            paymentDate: admin.firestore.Timestamp.fromDate(nextPaymentDate),
+            updatedAt: admin.firestore.Timestamp.now(),
+          });
+
+        console.log(
+          `✅ PaymentDate actualizado a: ${formatDate(nextPaymentDate)}`
+        );
+
         generated++;
       } catch (error) {
         console.error(
@@ -394,16 +429,11 @@ function calculateAdvancePeriod(
   const start = new Date(paymentDate);
   const end = new Date(paymentDate);
 
-  if (periodMonths === 1) {
-    // Para mensual: del primer día del mes siguiente al último día de ese mes
-    start.setDate(1); // Primer día del mes de pago
-    end.setMonth(end.getMonth() + 1);
-    end.setDate(0); // Último día del mes siguiente
-  } else {
-    // Para otros períodos: desde la fecha de pago + período completo
-    end.setMonth(end.getMonth() + periodMonths);
-    end.setDate(end.getDate() - 1); // Un día antes para no solapar
-  }
+  // Para todos los períodos (incluyendo mensual):
+  // El período va desde paymentDate hasta paymentDate + período - 1 día
+  // Ejemplo: pago el 10/01 → período del 10/01 al 09/02 (para mensual)
+  end.setMonth(end.getMonth() + periodMonths);
+  end.setDate(end.getDate() - 1); // Un día antes del próximo pago
 
   const description = `${serviceName} - ${frequencyText} anticipado (${formatDateRange(start, end)})`;
   return { start, end, description };
@@ -524,7 +554,7 @@ async function checkIfFirstTicket(
 
 /**
  * Calcula el período proporcional para el primer ticket
- * Solo para pagos ANTICIPADOS
+ * Maneja correctamente todos los tipos de períodos (mensual, trimestral, cuatrimestral, semestral, anual)
  */
 function calculateProportionalPeriod(
   startDate: Date,
@@ -534,24 +564,49 @@ function calculateProportionalPeriod(
   serviceName: string
 ): ServicePeriod {
   const frequencyText = getFrequencyText(frequency);
+  const periodMonths = getMonthsForFrequency(frequency);
 
-  // Para pagos anticipados, el período proporcional va desde startDate hasta el día anterior a paymentDate
+  // Para pagos anticipados, el período proporcional va desde startDate hasta el final del período
   if (paymentType === PaymentType.ADVANCE) {
     const start = new Date(startDate);
-    const end = new Date(paymentDate);
-    end.setDate(end.getDate() - 1); // Un día antes del pago
 
-    const daysUsed = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+    // Calcular el final del período basándose en la frecuencia
+    const end = new Date(paymentDate);
+
+    // Para todos los períodos: sumar los meses correspondientes y restar 1 día
+    end.setMonth(end.getMonth() + periodMonths);
+    end.setDate(end.getDate() - 1); // El período termina un día antes del próximo pago
+
+    const daysUsed = calculateDaysBetween(start, end);
     const description = `${serviceName} - ${frequencyText} anticipado PROPORCIONAL (${formatDateRange(start, end)}) - ${daysUsed} días`;
+
+    console.log(`📊 Período proporcional calculado:`, {
+      serviceName,
+      startDate: start.toISOString(),
+      endDate: end.toISOString(),
+      paymentDate: paymentDate.toISOString(),
+      daysUsed,
+      frequency,
+      periodMonths
+    });
 
     return { start, end, description };
   } else {
-    // Para pagos vencidos en el primer ticket, no hay período proporcional
+    // Para pagos vencidos en el primer ticket
     // El ticket cubre desde startDate hasta paymentDate
     const start = new Date(startDate);
     const end = new Date(paymentDate);
 
-    const description = `${serviceName} - ${frequencyText} vencido (${formatDateRange(start, end)})`;
+    const daysUsed = calculateDaysBetween(start, end);
+    const description = `${serviceName} - ${frequencyText} vencido PROPORCIONAL (${formatDateRange(start, end)}) - ${daysUsed} días`;
+
+    console.log(`📊 Período proporcional vencido calculado:`, {
+      serviceName,
+      startDate: start.toISOString(),
+      endDate: end.toISOString(),
+      daysUsed,
+      frequency
+    });
 
     return { start, end, description };
   }
@@ -559,6 +614,7 @@ function calculateProportionalPeriod(
 
 /**
  * Calcula el precio proporcional basado en los días utilizados
+ * Calcula los días REALES del período completo basándose en la fecha de referencia
  */
 function calculateProportionalPrice(
   startDate: Date,
@@ -566,37 +622,104 @@ function calculateProportionalPrice(
   fullPrice: number,
   frequency: ServiceFrequency
 ): number {
-  // Calcular días utilizados
+  const periodMonths = getMonthsForFrequency(frequency);
+
+  // Calcular el final del período proporcional
   const end = new Date(paymentDate);
-  end.setDate(end.getDate() - 1); // Un día antes del pago
+  end.setMonth(end.getMonth() + periodMonths);
+  end.setDate(end.getDate() - 1); // Un día antes del próximo pago
 
-  const daysUsed = Math.ceil((end.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+  // Calcular días utilizados (inclusivo)
+  const daysUsed = calculateDaysBetween(startDate, end);
 
-  // Obtener días totales del período según frecuencia
-  const totalDays = getDaysForFrequency(frequency);
+  // Calcular días totales del período COMPLETO basándose en paymentDate
+  const totalDays = getTotalDaysForFrequency(frequency, paymentDate);
 
   // Calcular precio proporcional
   const proportionalPrice = (fullPrice * daysUsed) / totalDays;
+
+  console.log(`💰 Cálculo de precio proporcional:`, {
+    startDate: startDate.toISOString(),
+    endDate: end.toISOString(),
+    paymentDate: paymentDate.toISOString(),
+    daysUsed,
+    totalDays,
+    fullPrice,
+    proportionalPrice: Math.round(proportionalPrice * 100) / 100,
+    frequency
+  });
 
   return Math.round(proportionalPrice * 100) / 100; // Redondear a 2 decimales
 }
 
 /**
- * Obtiene el número total de días según la frecuencia (aproximado)
+ * Calcula los días entre dos fechas (INCLUSIVO)
+ * Ejemplo: del 5 al 31 de enero = 27 días (5, 6, 7, ..., 31)
  */
-function getDaysForFrequency(frequency: ServiceFrequency): number {
+function calculateDaysBetween(startDate: Date, endDate: Date): number {
+  const timeDiff = endDate.getTime() - startDate.getTime();
+  const daysDifference = Math.ceil(timeDiff / (1000 * 3600 * 24));
+  // Sumar 1 para contar inclusivamente (ambos días cuentan)
+  return daysDifference + 1;
+}
+
+/**
+ * Obtiene el número total de días según la frecuencia
+ * Calcula los días REALES del período específico basándose en la fecha de referencia
+ */
+function getTotalDaysForFrequency(frequency: ServiceFrequency, referenceDate: Date): number {
+  // Calcular días reales del período basándose en la fecha de inicio
+  const startDate = new Date(referenceDate);
+  startDate.setHours(0, 0, 0, 0);
+
+  // Calcular fecha de fin del período sumando la frecuencia
+  const endDate = new Date(startDate);
+
   switch (frequency) {
     case ServiceFrequency.MONTHLY:
-      return 30;
+      // Para mensual: último día del mismo mes
+      endDate.setMonth(endDate.getMonth() + 1, 0);
+      break;
     case ServiceFrequency.QUARTERLY:
-      return 90;
+      // Para trimestral: 3 meses después, último día del mes
+      endDate.setMonth(endDate.getMonth() + 3, 0);
+      break;
     case ServiceFrequency.FOUR_MONTHLY:
-      return 120;
+      // Para cuatrimestral: 4 meses después, último día del mes
+      endDate.setMonth(endDate.getMonth() + 4, 0);
+      break;
     case ServiceFrequency.BIANNUAL:
-      return 180;
+      // Para semestral: 6 meses después, último día del mes
+      endDate.setMonth(endDate.getMonth() + 6, 0);
+      break;
     case ServiceFrequency.ANNUAL:
-      return 365;
+      // Para anual: 1 año después, último día del mes
+      endDate.setFullYear(endDate.getFullYear() + 1);
+      endDate.setMonth(endDate.getMonth(), 0); // Último día del mes
+      break;
     default:
-      return 30;
+      return 30; // Fallback
   }
+
+  // Calcular días entre startDate (día 1 del mes) y endDate (último día del período)
+  // Para calcular el total de días del período completo
+  const periodStartDate = new Date(startDate);
+  periodStartDate.setDate(1); // Primer día del mes de inicio
+
+  const diffTime = endDate.getTime() - periodStartDate.getTime();
+  const totalDays = Math.ceil(diffTime / (1000 * 3600 * 24)) + 1; // +1 para incluir ambos días
+
+  return totalDays;
+}
+
+/**
+ * Calcula la próxima fecha de pago sumando los meses del período
+ */
+function calculateNextPaymentDate(
+  currentPaymentDate: Date,
+  periodMonths: number
+): Date {
+  const nextDate = new Date(currentPaymentDate);
+  nextDate.setMonth(nextDate.getMonth() + periodMonths);
+  return nextDate;
 }

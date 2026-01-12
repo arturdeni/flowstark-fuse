@@ -119,7 +119,7 @@ class AutomaticTicketService {
 		const startStr = startDate.toLocaleDateString('es-ES');
 		const endStr = endDate.toLocaleDateString('es-ES');
 
-		return `${serviceName} - Período proporcional (${startStr} - ${endStr}) - ${daysUsed}/${totalDays} días`;
+		return `${serviceName} - Período (${startStr} - ${endStr}) - ${daysUsed}/${totalDays} días`;
 	}
 
 	/**
@@ -433,7 +433,10 @@ class AutomaticTicketService {
 						};
 
 						// Verificar si ya existe el ticket
-						const proportionalEndDate = this.calculateProportionalEndDate(subscription.startDate, realNextPaymentDate);
+						const proportionalEndDate = this.calculateProportionalEndDate(
+							subscription.startDate,
+							realNextPaymentDate
+						);
 
 						const ticketExists = await this.checkIfProportionalTicketExists(
 							subscription.id,
