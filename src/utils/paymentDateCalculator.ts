@@ -34,38 +34,35 @@ export const calculatePaymentDate = (
 		return new Date(startDate);
 	}
 
-	// ✅ PARA PAGOS VENCIDOS: La fecha de cobro es después del primer período
+	// ✅ PARA PAGOS VENCIDOS: La fecha de cobro es SIEMPRE el último día del período
+	// Los pagos vencidos SIEMPRE se cobran al final del período, no importa la configuración de 'renovation'
 	const frequency = service.frequency;
-	const renovation = service.renovation || 'first_day';
 	const nextPaymentDate = new Date(startDate);
 
-	// Sumar el período correspondiente
+	// Sumar el período correspondiente para llegar al final del período
 	switch (frequency) {
 		case 'monthly':
-			nextPaymentDate.setMonth(nextPaymentDate.getMonth() + 1);
+			// Para mensual: último día del mes en curso
+			nextPaymentDate.setMonth(nextPaymentDate.getMonth() + 1, 0);
 			break;
 		case 'quarterly':
-			nextPaymentDate.setMonth(nextPaymentDate.getMonth() + 3);
+			// Para trimestral: último día del tercer mes
+			nextPaymentDate.setMonth(nextPaymentDate.getMonth() + 3, 0);
 			break;
 		case 'four_monthly':
-			nextPaymentDate.setMonth(nextPaymentDate.getMonth() + 4);
+			// Para cuatrimestral: último día del cuarto mes
+			nextPaymentDate.setMonth(nextPaymentDate.getMonth() + 4, 0);
 			break;
 		case 'biannual':
-			nextPaymentDate.setMonth(nextPaymentDate.getMonth() + 6);
+			// Para semestral: último día del sexto mes
+			nextPaymentDate.setMonth(nextPaymentDate.getMonth() + 6, 0);
 			break;
 		case 'annual':
-			nextPaymentDate.setFullYear(nextPaymentDate.getFullYear() + 1);
+			// Para anual: último día del año (mes + 12, día 0)
+			nextPaymentDate.setMonth(nextPaymentDate.getMonth() + 12, 0);
 			break;
 		default:
 			return null;
-	}
-
-	// Ajustar según el día de renovación
-	if (renovation === 'first_day') {
-		nextPaymentDate.setDate(1);
-	} else if (renovation === 'last_day') {
-		// Último día del mes
-		nextPaymentDate.setMonth(nextPaymentDate.getMonth() + 1, 0);
 	}
 
 	return nextPaymentDate;
@@ -80,6 +77,9 @@ export const calculatePaymentDate = (
  * Para pagos anticipados con renovación first_day:
  * - Si el ticket se generó el día 15 → próximo cobro: día 1 del mes siguiente
  * - Si el ticket se generó el día 1 → próximo cobro: día 1 del mes siguiente
+ *
+ * Para pagos vencidos (arrears):
+ * - SIEMPRE se cobra el último día del período, independientemente de 'renovation'
  */
 export const calculateNextPaymentDate = (
 	currentPaymentDate: Date,
@@ -95,6 +95,31 @@ export const calculateNextPaymentDate = (
 	const renovation = service.renovation || 'first_day';
 	const nextPaymentDate = new Date(currentPaymentDate);
 
+	// ✅ PARA PAGOS VENCIDOS: SIEMPRE último día del período
+	if (paymentType === 'arrears') {
+		switch (frequency) {
+			case 'monthly':
+				nextPaymentDate.setMonth(nextPaymentDate.getMonth() + 1, 0);
+				break;
+			case 'quarterly':
+				nextPaymentDate.setMonth(nextPaymentDate.getMonth() + 3, 0);
+				break;
+			case 'four_monthly':
+				nextPaymentDate.setMonth(nextPaymentDate.getMonth() + 4, 0);
+				break;
+			case 'biannual':
+				nextPaymentDate.setMonth(nextPaymentDate.getMonth() + 6, 0);
+				break;
+			case 'annual':
+				nextPaymentDate.setMonth(nextPaymentDate.getMonth() + 12, 0);
+				break;
+			default:
+				return null;
+		}
+		return nextPaymentDate;
+	}
+
+	// ✅ PARA PAGOS ANTICIPADOS: Aplicar lógica de renovación
 	// Sumar el período correspondiente
 	switch (frequency) {
 		case 'monthly':
@@ -116,7 +141,7 @@ export const calculateNextPaymentDate = (
 			return null;
 	}
 
-	// Ajustar según el día de renovación
+	// Ajustar según el día de renovación (solo para pagos anticipados)
 	if (renovation === 'first_day') {
 		nextPaymentDate.setDate(1);
 	} else if (renovation === 'last_day') {

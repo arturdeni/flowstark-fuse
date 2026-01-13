@@ -316,11 +316,13 @@ async function generateTicketsForUser(
         const nextPaymentDate = needsProportional
           ? calculateNextPaymentDateAfterProportional(
               startDate,
-              service.frequency as ServiceFrequency
+              service.frequency as ServiceFrequency,
+              subscription.paymentType as PaymentType
             )
           : calculateNextPaymentDate(
               paymentDate,
-              getMonthsForFrequency(service.frequency as ServiceFrequency)
+              getMonthsForFrequency(service.frequency as ServiceFrequency),
+              subscription.paymentType as PaymentType
             );
 
         await db
@@ -763,15 +765,18 @@ function getTotalDaysForFrequency(frequency: ServiceFrequency, referenceDate: Da
 
 /**
  * Calcula la próxima fecha de pago después de un ticket proporcional
- * Devuelve el primer día del siguiente período
+ * Para pagos anticipados: primer día del siguiente período
+ * Para pagos vencidos: último día del siguiente período
  * Ejemplos:
- * - Mensual: si el período actual termina el 31 enero → próximo pago: 1 febrero
- * - Trimestral: si el período actual termina el 31 marzo → próximo pago: 1 abril
- * - Anual: si el período actual termina el 31 diciembre 2026 → próximo pago: 1 enero 2027
+ * - Anticipado Mensual: si el período actual termina el 31 enero → próximo pago: 1 febrero
+ * - Anticipado Trimestral: si el período actual termina el 31 marzo → próximo pago: 1 abril
+ * - Vencido Mensual: si el período actual termina el 31 enero → próximo pago: 28/29 febrero
+ * - Vencido Trimestral: si el período actual termina el 31 marzo → próximo pago: 30 junio
  */
 function calculateNextPaymentDateAfterProportional(
   startDate: Date,
-  frequency: ServiceFrequency
+  frequency: ServiceFrequency,
+  paymentType: PaymentType = PaymentType.ADVANCE
 ): Date {
   // Calcular el final del período actual
   const endOfPeriod = calculateEndOfCurrentPeriod(startDate, frequency);
@@ -780,17 +785,35 @@ function calculateNextPaymentDateAfterProportional(
   const nextPaymentDate = new Date(endOfPeriod);
   nextPaymentDate.setDate(nextPaymentDate.getDate() + 1);
 
+  // ✅ PARA PAGOS VENCIDOS: Ajustar al último día del período siguiente
+  if (paymentType === PaymentType.ARREARS) {
+    const periodMonths = getMonthsForFrequency(frequency);
+    // Sumar el período y ajustar al último día del mes
+    nextPaymentDate.setMonth(nextPaymentDate.getMonth() + periodMonths, 0);
+  }
+
   return nextPaymentDate;
 }
 
 /**
  * Calcula la próxima fecha de pago sumando los meses del período
+ * Para pagos vencidos, SIEMPRE calcula el último día del período
  */
 function calculateNextPaymentDate(
   currentPaymentDate: Date,
-  periodMonths: number
+  periodMonths: number,
+  paymentType: PaymentType = PaymentType.ADVANCE
 ): Date {
   const nextDate = new Date(currentPaymentDate);
+
+  // ✅ PARA PAGOS VENCIDOS: SIEMPRE último día del período
+  if (paymentType === PaymentType.ARREARS) {
+    // Sumar el período y establecer el último día del mes resultante
+    nextDate.setMonth(nextDate.getMonth() + periodMonths, 0);
+    return nextDate;
+  }
+
+  // ✅ PARA PAGOS ANTICIPADOS: Mantener el mismo día del mes
   nextDate.setMonth(nextDate.getMonth() + periodMonths);
   return nextDate;
 }
