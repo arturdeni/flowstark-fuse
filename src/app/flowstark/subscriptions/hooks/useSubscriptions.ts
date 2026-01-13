@@ -221,20 +221,22 @@ export const useSubscriptions = () => {
       const newSubscription =
         await subscriptionsService.createSubscription(finalData);
 
-      // 2. ✅ GENERAR TICKET PROPORCIONAL SOLO PARA PAGOS ANTICIPADOS
+      // 2. ✅ GENERAR TICKET PARA PAGOS ANTICIPADOS Y ANIVERSARIO
       // Los pagos vencidos esperan a que la Cloud Function los genere en la fecha de vencimiento
-      if (newSubscription.id && finalData.paymentType === 'advance') {
+      if (newSubscription.id && (finalData.paymentType === 'advance' || finalData.paymentType === 'anniversary')) {
         try {
           await automaticTicketService.processNewSubscriptionForProportionalTicket(
             newSubscription.id
           );
           console.log(
-            '✅ Ticket proporcional generado para pago anticipado'
+            finalData.paymentType === 'anniversary'
+              ? '✅ Ticket anual completo generado para pago aniversario'
+              : '✅ Ticket proporcional generado para pago anticipado'
           );
         } catch (ticketError) {
-          console.error('⚠️ Error creando ticket proporcional:', ticketError);
+          console.error('⚠️ Error creando ticket:', ticketError);
           showSnackbar(
-            'Suscripción creada, pero hubo un problema generando el ticket proporcional',
+            'Suscripción creada, pero hubo un problema generando el ticket',
             'warning'
           );
         }

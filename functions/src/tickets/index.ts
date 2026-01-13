@@ -17,7 +17,7 @@ interface Subscription {
   clientId: string;
   startDate: admin.firestore.Timestamp;
   paymentDate: admin.firestore.Timestamp;
-  paymentType: "advance" | "arrears";
+  paymentType: "advance" | "arrears" | "anniversary";
   status: string;
   [key: string]: any;
 }
@@ -41,6 +41,7 @@ interface ServicePeriod {
 enum PaymentType {
   ADVANCE = "advance",
   ARREARS = "arrears",
+  ANNIVERSARY = "anniversary",
 }
 
 enum ServiceFrequency {
@@ -238,8 +239,12 @@ async function generateTicketsForUser(
 
         // ✅ VERIFICAR SI REALMENTE NECESITA CÁLCULO PROPORCIONAL
         // Si startDate == paymentDate, NO es proporcional (es el ticket del período completo)
+        // IMPORTANTE: Los pagos tipo ANNIVERSARY nunca tienen tickets proporcionales (siempre cobran el año completo)
         const startDate = subscription.startDate.toDate();
-        const needsProportional = isFirstTicket && !isSameDate(startDate, paymentDate);
+        const needsProportional =
+          isFirstTicket &&
+          !isSameDate(startDate, paymentDate) &&
+          subscription.paymentType !== 'anniversary';
 
         console.log(`🔍 Verificación de ticket proporcional:`, {
           subscriptionId: subscription.id,
@@ -247,6 +252,7 @@ async function generateTicketsForUser(
           isFirstTicket,
           startDate: startDate.toISOString(),
           paymentDate: paymentDate.toISOString(),
+          paymentType: subscription.paymentType,
           needsProportional
         });
 
@@ -413,10 +419,17 @@ function calculateServicePeriod(
       frequencyText,
       serviceName
     );
-  } else {
+  } else if (paymentType === PaymentType.ARREARS) {
     return calculateArrearsPeriod(
       paymentDate,
       periodMonths,
+      frequencyText,
+      serviceName
+    );
+  } else {
+    // PaymentType.ANNIVERSARY
+    return calculateAnniversaryPeriod(
+      paymentDate,
       frequencyText,
       serviceName
     );
@@ -470,6 +483,27 @@ function calculateArrearsPeriod(
   }
 
   const description = `${serviceName} - ${frequencyText} vencido (${formatDateRange(start, end)})`;
+  return { start, end, description };
+}
+
+/**
+ * Calcula período para pago aniversario (mismo día cada año)
+ * El ticket generado el día X cubre desde X hasta X + 1 año - 1 día
+ * Solo aplica para servicios anuales
+ */
+function calculateAnniversaryPeriod(
+  paymentDate: Date,
+  frequencyText: string,
+  serviceName: string
+): ServicePeriod {
+  const start = new Date(paymentDate);
+  const end = new Date(paymentDate);
+
+  // Para aniversario: el período es de 1 año completo desde la fecha de pago
+  end.setFullYear(end.getFullYear() + 1);
+  end.setDate(end.getDate() - 1); // Un día antes del próximo aniversario
+
+  const description = `${serviceName} - ${frequencyText} aniversario (${formatDateRange(start, end)})`;
   return { start, end, description };
 }
 
@@ -767,17 +801,26 @@ function getTotalDaysForFrequency(frequency: ServiceFrequency, referenceDate: Da
  * Calcula la próxima fecha de pago después de un ticket proporcional
  * Para pagos anticipados: primer día del siguiente período
  * Para pagos vencidos: último día del siguiente período
+ * Para pagos aniversario: mismo día del año siguiente
  * Ejemplos:
  * - Anticipado Mensual: si el período actual termina el 31 enero → próximo pago: 1 febrero
  * - Anticipado Trimestral: si el período actual termina el 31 marzo → próximo pago: 1 abril
  * - Vencido Mensual: si el período actual termina el 31 enero → próximo pago: 28/29 febrero
  * - Vencido Trimestral: si el período actual termina el 31 marzo → próximo pago: 30 junio
+ * - Aniversario: si el período actual termina el 15 enero 2026 → próximo pago: 15 enero 2027
  */
 function calculateNextPaymentDateAfterProportional(
   startDate: Date,
   frequency: ServiceFrequency,
   paymentType: PaymentType = PaymentType.ADVANCE
 ): Date {
+  // ✅ PARA PAGOS ANIVERSARIO: Mismo día del año siguiente
+  if (paymentType === PaymentType.ANNIVERSARY) {
+    const nextPaymentDate = new Date(startDate);
+    nextPaymentDate.setFullYear(nextPaymentDate.getFullYear() + 1);
+    return nextPaymentDate;
+  }
+
   // Calcular el final del período actual
   const endOfPeriod = calculateEndOfCurrentPeriod(startDate, frequency);
 
@@ -798,6 +841,7 @@ function calculateNextPaymentDateAfterProportional(
 /**
  * Calcula la próxima fecha de pago sumando los meses del período
  * Para pagos vencidos, SIEMPRE calcula el último día del período
+ * Para pagos aniversario, SIEMPRE suma 1 año al mismo día
  */
 function calculateNextPaymentDate(
   currentPaymentDate: Date,
@@ -805,6 +849,12 @@ function calculateNextPaymentDate(
   paymentType: PaymentType = PaymentType.ADVANCE
 ): Date {
   const nextDate = new Date(currentPaymentDate);
+
+  // ✅ PARA PAGOS ANIVERSARIO: SIEMPRE el mismo día del año siguiente
+  if (paymentType === PaymentType.ANNIVERSARY) {
+    nextDate.setFullYear(nextDate.getFullYear() + 1);
+    return nextDate;
+  }
 
   // ✅ PARA PAGOS VENCIDOS: SIEMPRE último día del período
   if (paymentType === PaymentType.ARREARS) {

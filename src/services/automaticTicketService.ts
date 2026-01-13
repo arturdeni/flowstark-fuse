@@ -323,10 +323,13 @@ class AutomaticTicketService {
 	/**
 	 * Procesa todas las suscripciones nuevas para generar tickets proporcionales
 	 * Debe ser llamado después de crear una nueva suscripción
+	 *
+	 * NOTA: Para pagos tipo 'anniversary', NO genera tickets proporcionales.
+	 * En su lugar, genera el ticket del año completo inmediatamente.
 	 */
 	async processNewSubscriptionForProportionalTicket(subscriptionId: string): Promise<void> {
 		try {
-			console.log(`🎫 Procesando suscripción ${subscriptionId} para ticket proporcional`);
+			console.log(`🎫 Procesando suscripción ${subscriptionId} para ticket`);
 
 			// 1. Obtener la suscripción
 			const subscription = await subscriptionsService.getSubscriptionById(subscriptionId);
@@ -336,7 +339,14 @@ class AutomaticTicketService {
 
 			// 3. Validar que tenga fecha de pago calculada
 			if (!subscription.paymentDate) {
-				console.log('Suscripción sin fecha de pago, no se puede crear ticket proporcional');
+				console.log('Suscripción sin fecha de pago, no se puede crear ticket');
+				return;
+			}
+
+			// ✅ CASO ESPECIAL: Para pagos tipo ANNIVERSARY, generar ticket del año completo
+			if (subscription.paymentType === 'anniversary') {
+				console.log('🎂 Pago tipo ANNIVERSARY detectado: generando ticket del año completo');
+				await this.createAnniversaryTicket(subscription, service);
 				return;
 			}
 
@@ -371,7 +381,90 @@ class AutomaticTicketService {
 			// 7. Crear el ticket proporcional
 			await this.createProportionalTicket(config);
 		} catch (error) {
-			console.error('Error processing new subscription for proportional ticket:', error);
+			console.error('Error processing new subscription for ticket:', error);
+			throw error;
+		}
+	}
+
+	/**
+	 * Crea un ticket del año completo para suscripciones tipo ANNIVERSARY
+	 * NO calcula proporcional, siempre cobra el año completo desde el inicio
+	 *
+	 * IMPORTANTE: Solo genera el ticket si startDate <= hoy
+	 * Si la suscripción es futura, la Cloud Function lo generará cuando llegue la fecha
+	 */
+	private async createAnniversaryTicket(subscription: { id?: string; startDate: Date; clientId: string }, service: { name: string; finalPrice?: number; basePrice: number }): Promise<void> {
+		try {
+			const today = new Date();
+			today.setHours(0, 0, 0, 0);
+
+			const startDate = new Date(subscription.startDate);
+			startDate.setHours(0, 0, 0, 0);
+
+			// ✅ VALIDACIÓN: Solo generar ticket si la suscripción empieza hoy o antes
+			if (startDate > today) {
+				console.log(
+					`📅 Suscripción aniversario futura: startDate (${startDate.toDateString()}) > hoy (${today.toDateString()}). La Cloud Function lo generará.`
+				);
+				return;
+			}
+
+			// Calcular el fin del período anual (1 año después, menos 1 día)
+			const endDate = new Date(startDate);
+			endDate.setFullYear(endDate.getFullYear() + 1);
+			endDate.setDate(endDate.getDate() - 1);
+
+			// Verificar si ya existe un ticket para este período
+			const ticketExists = await this.checkIfProportionalTicketExists(
+				subscription.id!,
+				startDate,
+				endDate
+			);
+
+			if (ticketExists) {
+				console.log('Ya existe un ticket aniversario para este período, omitiendo creación');
+				return;
+			}
+
+			// Obtener el método de pago del cliente
+			const client = await clientsService.getClientById(subscription.clientId);
+			const paymentMethod = client.paymentMethod?.type || undefined;
+
+			// Descripción del ticket
+			const description = `${service.name} - Anual aniversario (${startDate.toLocaleDateString('es-ES')} - ${endDate.toLocaleDateString('es-ES')})`;
+
+			// Crear el ticket con precio completo
+			await ticketsService.createTicket({
+				subscriptionId: subscription.id!,
+				dueDate: startDate, // El ticket vence el mismo día de inicio
+				amount: service.finalPrice || service.basePrice,
+				status: 'pending',
+				generatedDate: today,
+				isManual: false,
+				description,
+				serviceStart: startDate,
+				serviceEnd: endDate,
+				paymentMethod
+			});
+
+			console.log(`✅ Ticket aniversario creado:`, {
+				subscriptionId: subscription.id,
+				serviceName: service.name,
+				amount: service.finalPrice || service.basePrice,
+				period: `${startDate.toDateString()} - ${endDate.toDateString()}`,
+				dueDate: startDate.toDateString()
+			});
+
+			// ✅ ACTUALIZAR paymentDate de la suscripción al próximo año
+			const nextPaymentDate = new Date(startDate);
+			nextPaymentDate.setFullYear(nextPaymentDate.getFullYear() + 1);
+
+			await subscriptionsService.updateSubscription(subscription.id!, {
+				paymentDate: nextPaymentDate
+			});
+			console.log(`✅ PaymentDate actualizado a: ${nextPaymentDate.toDateString()}`);
+		} catch (error) {
+			console.error('Error creating anniversary ticket:', error);
 			throw error;
 		}
 	}

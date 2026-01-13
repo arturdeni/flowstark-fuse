@@ -34,6 +34,12 @@ export const calculatePaymentDate = (
 		return new Date(startDate);
 	}
 
+	// ✅ PARA PAGOS ANIVERSARIO: La primera fecha de cobro es la fecha de inicio
+	// Se cobra el mismo día cada año (solo para servicios anuales)
+	if (paymentType === 'anniversary') {
+		return new Date(startDate);
+	}
+
 	// ✅ PARA PAGOS VENCIDOS: La fecha de cobro es SIEMPRE el último día del período
 	// Los pagos vencidos SIEMPRE se cobran al final del período, no importa la configuración de 'renovation'
 	const frequency = service.frequency;
@@ -80,11 +86,14 @@ export const calculatePaymentDate = (
  *
  * Para pagos vencidos (arrears):
  * - SIEMPRE se cobra el último día del período, independientemente de 'renovation'
+ *
+ * Para pagos aniversario (anniversary):
+ * - SIEMPRE se cobra el mismo día del año siguiente (solo para servicios anuales)
  */
 export const calculateNextPaymentDate = (
 	currentPaymentDate: Date,
 	service: Service,
-	paymentType: 'advance' | 'arrears' = 'advance'
+	paymentType: 'advance' | 'arrears' | 'anniversary' = 'advance'
 ): Date | null => {
 	if (!service.frequency) {
 		console.warn('Missing frequency for next payment calculation');
@@ -94,6 +103,12 @@ export const calculateNextPaymentDate = (
 	const frequency = service.frequency;
 	const renovation = service.renovation || 'first_day';
 	const nextPaymentDate = new Date(currentPaymentDate);
+
+	// ✅ PARA PAGOS ANIVERSARIO: SIEMPRE el mismo día del año siguiente
+	if (paymentType === 'anniversary') {
+		nextPaymentDate.setFullYear(nextPaymentDate.getFullYear() + 1);
+		return nextPaymentDate;
+	}
 
 	// ✅ PARA PAGOS VENCIDOS: SIEMPRE último día del período
 	if (paymentType === 'arrears') {

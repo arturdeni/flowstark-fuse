@@ -5,7 +5,10 @@
       "Bash(dir:*)",
       "Bash(findstr:*)",
       "Bash(firebase deploy:*)",
-      "Bash(npm run build:*)"
+      "Bash(npm run build:*)",
+      "Bash(npm run deploy:*)",
+      "Bash(node -e:*)",
+      "Bash(firebase functions:list:*)"
     ],
     "deny": [],
     "ask": []

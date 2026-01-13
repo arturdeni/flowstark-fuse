@@ -50,7 +50,7 @@ interface FormData {
     serviceId: string;
     startDate: Date;
     endDate: Date | null;
-    paymentType: 'advance' | 'arrears';
+    paymentType: 'advance' | 'arrears' | 'anniversary';
     paymentHistory: any[];
 }
 
@@ -357,6 +357,10 @@ export const SubscriptionForm: React.FC<SubscriptionFormProps> = ({
                                 >
                                     <MenuItem value="advance">Anticipado (se cobra antes del servicio)</MenuItem>
                                     <MenuItem value="arrears">Vencido (se cobra después del servicio)</MenuItem>
+                                    {/* Mostrar opción Anniversary solo si el servicio seleccionado es anual */}
+                                    {services.find(s => s.id === formData.serviceId)?.frequency === 'annual' && (
+                                        <MenuItem value="anniversary">Aniversario (se cobra el mismo día cada año)</MenuItem>
+                                    )}
                                 </Select>
                             </FormControl>
                         </Box>

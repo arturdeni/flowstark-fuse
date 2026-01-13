@@ -55,7 +55,7 @@ export interface Subscription {
 	serviceId: string;
 	startDate: Date;
 	endDate: Date | null;
-	paymentType: 'advance' | 'arrears'; // Pago anticipado o vencido
+	paymentType: 'advance' | 'arrears' | 'anniversary'; // Pago anticipado, vencido o aniversario (mismo día cada año)
 	paymentDate?: Date; // Fecha de cobro calculada automáticamente
 	paymentHistory: PaymentHistory[];
 	status: 'active' | 'expired' | 'ending'; // Estados: activa, caducada, finalizando
@@ -92,7 +92,8 @@ export interface ServicePeriod {
 // Enum para tipos de pago para mayor claridad
 export enum PaymentType {
 	ADVANCE = 'advance', // Pago anticipado
-	ARREARS = 'arrears' // Pago vencido
+	ARREARS = 'arrears', // Pago vencido
+	ANNIVERSARY = 'anniversary' // Pago en aniversario (mismo día cada año, solo para servicios anuales)
 }
 
 // Enum para frecuencias de servicio

@@ -158,6 +158,8 @@ export const SubscriptionsTable: React.FC<SubscriptionsTableProps> = ({
                 return 'Anticipado';
             case 'arrears':
                 return 'Vencido';
+            case 'anniversary':
+                return 'Aniversario';
             default:
                 return paymentType;
         }
@@ -321,7 +323,7 @@ export const SubscriptionsTable: React.FC<SubscriptionsTableProps> = ({
                                     direction={orderBy === 'paymentType' ? order : 'asc'}
                                     onClick={() => handleRequestSort('paymentType')}
                                 >
-                                    Tipo de Pago
+                                    Tipo de Cobro
                                 </TableSortLabel>
                             </HeaderTableCell>
                             <HeaderTableCell>
