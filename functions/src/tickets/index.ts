@@ -238,13 +238,14 @@ async function generateTicketsForUser(
         );
 
         // ✅ VERIFICAR SI REALMENTE NECESITA CÁLCULO PROPORCIONAL
-        // Si startDate == paymentDate, NO es proporcional (es el ticket del período completo)
-        // IMPORTANTE: Los pagos tipo ANNIVERSARY nunca tienen tickets proporcionales (siempre cobran el año completo)
+        // Para PAGO ANTICIPADO: El primer ticket es proporcional si startDate no es el inicio del período natural
+        // Para PAGO VENCIDO: NO usar proporcional (siempre período completo)
+        // Para PAGO ANIVERSARIO: NO usar proporcional (siempre año completo)
         const startDate = subscription.startDate.toDate();
         const needsProportional =
           isFirstTicket &&
-          !isSameDate(startDate, paymentDate) &&
-          subscription.paymentType !== 'anniversary';
+          subscription.paymentType === 'advance' &&
+          !isStartOfNaturalPeriod(startDate, service.frequency as ServiceFrequency);
 
         console.log(`🔍 Verificación de ticket proporcional:`, {
           subscriptionId: subscription.id,
@@ -575,6 +576,49 @@ function isSameDate(date1: Date, date2: Date): boolean {
     date1.getMonth() === date2.getMonth() &&
     date1.getDate() === date2.getDate()
   );
+}
+
+/**
+ * Verifica si una fecha es el inicio de un período natural según la frecuencia
+ * - Mensual: día 1 del mes
+ * - Trimestral: día 1 de enero/abril/julio/octubre
+ * - Cuatrimestral: día 1 de enero/mayo/septiembre
+ * - Semestral: día 1 de enero/julio
+ * - Anual: día 1 de enero
+ */
+function isStartOfNaturalPeriod(date: Date, frequency: ServiceFrequency): boolean {
+  const day = date.getDate();
+  const month = date.getMonth(); // 0-11
+
+  // Todas las frecuencias requieren que sea día 1
+  if (day !== 1) {
+    return false;
+  }
+
+  switch (frequency) {
+    case ServiceFrequency.MONTHLY:
+      // Cualquier día 1 del mes es válido
+      return true;
+
+    case ServiceFrequency.QUARTERLY:
+      // Día 1 de enero (0), abril (3), julio (6), octubre (9)
+      return month % 3 === 0;
+
+    case ServiceFrequency.FOUR_MONTHLY:
+      // Día 1 de enero (0), mayo (4), septiembre (8)
+      return month % 4 === 0;
+
+    case ServiceFrequency.BIANNUAL:
+      // Día 1 de enero (0) o julio (6)
+      return month === 0 || month === 6;
+
+    case ServiceFrequency.ANNUAL:
+      // Día 1 de enero (0)
+      return month === 0;
+
+    default:
+      return false;
+  }
 }
 
 /**
