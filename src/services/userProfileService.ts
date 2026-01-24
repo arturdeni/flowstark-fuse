@@ -23,6 +23,11 @@ export interface UserProfile {
 	phone?: string;
 	website?: string;
 
+	// Datos bancarios SEPA (para domiciliaciones)
+	sepaIban?: string; // IBAN de cobro
+	sepaBic?: string; // BIC/SWIFT del banco (opcional)
+	sepaCreditorId?: string; // Identificador de acreedor SEPA (lo proporciona el banco)
+
 	// Datos de autenticación (solo lectura)
 	email?: string;
 	displayName?: string;
@@ -46,6 +51,7 @@ export const userProfileService = {
 
 			if (userDoc.exists) {
 				const data = userDoc.data();
+
 				return {
 					userType: data?.userType,
 					name: data?.name,
@@ -59,6 +65,9 @@ export const userProfileService = {
 					commercialName: data?.commercialName,
 					phone: data?.phone,
 					website: data?.website,
+					sepaIban: data?.sepaIban,
+					sepaBic: data?.sepaBic,
+					sepaCreditorId: data?.sepaCreditorId,
 					email: data?.email || currentUser.email,
 					displayName: data?.displayName,
 					createdAt: data?.createdAt?.toDate(),
@@ -117,6 +126,9 @@ export const userProfileService = {
 				commercialName: data?.commercialName,
 				phone: data?.phone,
 				website: data?.website,
+				sepaIban: data?.sepaIban,
+				sepaBic: data?.sepaBic,
+				sepaCreditorId: data?.sepaCreditorId,
 				email: data?.email || currentUser.email,
 				displayName: data?.displayName,
 				createdAt: data?.createdAt?.toDate(),

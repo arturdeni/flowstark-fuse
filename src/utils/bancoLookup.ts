@@ -168,3 +168,62 @@ export function buscarBancosPorNombre(termino: string): BancoInfo[] {
 		)
 		.sort((a, b) => a.nombre.localeCompare(b.nombre));
 }
+
+/**
+ * Valida el formato de un Creditor ID SEPA español
+ * Formato: ESxxZZZxxxxxxxx (donde xx son dígitos de control, ZZZ es el sufijo, y xxxxxxxx es el NIF/CIF)
+ * @param creditorId - Creditor ID a validar
+ * @returns true si el formato es válido
+ */
+export function validarCreditorId(creditorId: string): boolean {
+	if (!creditorId) return false;
+
+	const creditorIdLimpio = creditorId.replace(/\s/g, '').toUpperCase();
+
+	// Formato: ES + 2 dígitos control + 3 caracteres sufijo + 8-9 caracteres NIF/CIF
+	return /^ES\d{2}[A-Z0-9]{3}[A-Z0-9]{8,9}$/.test(creditorIdLimpio);
+}
+
+/**
+ * Formatea un Creditor ID para mostrarlo
+ * @param creditorId - Creditor ID sin formato
+ * @returns Creditor ID formateado
+ */
+export function formatearCreditorId(creditorId: string): string {
+	if (!creditorId) return '';
+
+	const creditorIdLimpio = creditorId.replace(/\s/g, '').toUpperCase();
+
+	if (!validarCreditorId(creditorIdLimpio)) {
+		return creditorId;
+	}
+
+	// Formato: ES12 ZZZ 12345678X
+	return `${creditorIdLimpio.slice(0, 4)} ${creditorIdLimpio.slice(4, 7)} ${creditorIdLimpio.slice(7)}`;
+}
+
+/**
+ * Valida el formato de un código BIC/SWIFT
+ * Formato: 8 u 11 caracteres alfanuméricos
+ * @param bic - Código BIC a validar
+ * @returns true si el formato es válido
+ */
+export function validarBic(bic: string): boolean {
+	if (!bic) return true; // BIC es opcional
+
+	const bicLimpio = bic.replace(/\s/g, '').toUpperCase();
+
+	// Formato: 4 letras (banco) + 2 letras (país) + 2 alfanuméricos (localidad) + 3 opcionales (sucursal)
+	return /^[A-Z]{4}[A-Z]{2}[A-Z0-9]{2}([A-Z0-9]{3})?$/.test(bicLimpio);
+}
+
+/**
+ * Formatea un código BIC para mostrarlo
+ * @param bic - Código BIC sin formato
+ * @returns Código BIC formateado en mayúsculas
+ */
+export function formatearBic(bic: string): string {
+	if (!bic) return '';
+
+	return bic.replace(/\s/g, '').toUpperCase();
+}

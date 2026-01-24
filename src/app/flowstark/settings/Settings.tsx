@@ -25,7 +25,16 @@ import {
   LocationOn as LocationOnIcon,
   Language as LanguageIcon,
   Badge as BadgeIcon,
+  AccountBalance as AccountBalanceIcon,
+  Info as InfoIcon,
 } from '@mui/icons-material';
+import {
+  validarFormatoIbanEspanol,
+  formatearIban,
+  obtenerBancoPorIban,
+  validarCreditorId,
+  validarBic,
+} from '@/utils/bancoLookup';
 import useAuth from '@fuse/core/FuseAuthProvider/useAuth';
 import { userProfileService } from '@/services/userProfileService';
 import type { UserProfile } from '@/services/userProfileService';
@@ -69,6 +78,10 @@ function Settings() {
     phone: '',
     email: '',
     website: '',
+    // Datos bancarios SEPA
+    sepaIban: '',
+    sepaBic: '',
+    sepaCreditorId: '',
   });
 
   const [snackbar, setSnackbar] = useState({
@@ -98,6 +111,9 @@ function Settings() {
             phone: profile.phone || '',
             email: profile.email || (user?.email as string) || '',
             website: profile.website || '',
+            sepaIban: profile.sepaIban || '',
+            sepaBic: profile.sepaBic || '',
+            sepaCreditorId: profile.sepaCreditorId || '',
           });
 
           if (profile.userType) {
@@ -155,6 +171,9 @@ function Settings() {
         commercialName: formData.commercialName,
         phone: formData.phone,
         website: formData.website,
+        sepaIban: formData.sepaIban,
+        sepaBic: formData.sepaBic,
+        sepaCreditorId: formData.sepaCreditorId,
       };
 
       // Guardar en Firebase
@@ -217,15 +236,14 @@ function Settings() {
             {/* Panel de Datos Básicos */}
             <div className="lg:col-span-1">
               <StyledPaper elevation={1} className="p-6">
-                <Box className="flex items-center mb-6">
+                <Box className="flex items-center mb-4">
                   <Avatar
-                    sx={{ width: 80, height: 80, mr: 3 }}
-                    alt="Usuario"
+                    sx={{ width: 60, height: 60, mr: 3, bgcolor: 'primary.light' }}
                   >
                     {userType === 'autonomo' ? (
-                      <PersonIcon sx={{ fontSize: 40 }} />
+                      <PersonIcon sx={{ fontSize: 30, color: 'primary.main' }} />
                     ) : (
-                      <BusinessIcon sx={{ fontSize: 40 }} />
+                      <BusinessIcon sx={{ fontSize: 30, color: 'primary.main' }} />
                     )}
                   </Avatar>
                   <Box>
@@ -233,7 +251,7 @@ function Settings() {
                       Datos Fiscales
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
-                      Actualiza tu información fiscal y de contacto
+                      Información fiscal y de contacto
                     </Typography>
                   </Box>
                 </Box>
@@ -250,32 +268,36 @@ function Settings() {
 
                 <div className="space-y-4">
                   {/* Nombre / Razón Social */}
-                  <Box className="flex items-center gap-3">
-                    <PersonIcon className="text-gray-500" sx={{ fontSize: 24 }} />
-                    <TextField
-                      fullWidth
-                      label={userType === 'autonomo' ? 'Nombre y apellidos' : 'Razón Social'}
-                      name="name"
-                      value={formData.name}
-                      onChange={handleInputChange}
-                      variant="outlined"
-                      required
-                    />
-                  </Box>
+                  <TextField
+                    fullWidth
+                    label={userType === 'autonomo' ? 'Nombre y apellidos' : 'Razón Social'}
+                    name="name"
+                    value={formData.name}
+                    onChange={handleInputChange}
+                    variant="outlined"
+                    required
+                    InputProps={{
+                      startAdornment: (
+                        <PersonIcon sx={{ mr: 1, color: 'action.active' }} />
+                      ),
+                    }}
+                  />
 
                   {/* NIF / CIF */}
-                  <Box className="flex items-center gap-3">
-                    <BadgeIcon className="text-gray-500" sx={{ fontSize: 24 }} />
-                    <TextField
-                      fullWidth
-                      label={userType === 'autonomo' ? 'NIF' : 'CIF'}
-                      name="nifCif"
-                      value={formData.nifCif}
-                      onChange={handleInputChange}
-                      variant="outlined"
-                      required
-                    />
-                  </Box>
+                  <TextField
+                    fullWidth
+                    label={userType === 'autonomo' ? 'NIF' : 'CIF'}
+                    name="nifCif"
+                    value={formData.nifCif}
+                    onChange={handleInputChange}
+                    variant="outlined"
+                    required
+                    InputProps={{
+                      startAdornment: (
+                        <BadgeIcon sx={{ mr: 1, color: 'action.active' }} />
+                      ),
+                    }}
+                  />
 
                   {/* Domicilio Fiscal */}
                   <Typography variant="subtitle2" color="text.secondary" className="mt-4 mb-2">
@@ -284,18 +306,20 @@ function Settings() {
 
                   <Grid container spacing={2}>
                     <Grid item xs={12} sm={8}>
-                      <Box className="flex items-center gap-3">
-                        <LocationOnIcon className="text-gray-500" sx={{ fontSize: 24 }} />
-                        <TextField
-                          fullWidth
-                          label="Calle"
-                          name="street"
-                          value={formData.street}
-                          onChange={handleInputChange}
-                          variant="outlined"
-                          required
-                        />
-                      </Box>
+                      <TextField
+                        fullWidth
+                        label="Calle"
+                        name="street"
+                        value={formData.street}
+                        onChange={handleInputChange}
+                        variant="outlined"
+                        required
+                        InputProps={{
+                          startAdornment: (
+                            <LocationOnIcon sx={{ mr: 1, color: 'action.active' }} />
+                          ),
+                        }}
+                      />
                     </Grid>
                     <Grid item xs={12} sm={4}>
                       <TextField
@@ -355,62 +379,70 @@ function Settings() {
                   </Grid>
 
                   {/* Nombre Comercial */}
-                  <Box className="flex items-center gap-3">
-                    <BusinessIcon className="text-gray-500" sx={{ fontSize: 24 }} />
-                    <TextField
-                      fullWidth
-                      label="Nombre Comercial"
-                      name="commercialName"
-                      value={formData.commercialName}
-                      onChange={handleInputChange}
-                      variant="outlined"
-                    />
-                  </Box>
+                  <TextField
+                    fullWidth
+                    label="Nombre Comercial"
+                    name="commercialName"
+                    value={formData.commercialName}
+                    onChange={handleInputChange}
+                    variant="outlined"
+                    InputProps={{
+                      startAdornment: (
+                        <BusinessIcon sx={{ mr: 1, color: 'action.active' }} />
+                      ),
+                    }}
+                  />
 
                   {/* Teléfono de Contacto */}
-                  <Box className="flex items-center gap-3">
-                    <PhoneIcon className="text-gray-500" sx={{ fontSize: 24 }} />
-                    <TextField
-                      fullWidth
-                      label="Teléfono de Contacto"
-                      name="phone"
-                      value={formData.phone}
-                      onChange={handleInputChange}
-                      variant="outlined"
-                      required
-                    />
-                  </Box>
+                  <TextField
+                    fullWidth
+                    label="Teléfono de Contacto"
+                    name="phone"
+                    value={formData.phone}
+                    onChange={handleInputChange}
+                    variant="outlined"
+                    required
+                    InputProps={{
+                      startAdornment: (
+                        <PhoneIcon sx={{ mr: 1, color: 'action.active' }} />
+                      ),
+                    }}
+                  />
 
                   {/* Correo Electrónico (no editable) */}
-                  <Box className="flex items-center gap-3">
-                    <EmailIcon className="text-gray-500" sx={{ fontSize: 24 }} />
-                    <TextField
-                      fullWidth
-                      label="Correo Electrónico"
-                      name="email"
-                      type="email"
-                      value={formData.email}
-                      onChange={handleInputChange}
-                      variant="outlined"
-                      disabled
-                      helperText="Este campo no se puede editar"
-                      required
-                    />
-                  </Box>
+                  <TextField
+                    fullWidth
+                    label="Correo Electrónico"
+                    name="email"
+                    type="email"
+                    value={formData.email}
+                    onChange={handleInputChange}
+                    variant="outlined"
+                    disabled
+                    helperText="Este campo no se puede editar"
+                    required
+                    InputProps={{
+                      startAdornment: (
+                        <EmailIcon sx={{ mr: 1, color: 'action.active' }} />
+                      ),
+                    }}
+                  />
 
                   {/* Página Web */}
-                  <Box className="flex items-center gap-3">
-                    <LanguageIcon className="text-gray-500" sx={{ fontSize: 24 }} />
-                    <TextField
-                      fullWidth
-                      label="Página Web"
-                      name="website"
-                      value={formData.website}
-                      onChange={handleInputChange}
-                      variant="outlined"
-                      placeholder="https://www.ejemplo.com"
-                    />
-                  </Box>
+                  <TextField
+                    fullWidth
+                    label="Página Web"
+                    name="website"
+                    value={formData.website}
+                    onChange={handleInputChange}
+                    variant="outlined"
+                    placeholder="https://www.ejemplo.com"
+                    InputProps={{
+                      startAdornment: (
+                        <LanguageIcon sx={{ mr: 1, color: 'action.active' }} />
+                      ),
+                    }}
+                  />
                 </div>
 
                 <Box className="mt-6 flex justify-center">
@@ -428,9 +460,137 @@ function Settings() {
               </StyledPaper>
             </div>
 
-            {/* Panel de Suscripción */}
-            <div className="lg:col-span-1">
+            {/* Columna derecha: Suscripción + Datos Bancarios */}
+            <div className="lg:col-span-1 flex flex-col gap-6">
+              {/* Panel de Suscripción */}
               <SubscriptionPanel />
+
+              {/* Panel de Datos Bancarios SEPA */}
+              <Paper elevation={1} className="p-6">
+                <Box className="flex items-center mb-4">
+                  <Avatar
+                    sx={{ width: 60, height: 60, mr: 3, bgcolor: 'primary.light' }}
+                  >
+                    <AccountBalanceIcon sx={{ fontSize: 30, color: 'primary.main' }} />
+                  </Avatar>
+                  <Box>
+                    <Typography variant="h5" gutterBottom>
+                      Datos Bancarios
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      SEPA para domiciliaciones
+                    </Typography>
+                  </Box>
+                </Box>
+
+                <Divider className="mb-4" />
+
+                <Box
+                  sx={{
+                    mb: 3,
+                    p: 1.5,
+                    backgroundColor: 'info.lighter',
+                    borderRadius: 1,
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    gap: 1,
+                  }}
+                >
+                  <InfoIcon sx={{ fontSize: 18, color: 'info.main', mt: 0.25 }} />
+                  <Typography variant="caption" color="info.dark">
+                    Campos opcionales. Solo necesarios para generar remesas SEPA.
+                  </Typography>
+                </Box>
+
+                <div className="space-y-4">
+                  {/* IBAN de cobro */}
+                  <TextField
+                    fullWidth
+                    label="IBAN de cobro"
+                    name="sepaIban"
+                    value={formData.sepaIban}
+                    onChange={handleInputChange}
+                    variant="outlined"
+                    placeholder="ES12 3456 7890 1234 5678 9012"
+                    error={formData.sepaIban !== '' && !validarFormatoIbanEspanol(formData.sepaIban)}
+                    helperText={
+                      formData.sepaIban === ''
+                        ? 'Cuenta donde recibirás los cobros'
+                        : !validarFormatoIbanEspanol(formData.sepaIban)
+                          ? 'Formato de IBAN no válido'
+                          : obtenerBancoPorIban(formData.sepaIban)
+                            ? `Banco: ${obtenerBancoPorIban(formData.sepaIban)?.nombre}`
+                            : 'IBAN válido'
+                    }
+                    InputProps={{
+                      startAdornment: (
+                        <AccountBalanceIcon sx={{ mr: 1, color: 'action.active' }} />
+                      ),
+                    }}
+                  />
+
+                  {/* BIC/SWIFT */}
+                  <TextField
+                    fullWidth
+                    label="BIC/SWIFT (opcional)"
+                    name="sepaBic"
+                    value={formData.sepaBic}
+                    onChange={handleInputChange}
+                    variant="outlined"
+                    placeholder="CAIXESBBXXX"
+                    error={formData.sepaBic !== '' && !validarBic(formData.sepaBic)}
+                    helperText={
+                      formData.sepaBic === ''
+                        ? 'Código de tu banco (8 u 11 caracteres)'
+                        : !validarBic(formData.sepaBic)
+                          ? 'Formato de BIC no válido'
+                          : 'BIC válido'
+                    }
+                    InputProps={{
+                      startAdornment: (
+                        <AccountBalanceIcon sx={{ mr: 1, color: 'action.active' }} />
+                      ),
+                    }}
+                  />
+
+                  {/* Creditor ID */}
+                  <TextField
+                    fullWidth
+                    label="Identificador de Acreedor SEPA"
+                    name="sepaCreditorId"
+                    value={formData.sepaCreditorId}
+                    onChange={handleInputChange}
+                    variant="outlined"
+                    placeholder="ES12ZZZ12345678X"
+                    error={formData.sepaCreditorId !== '' && !validarCreditorId(formData.sepaCreditorId)}
+                    helperText={
+                      formData.sepaCreditorId === ''
+                        ? 'Lo proporciona tu banco al darte de alta como acreedor'
+                        : !validarCreditorId(formData.sepaCreditorId)
+                          ? 'Formato no válido (debe ser ESxxZZZxxxxxxxx)'
+                          : 'Creditor ID válido'
+                    }
+                    InputProps={{
+                      startAdornment: (
+                        <BadgeIcon sx={{ mr: 1, color: 'action.active' }} />
+                      ),
+                    }}
+                  />
+                </div>
+
+                <Box className="mt-6 flex justify-center">
+                  <Button
+                    variant="contained"
+                    color="primary"
+                    onClick={handleSaveProfile}
+                    size="large"
+                    disabled={saving}
+                    startIcon={saving ? <CircularProgress size={20} color="inherit" /> : undefined}
+                  >
+                    {saving ? 'Guardando...' : 'Guardar Datos Bancarios'}
+                  </Button>
+                </Box>
+              </Paper>
             </div>
           </div>
 

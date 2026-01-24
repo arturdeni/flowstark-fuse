@@ -9,7 +9,8 @@ import {
   Alert,
   CircularProgress,
   Divider,
-  Stack
+  Stack,
+  Avatar
 } from '@mui/material';
 import FuseSvgIcon from '@fuse/core/FuseSvgIcon';
 import { useSubscription } from '../hooks/useSubscription';
@@ -39,11 +40,13 @@ function SubscriptionPanel() {
         {/* Header */}
         <Box display="flex" alignItems="center" justifyContent="space-between" mb={3}>
           <Box display="flex" alignItems="center" gap={2}>
-            <FuseSvgIcon size={24} sx={{ color: isPremium ? '#154241' : '#666' }}>
-              {isPremium ? 'heroicons-solid:star' : 'heroicons-outline:star'}
-            </FuseSvgIcon>
+            <Avatar sx={{ width: 60, height: 60, bgcolor: 'primary.light' }}>
+              <FuseSvgIcon size={30} sx={{ color: 'primary.main' }}>
+                {isPremium ? 'heroicons-solid:star' : 'heroicons-outline:star'}
+              </FuseSvgIcon>
+            </Avatar>
             <Box>
-              <Typography variant="h6" fontWeight="bold" sx={{ color: '#154241' }}>
+              <Typography variant="h5" gutterBottom sx={{ color: '#154241' }}>
                 Tu Suscripción
               </Typography>
               <Typography variant="body2" color="text.secondary">

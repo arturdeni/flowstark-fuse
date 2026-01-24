@@ -28,20 +28,29 @@ import {
 import { styled } from '@mui/material/styles';
 import { TicketWithRelations } from '../../../../types/models';
 
-// Componentes estilizados
-const HeaderTableCell = styled(TableCell)(({ theme }) => ({
-    backgroundColor: theme.palette.grey[50],
-    fontWeight: 600,
-    fontSize: '0.875rem',
-    color: theme.palette.text.primary,
-    padding: theme.spacing(1.5),
-    borderBottom: `2px solid ${theme.palette.divider}`,
+// Componentes estilizados (mismo estilo que otras tablas)
+const StyledTableRow = styled(TableRow)(({ theme }) => ({
+    '&:nth-of-type(odd)': {
+        backgroundColor: theme.palette.action.hover,
+    },
+    '&:hover': {
+        backgroundColor: theme.palette.action.selected,
+    },
+    '&:last-child td, &:last-child th': {
+        border: 0,
+    },
 }));
 
-const CompactTableCell = styled(TableCell)(({ theme }) => ({
-    padding: theme.spacing(1, 1.5),
+const CompactTableCell = styled(TableCell)(() => ({
+    padding: '8px 12px',
     fontSize: '0.875rem',
-    borderBottom: `1px solid ${theme.palette.divider}`,
+}));
+
+const HeaderTableCell = styled(TableCell)(({ theme }) => ({
+    padding: '12px 12px',
+    fontSize: '0.875rem',
+    fontWeight: 600,
+    backgroundColor: theme.palette.grey[50],
 }));
 
 const StatusChip = styled(Chip)<{ status: 'paid' | 'pending' }>(({ theme, status }) => ({
@@ -304,15 +313,9 @@ export const TicketsTable: React.FC<TicketsTableProps> = ({
                                 const ticketSelected = isSelected ? isSelected(ticket.id!) : false;
 
                                 return (
-                                    <TableRow
+                                    <StyledTableRow
                                         key={ticket.id}
-                                        hover
                                         selected={ticketSelected}
-                                        sx={{
-                                            '&:hover': {
-                                                backgroundColor: 'action.hover',
-                                            },
-                                        }}
                                     >
                                         {/* Checkbox de selección */}
                                         {onToggleSelection && (
@@ -490,7 +493,7 @@ export const TicketsTable: React.FC<TicketsTableProps> = ({
                                                 </Tooltip>
                                             </Box>
                                         </CompactTableCell>
-                                    </TableRow>
+                                    </StyledTableRow>
                                 );
                             })
                         )}
@@ -500,7 +503,7 @@ export const TicketsTable: React.FC<TicketsTableProps> = ({
 
             {/* Paginación */}
             <TablePagination
-                rowsPerPageOptions={[10, 25, 50, 100]}
+                rowsPerPageOptions={[25, 50, 100]}
                 component="div"
                 count={sortedTickets.length}
                 rowsPerPage={rowsPerPage}
@@ -511,11 +514,6 @@ export const TicketsTable: React.FC<TicketsTableProps> = ({
                 labelDisplayedRows={({ from, to, count }) =>
                     `${from}-${to} de ${count !== -1 ? count : `más de ${to}`}`
                 }
-                sx={{
-                    borderTop: 1,
-                    borderColor: 'divider',
-                    backgroundColor: 'grey.50',
-                }}
             />
         </>
     );
