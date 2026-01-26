@@ -133,8 +133,8 @@ export const ticketsService = {
 				generatedDate: firebase.firestore.Timestamp.fromDate(ticketData.generatedDate),
 				paidDate: ticketData.paidDate ? firebase.firestore.Timestamp.fromDate(ticketData.paidDate) : null,
 				// ✅ NUEVOS CAMPOS
-				serviceStart: firebase.firestore.Timestamp.fromDate(ticketData.serviceStart),
-				serviceEnd: firebase.firestore.Timestamp.fromDate(ticketData.serviceEnd),
+				serviceStart: ticketData.serviceStart ? firebase.firestore.Timestamp.fromDate(ticketData.serviceStart) : null,
+				serviceEnd: ticketData.serviceEnd ? firebase.firestore.Timestamp.fromDate(ticketData.serviceEnd) : null,
 				createdAt: timestamp,
 				updatedAt: timestamp
 			};
