@@ -1,3 +1,10 @@
+// Mandato SEPA para domiciliaciones bancarias
+export interface SepaMandate {
+	mandateId: string; // Identificador único del mandato (ej: FLOWSTARK-clientId-2024)
+	signatureDate: Date; // Fecha de firma del mandato
+	status: 'active' | 'cancelled'; // Estado del mandato
+}
+
 // Cliente
 export interface Client {
 	id?: string;
@@ -21,6 +28,7 @@ export interface Client {
 	active: boolean;
 	iban: string;
 	bank: string;
+	sepaMandate?: SepaMandate; // Mandato SEPA (auto-generado para domiciliaciones)
 	createdAt?: Date;
 	updatedAt?: Date;
 }

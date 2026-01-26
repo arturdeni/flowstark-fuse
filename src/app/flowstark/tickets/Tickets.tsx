@@ -1,10 +1,11 @@
 // src/app/flowstark/tickets/Tickets.tsx - VERSIÓN LIMPIA
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Box, Snackbar, Alert, Typography } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import FusePageSimple from '@fuse/core/FusePageSimple';
 import { useTickets } from './hooks/useTickets';
 import { useTicketSelection } from './hooks/useTicketSelection';
+import { useSepaRemesa } from './hooks/useSepaRemesa';
 import { TicketWithRelations } from '../../../types/models';
 import {
   TicketsTable,
@@ -84,6 +85,23 @@ const Tickets: React.FC = () => {
     clearSelection,
   } = useTicketSelection(filteredTickets);
 
+  // Hook para remesa SEPA
+  const {
+    loading: sepaLoading,
+    error: sepaError,
+    generateRemesa,
+  } = useSepaRemesa(filteredTickets);
+
+  // Estado para mostrar error SEPA
+  const [sepaErrorOpen, setSepaErrorOpen] = useState(false);
+
+  // Mostrar snackbar cuando hay error SEPA
+  useEffect(() => {
+    if (sepaError) {
+      setSepaErrorOpen(true);
+    }
+  }, [sepaError]);
+
   // Estadísticas de tickets
   const ticketStats = useMemo(() => {
     const total = filteredTickets.length;
@@ -153,6 +171,16 @@ const Tickets: React.FC = () => {
     setPaymentDateDialogOpen(false);
   };
 
+  // Handler para generar remesa SEPA
+  const handleGenerateSepa = async (ticketsToProcess: TicketWithRelations[]) => {
+    try {
+      await generateRemesa(ticketsToProcess);
+    } catch (err) {
+      // El error ya se maneja en el hook
+      console.error('Error al generar remesa SEPA:', err);
+    }
+  };
+
   // Handlers para paginación
   const handleChangePage = (event: unknown, newPage: number) => {
     setPage(newPage);
@@ -215,10 +243,12 @@ const Tickets: React.FC = () => {
             tickets={filteredTickets}
             onSearchChange={setSearchTerm}
             onAddTicket={() => handleOpenForm()}
-            onRefresh={refreshData} // Solo actualiza la vista local
+            onRefresh={refreshData}
             selectedTickets={selectedTickets}
             selectedCount={selectedCount}
             onClearSelection={clearSelection}
+            onGenerateSepa={handleGenerateSepa}
+            sepaLoading={sepaLoading}
           />
 
           {/* Filtros avanzados */}
@@ -343,6 +373,22 @@ const Tickets: React.FC = () => {
               sx={{ width: '100%' }}
             >
               {snackbar.message}
+            </Alert>
+          </Snackbar>
+
+          {/* Snackbar para errores SEPA */}
+          <Snackbar
+            open={sepaErrorOpen}
+            autoHideDuration={10000}
+            onClose={() => setSepaErrorOpen(false)}
+            anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+          >
+            <Alert
+              onClose={() => setSepaErrorOpen(false)}
+              severity="error"
+              sx={{ width: '100%', whiteSpace: 'pre-line' }}
+            >
+              {sepaError}
             </Alert>
           </Snackbar>
         </Box>

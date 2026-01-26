@@ -1,7 +1,33 @@
 // src/services/clientsService.ts
 import { db } from './firebase/firestore';
 import firebase from 'firebase/compat/app';
-import { Client } from '../types/models';
+import { Client, SepaMandate } from '../types/models';
+
+/**
+ * Genera un mandato SEPA para un cliente con domiciliación bancaria
+ * @param clientId - ID del cliente (puede ser temporal antes de crear)
+ * @returns Objeto SepaMandate con los datos del mandato
+ */
+function generateSepaMandate(clientId: string): SepaMandate {
+	const year = new Date().getFullYear();
+
+	return {
+		mandateId: `FLOWSTARK-${clientId}-${year}`,
+		signatureDate: new Date(),
+		status: 'active'
+	};
+}
+
+/**
+ * Prepara el mandato SEPA para guardar en Firestore (convierte Date a Timestamp)
+ */
+function prepareSepaMandate(mandate: SepaMandate): Record<string, any> {
+	return {
+		mandateId: mandate.mandateId,
+		signatureDate: firebase.firestore.Timestamp.fromDate(mandate.signatureDate),
+		status: mandate.status
+	};
+}
 
 export const clientsService = {
 	// Obtener todos los clientes del usuario actual
@@ -22,13 +48,24 @@ export const clientsService = {
 
 			return querySnapshot.docs.map((doc) => {
 				const data = doc.data();
-				return {
+				const client: Client = {
 					id: doc.id,
 					...data,
 					registeredDate: data.registeredDate?.toDate(),
 					createdAt: data.createdAt?.toDate(),
 					updatedAt: data.updatedAt?.toDate()
 				} as Client;
+
+				// Convertir fecha del mandato SEPA si existe
+				if (data.sepaMandate) {
+					client.sepaMandate = {
+						mandateId: data.sepaMandate.mandateId,
+						signatureDate: data.sepaMandate.signatureDate?.toDate(),
+						status: data.sepaMandate.status
+					};
+				}
+
+				return client;
 			});
 		} catch (error) {
 			console.error('Error getting clients: ', error);
@@ -51,13 +88,24 @@ export const clientsService = {
 
 			if (docSnap.exists) {
 				const data = docSnap.data();
-				return {
+				const client: Client = {
 					id: docSnap.id,
 					...data,
 					registeredDate: data.registeredDate?.toDate(),
 					createdAt: data.createdAt?.toDate(),
 					updatedAt: data.updatedAt?.toDate()
 				} as Client;
+
+				// Convertir fecha del mandato SEPA si existe
+				if (data.sepaMandate) {
+					client.sepaMandate = {
+						mandateId: data.sepaMandate.mandateId,
+						signatureDate: data.sepaMandate.signatureDate?.toDate(),
+						status: data.sepaMandate.status
+					};
+				}
+
+				return client;
 			} else {
 				throw new Error('Client not found');
 			}
@@ -79,7 +127,14 @@ export const clientsService = {
 			}
 
 			const timestamp = firebase.firestore.Timestamp.now();
-			const clientWithDates = {
+			const clientsCollection = db.collection('users').doc(currentUser.uid).collection('clients');
+
+			// Generar el ID del documento antes de crear
+			const docRef = clientsCollection.doc();
+			const clientId = docRef.id;
+
+			// Preparar datos del cliente
+			const clientWithDates: Record<string, any> = {
 				...clientData,
 				registeredDate: timestamp,
 				active: true,
@@ -87,16 +142,34 @@ export const clientsService = {
 				updatedAt: timestamp
 			};
 
-			const docRef = await db.collection('users').doc(currentUser.uid).collection('clients').add(clientWithDates);
+			// Si el método de pago es domiciliación, generar mandato SEPA automáticamente
+			if (clientData.paymentMethod?.type === 'direct_debit' && clientData.iban) {
+				const mandate = generateSepaMandate(clientId);
+				clientWithDates.sepaMandate = prepareSepaMandate(mandate);
+			}
 
-			return {
-				id: docRef.id,
+			await docRef.set(clientWithDates);
+
+			// Construir objeto de retorno
+			const result: Client = {
+				id: clientId,
 				...clientData,
 				registeredDate: timestamp.toDate(),
 				active: true,
 				createdAt: timestamp.toDate(),
 				updatedAt: timestamp.toDate()
-			} as Client;
+			};
+
+			// Añadir mandato al resultado si se generó
+			if (clientWithDates.sepaMandate) {
+				result.sepaMandate = {
+					mandateId: clientWithDates.sepaMandate.mandateId,
+					signatureDate: clientWithDates.sepaMandate.signatureDate.toDate(),
+					status: clientWithDates.sepaMandate.status
+				};
+			}
+
+			return result;
 		} catch (error) {
 			console.error('Error creating client: ', error);
 			throw error;
@@ -114,6 +187,10 @@ export const clientsService = {
 
 			const clientRef = db.collection('users').doc(currentUser.uid).collection('clients').doc(id);
 
+			// Obtener datos actuales para verificar si ya tiene mandato
+			const currentDoc = await clientRef.get();
+			const currentData = currentDoc.data();
+
 			// Preparar datos para actualizar
 			const updateData: Record<string, any> = { ...clientData };
 
@@ -124,6 +201,16 @@ export const clientsService = {
 			delete updateData.registeredDate;
 			delete updateData.createdAt;
 
+			// Si cambia a domiciliación y no tiene mandato, generar uno nuevo
+			const newPaymentType = clientData.paymentMethod?.type;
+			const hasMandate = currentData?.sepaMandate?.mandateId;
+			const hasIban = clientData.iban || currentData?.iban;
+
+			if (newPaymentType === 'direct_debit' && !hasMandate && hasIban) {
+				const mandate = generateSepaMandate(id);
+				updateData.sepaMandate = prepareSepaMandate(mandate);
+			}
+
 			// Añadir timestamp de actualización
 			updateData.updatedAt = firebase.firestore.Timestamp.now();
 
@@ -133,13 +220,24 @@ export const clientsService = {
 			const updatedDoc = await clientRef.get();
 			const data = updatedDoc.data();
 
-			return {
+			const result: Client = {
 				id,
 				...data,
 				registeredDate: data.registeredDate?.toDate(),
 				createdAt: data.createdAt?.toDate(),
 				updatedAt: data.updatedAt?.toDate()
 			} as Client;
+
+			// Convertir fecha del mandato si existe
+			if (data?.sepaMandate) {
+				result.sepaMandate = {
+					mandateId: data.sepaMandate.mandateId,
+					signatureDate: data.sepaMandate.signatureDate?.toDate(),
+					status: data.sepaMandate.status
+				};
+			}
+
+			return result;
 		} catch (error) {
 			console.error(`Error updating client with ID ${id}: `, error);
 			throw error;
@@ -216,7 +314,10 @@ export const clientsService = {
 
 			clientsData.forEach((clientData, index) => {
 				try {
-					const clientWithDates = {
+					const docRef = clientsCollection.doc(); // Genera un ID automáticamente
+					const clientId = docRef.id;
+
+					const clientWithDates: Record<string, unknown> = {
 						...clientData,
 						registeredDate: timestamp,
 						active: true,
@@ -224,7 +325,12 @@ export const clientsService = {
 						updatedAt: timestamp
 					};
 
-					const docRef = clientsCollection.doc(); // Genera un ID automáticamente
+					// Si el método de pago es domiciliación, generar mandato SEPA
+					if (clientData.paymentMethod?.type === 'direct_debit' && clientData.iban) {
+						const mandate = generateSepaMandate(clientId);
+						clientWithDates.sepaMandate = prepareSepaMandate(mandate);
+					}
+
 					batch.set(docRef, clientWithDates);
 					results.success++;
 				} catch (error) {
