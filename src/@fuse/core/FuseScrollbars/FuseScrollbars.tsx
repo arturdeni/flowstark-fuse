@@ -7,7 +7,6 @@ import usePathname from '@fuse/hooks/usePathname';
 import useFuseSettings from '@fuse/core/FuseSettings/hooks/useFuseSettings';
 
 const Root = styled('div')(() => ({
-	overscrollBehavior: 'contain',
 	minHeight: '100%'
 }));
 

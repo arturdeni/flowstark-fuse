@@ -91,7 +91,7 @@ const Root = styled('div')<FusePageSimpleProps>(({ theme, ...props }) => ({
 		flexDirection: 'column',
 		width: '100%',
 		flex: '1 1 auto',
-		overflow: 'hidden',
+		minHeight: 0,
 
 		//    WebkitOverflowScrolling: 'touch',
 		zIndex: 9999

@@ -26,7 +26,6 @@ const Root = styled('div')(({ theme }) => ({
 }));
 
 const StyledContent = styled(FuseScrollbars)(() => ({
-	overscrollBehavior: 'contain',
 	overflowX: 'hidden',
 	overflowY: 'auto',
 	WebkitOverflowScrolling: 'touch',
