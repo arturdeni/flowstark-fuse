@@ -40,8 +40,8 @@ function SubscriptionPanel() {
         {/* Header */}
         <Box display="flex" alignItems="center" justifyContent="space-between" mb={3}>
           <Box display="flex" alignItems="center" gap={2}>
-            <Avatar sx={{ width: 60, height: 60, bgcolor: 'primary.light' }}>
-              <FuseSvgIcon size={30} sx={{ color: 'primary.main' }}>
+            <Avatar sx={{ width: 60, height: 60, bgcolor: 'primary.main' }}>
+              <FuseSvgIcon size={30} sx={{ color: 'white' }}>
                 {isPremium ? 'heroicons-solid:star' : 'heroicons-outline:star'}
               </FuseSvgIcon>
             </Avatar>

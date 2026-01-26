@@ -238,12 +238,12 @@ function Settings() {
               <StyledPaper elevation={1} className="p-6">
                 <Box className="flex items-center mb-4">
                   <Avatar
-                    sx={{ width: 60, height: 60, mr: 3, bgcolor: 'primary.light' }}
+                    sx={{ width: 60, height: 60, mr: 3, bgcolor: 'primary.main' }}
                   >
                     {userType === 'autonomo' ? (
-                      <PersonIcon sx={{ fontSize: 30, color: 'primary.main' }} />
+                      <PersonIcon sx={{ fontSize: 30, color: 'white' }} />
                     ) : (
-                      <BusinessIcon sx={{ fontSize: 30, color: 'primary.main' }} />
+                      <BusinessIcon sx={{ fontSize: 30, color: 'white' }} />
                     )}
                   </Avatar>
                   <Box>
@@ -469,9 +469,9 @@ function Settings() {
               <Paper elevation={1} className="p-6">
                 <Box className="flex items-center mb-4">
                   <Avatar
-                    sx={{ width: 60, height: 60, mr: 3, bgcolor: 'primary.light' }}
+                    sx={{ width: 60, height: 60, mr: 3, bgcolor: 'primary.main' }}
                   >
-                    <AccountBalanceIcon sx={{ fontSize: 30, color: 'primary.main' }} />
+                    <AccountBalanceIcon sx={{ fontSize: 30, color: 'white' }} />
                   </Avatar>
                   <Box>
                     <Typography variant="h5" gutterBottom>
