@@ -1,5 +1,5 @@
 // src/app/flowstark/tickets/utils/sepaXmlGenerator.ts
-// Generador de ficheros SEPA pain.008.001.03 (Adeudo Directo SEPA Core)
+// Generador de ficheros SEPA pain.008.001.02 (Adeudo Directo SEPA Core)
 
 import { TicketWithRelations, Client } from '../../../../types/models';
 import { UserProfile } from '../../../../services/userProfileService';
@@ -53,10 +53,11 @@ const formatSepaDate = (date: Date): string => {
 };
 
 /**
- * Formatea una fecha y hora en formato ISO para SEPA
+ * Formatea una fecha y hora en formato ISO para SEPA (sin milisegundos ni Z)
+ * Formato: YYYY-MM-DDTHH:MM:SS
  */
 const formatSepaDateTime = (date: Date): string => {
-	return date.toISOString();
+	return date.toISOString().slice(0, 19);
 };
 
 /**
@@ -183,6 +184,7 @@ const generateTransactionXML = (
           <MndtRltdInf>
             <MndtId>${escapeXML(mandate.mandateId)}</MndtId>
             <DtOfSgntr>${formatSepaDate(mandate.signatureDate)}</DtOfSgntr>
+            <AmdmntInd>false</AmdmntInd>
           </MndtRltdInf>
         </DrctDbtTx>
         <DbtrAgt>
@@ -192,7 +194,16 @@ const generateTransactionXML = (
         </DbtrAgt>
         <Dbtr>
           <Nm>${escapeXML(clientName)}</Nm>
-          ${client.taxId ? `<Id><OrgId><Othr><Id>${escapeXML(client.taxId)}</Id></Othr></OrgId></Id>` : ''}
+          ${client.taxId ? `<Id>
+            <PrvtId>
+              <Othr>
+                <Id>${escapeXML(client.taxId)}</Id>
+                <SchmeNm>
+                  <Prtry>SEPA</Prtry>
+                </SchmeNm>
+              </Othr>
+            </PrvtId>
+          </Id>` : ''}
         </Dbtr>
         <DbtrAcct>
           <Id>
@@ -360,7 +371,7 @@ export const validateTicketsForSepa = (
 };
 
 /**
- * Genera el fichero XML SEPA pain.008.001.03 completo
+ * Genera el fichero XML SEPA pain.008.001.02 completo
  */
 export const generateSepaXML = (
 	tickets: TicketWithRelations[],
@@ -381,7 +392,7 @@ export const generateSepaXML = (
 		.join('');
 
 	return `<?xml version="1.0" encoding="UTF-8"?>
-<Document xmlns="urn:iso:std:iso:20022:tech:xsd:pain.008.001.03" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+<Document xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="urn:iso:std:iso:20022:tech:xsd:pain.008.001.02">
   <CstmrDrctDbtInitn>
     <GrpHdr>
       <MsgId>${escapeXML(messageId)}</MsgId>
@@ -390,6 +401,16 @@ export const generateSepaXML = (
       <CtrlSum>${formatSepaAmount(totalAmount)}</CtrlSum>
       <InitgPty>
         <Nm>${escapeXML(creditor.name)}</Nm>
+        <Id>
+          <OrgId>
+            <Othr>
+              <Id>${escapeXML(creditor.creditorId)}</Id>
+              <SchmeNm>
+                <Prtry>SEPA</Prtry>
+              </SchmeNm>
+            </Othr>
+          </OrgId>
+        </Id>
       </InitgPty>
     </GrpHdr>
 ${paymentInfosXML}  </CstmrDrctDbtInitn>
