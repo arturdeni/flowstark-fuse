@@ -259,9 +259,10 @@ export const TicketForm: React.FC<TicketFormProps> = ({
     const finalPrice = typeof formData.finalPrice === 'string' ?
       parseFloat(formData.finalPrice) || 0 : formData.finalPrice;
 
-    // Para tickets manuales, no necesitamos subscriptionId
+    // Para tickets manuales, no necesitamos subscriptionId pero sí clientId
     const ticketData: Omit<Ticket, 'id' | 'createdAt' | 'updatedAt'> = {
       subscriptionId: '', // Vacío para tickets manuales
+      clientId: formData.clientId, // Guardar el cliente seleccionado
       dueDate: formData.dueDate,
       amount: finalPrice,
       status: formData.status,

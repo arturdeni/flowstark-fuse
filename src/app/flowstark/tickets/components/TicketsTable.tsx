@@ -69,7 +69,7 @@ const StatusChip = styled(Chip)<{ status: 'paid' | 'pending' }>(({ theme, status
 
 // Tipos para ordenamiento
 type Order = 'asc' | 'desc';
-type OrderBy = 'dueDate' | 'amount' | 'status' | 'client' | 'service';
+type OrderBy = 'dueDate' | 'amount' | 'status' | 'client' | 'service' | 'paymentMethod';
 
 interface TicketsTableProps {
     tickets: TicketWithRelations[];
@@ -146,9 +146,9 @@ export const TicketsTable: React.FC<TicketsTableProps> = ({
         return `${ticket.clientInfo.firstName} ${ticket.clientInfo.lastName}`;
     };
 
-    // Función para obtener el nombre del servicio
+    // Función para obtener el nombre del servicio (o descripción para tickets manuales)
     const getServiceName = (ticket: TicketWithRelations) => {
-        return ticket.serviceInfo?.name || 'Servicio no encontrado';
+        return ticket.serviceInfo?.name || ticket.description || 'Sin descripción';
     };
 
     // Función para obtener el texto del método de pago
@@ -191,6 +191,10 @@ export const TicketsTable: React.FC<TicketsTableProps> = ({
                 case 'service':
                     aValue = getServiceName(a);
                     bValue = getServiceName(b);
+                    break;
+                case 'paymentMethod':
+                    aValue = a.paymentMethod || '';
+                    bValue = b.paymentMethod || '';
                     break;
                 default:
                     return 0;
@@ -293,7 +297,15 @@ export const TicketsTable: React.FC<TicketsTableProps> = ({
                                     Estado
                                 </TableSortLabel>
                             </HeaderTableCell>
-                            <HeaderTableCell>Tipo</HeaderTableCell>
+                            <HeaderTableCell>
+                                <TableSortLabel
+                                    active={orderBy === 'paymentMethod'}
+                                    direction={orderBy === 'paymentMethod' ? order : 'asc'}
+                                    onClick={() => handleRequestSort('paymentMethod')}
+                                >
+                                    Tipo
+                                </TableSortLabel>
+                            </HeaderTableCell>
                             <HeaderTableCell align="right">Acciones</HeaderTableCell>
                         </TableRow>
                     </TableHead>
@@ -309,7 +321,6 @@ export const TicketsTable: React.FC<TicketsTableProps> = ({
                         ) : (
                             paginatedTickets.map((ticket) => {
                                 const clientName = getClientName(ticket);
-                                const serviceName = getServiceName(ticket);
                                 const ticketSelected = isSelected ? isSelected(ticket.id!) : false;
 
                                 return (
@@ -355,12 +366,20 @@ export const TicketsTable: React.FC<TicketsTableProps> = ({
 
                                         {/* Servicio */}
                                         <CompactTableCell>
-                                            <Typography variant="body2" fontWeight={500}>
-                                                {serviceName}
-                                            </Typography>
-                                            {ticket.description && (
-                                                <Typography variant="caption" color="text.secondary">
-                                                    {ticket.description}
+                                            {ticket.serviceInfo ? (
+                                                <>
+                                                    <Typography variant="body2" fontWeight={500}>
+                                                        {ticket.serviceInfo.name}
+                                                    </Typography>
+                                                    {ticket.description && (
+                                                        <Typography variant="caption" color="text.secondary">
+                                                            {ticket.description}
+                                                        </Typography>
+                                                    )}
+                                                </>
+                                            ) : (
+                                                <Typography variant="body2" fontWeight={500}>
+                                                    {ticket.description || 'Sin descripción'}
                                                 </Typography>
                                             )}
                                         </CompactTableCell>

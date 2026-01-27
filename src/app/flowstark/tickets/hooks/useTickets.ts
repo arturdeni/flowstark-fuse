@@ -77,9 +77,12 @@ export const useTickets = () => {
       const subscription = ticket.subscriptionId
         ? subscriptionsMap.get(ticket.subscriptionId)
         : undefined;
-      const client = subscription
-        ? clientsMap.get(subscription.clientId)
-        : undefined;
+      // Para tickets manuales, usar clientId directo; para otros, obtener del subscription
+      const client = ticket.clientId
+        ? clientsMap.get(ticket.clientId)
+        : subscription
+          ? clientsMap.get(subscription.clientId)
+          : undefined;
       const service = subscription
         ? servicesMap.get(subscription.serviceId)
         : undefined;

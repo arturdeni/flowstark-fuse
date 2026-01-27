@@ -76,6 +76,7 @@ export interface Subscription {
 export interface Ticket {
 	id?: string;
 	subscriptionId: string;
+	clientId?: string; // Para tickets manuales que no tienen suscripción
 	dueDate: Date; // Fecha de vencimiento (basada en paymentDate de la suscripción)
 	amount: number; // Precio calculado desde el servicio
 	status: 'paid' | 'pending'; // Estado: pagado o pendiente
@@ -83,8 +84,8 @@ export interface Ticket {
 	paidDate?: Date; // Fecha en que se marcó como pagado (opcional)
 	isManual: boolean; // true si fue generado manualmente, false si fue automático
 	description?: string; // Descripción opcional del ticket
-	serviceStart: Date; // Fecha de inicio del período de servicio
-	serviceEnd: Date; // Fecha de fin del período de servicio
+	serviceStart?: Date; // Fecha de inicio del período de servicio (opcional para manuales)
+	serviceEnd?: Date; // Fecha de fin del período de servicio (opcional para manuales)
 	paymentMethod?: string; // Método de pago del cliente (card, transfer, cash, direct_debit)
 	createdAt?: Date;
 	updatedAt?: Date;
