@@ -1,5 +1,7 @@
 // src/app/flowstark/tickets/utils/sepaXmlGenerator.ts
 // Generador de ficheros SEPA pain.008.001.02 (Adeudo Directo SEPA Core)
+// TODO: Crear otro generador para pain.008.003.08 (para adeudos B2B)
+
 
 import { TicketWithRelations, Client } from '../../../../types/models';
 import { UserProfile } from '../../../../services/userProfileService';
@@ -337,7 +339,9 @@ export const validateTicketsForSepa = (
 
 	// Validar datos del acreedor
 	if (!creditor.name) errors.push('Falta el nombre del acreedor');
+
 	if (!creditor.iban) errors.push('Falta el IBAN del acreedor');
+
 	if (!creditor.creditorId) errors.push('Falta el Identificador de Acreedor SEPA');
 
 	// Validar cada ticket

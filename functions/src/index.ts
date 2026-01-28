@@ -15,3 +15,9 @@ export {
   cancelSubscription,
   reactivateSubscription,
 } from "./stripe";
+
+// Exportar funciones de Brevo (sincronización de usuarios)
+export {
+  syncNewUserToBrevo,
+  syncUserPlanChangeToBrevo,
+} from "./brevo";
