@@ -23,11 +23,13 @@ const getStripe = () => {
   });
 };
 
-// Configuración de planes (actualizar con tus Price IDs reales)
+// ============================================================================
+// CONFIGURACIÓN DE STRIPE - PRODUCCIÓN
+// ============================================================================
 const STRIPE_CONFIG = {
   PRICES: {
-    FREE: "price_1S960mPIRf1r6f8yrA1yI9V4", // ID de precio para plan gratuito (puede ser null o un plan muy básico)
-    PREMIUM: "price_1S961xPIRf1r6f8yY2AcgSgF", // ID de precio para plan premium
+    FREE: null,
+    PREMIUM: "price_1Sur9yAMZYDRnwT9eD1mDzi5",
   },
 };
 
@@ -214,25 +216,34 @@ export const handleStripeWebhook = onRequest(
     cors: false,
   },
   async (request, response) => {
-    // TEMPORAL: Variables comentadas para evitar warnings (se usarán en producción)
-    // const sig = request.headers["stripe-signature"] as string;
-    // const webhookSecret = stripeWebhookSecret.value();
-    // const stripe = getStripe();
+    const sig = request.headers["stripe-signature"] as string;
+    const webhookSecret = stripeWebhookSecret.value();
+    const stripe = getStripe();
 
     let event: Stripe.Event;
 
     try {
-      // TEMPORAL: Deshabilitar verificación de firma para testing en Sandbox
-      // En producción, necesitarás usar stripe-webhook-middleware o similar
-      // para obtener el raw body correctamente
+      // Verificar firma del webhook (CRÍTICO para seguridad en producción)
+      // Firebase Functions v2 proporciona rawBody automáticamente
+      const rawBody = (request as any).rawBody;
 
-      // Por ahora, extraer el event directamente del body parseado
-      event = request.body as Stripe.Event;
+      if (!rawBody) {
+        console.error("rawBody no disponible");
+        response.status(400).send("rawBody not available");
+        return;
+      }
 
-      console.log("Webhook recibido (sin verificación de firma):", event.type);
-    } catch (err) {
-      console.error("Error procesando webhook:", err);
-      response.status(400).send(`Webhook processing failed`);
+      if (!sig) {
+        console.error("stripe-signature header missing");
+        response.status(400).send("Missing stripe-signature header");
+        return;
+      }
+
+      event = stripe.webhooks.constructEvent(rawBody, sig, webhookSecret);
+      console.log("Webhook verificado correctamente:", event.type);
+    } catch (err: any) {
+      console.error("Error verificando webhook:", err.message);
+      response.status(400).send(`Webhook signature verification failed: ${err.message}`);
       return;
     }
 
