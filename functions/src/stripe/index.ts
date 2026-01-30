@@ -182,7 +182,6 @@ export const createCheckoutSession = onCall(
           name: "auto",
         },
         subscription_data: {
-          trial_period_days: 7, // 7 días de prueba gratuita
           metadata: {
             firebaseUserId: userId,
           },
