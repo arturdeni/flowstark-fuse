@@ -1,4 +1,5 @@
 // src/app/flowstark/settings/components/SubscriptionPanel.tsx
+import { useState } from 'react';
 import {
   Box,
   Card,
@@ -10,18 +11,41 @@ import {
   CircularProgress,
   Divider,
   Stack,
-  Avatar
+  Avatar,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions
 } from '@mui/material';
 import FuseSvgIcon from '@fuse/core/FuseSvgIcon';
 import { useSubscription } from '../hooks/useSubscription';
 import { useStripeCheckout } from '../hooks/useStripeCheckout';
+import { useSubscriptionManagement } from '../hooks/useSubscriptionManagement';
 
 function SubscriptionPanel() {
   const { subscription, loading, isPremium, isTrial, isCanceled } = useSubscription();
   const { createCheckout, isLoading: isCheckoutLoading, error } = useStripeCheckout();
+  const {
+    cancelSubscription,
+    reactivateSubscription,
+    isLoading: isManagementLoading,
+    error: managementError
+  } = useSubscriptionManagement();
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
 
   const handleUpgrade = async () => {
     await createCheckout();
+  };
+
+  const handleCancelSubscription = async () => {
+    const success = await cancelSubscription(false);
+    if (success) {
+      setCancelDialogOpen(false);
+    }
+  };
+
+  const handleReactivateSubscription = async () => {
+    await reactivateSubscription();
   };
 
   if (loading) {
@@ -71,9 +95,9 @@ function SubscriptionPanel() {
         <Divider sx={{ mb: 3 }} />
 
         {/* Error Alert */}
-        {error && (
+        {(error || managementError) && (
           <Alert severity="error" sx={{ mb: 3 }}>
-            {error}
+            {error || managementError}
           </Alert>
         )}
 
@@ -86,10 +110,10 @@ function SubscriptionPanel() {
         )}
 
         {/* Canceled Alert */}
-        {isCanceled && subscription?.currentPeriodEnd && (
+        {isCanceled && (subscription?.currentPeriodEnd || subscription?.trialEnd) && (
           <Alert severity="warning" sx={{ mb: 3 }}>
             Tu suscripción se cancelará el{' '}
-            {subscription.currentPeriodEnd.toLocaleDateString('es-ES')}
+            {(subscription.currentPeriodEnd || subscription.trialEnd)!.toLocaleDateString('es-ES')}
           </Alert>
         )}
 
@@ -104,6 +128,12 @@ function SubscriptionPanel() {
           {isPremium && (
             <Typography variant="body2" color="text.secondary" mt={0.5}>
               19€/mes + IVA
+            </Typography>
+          )}
+          {isPremium && (subscription?.currentPeriodEnd || subscription?.trialEnd) && (
+            <Typography variant="body2" color="text.secondary" mt={0.5}>
+              {isCanceled ? 'Acceso Premium hasta' : 'Próxima facturación'}:{' '}
+              <strong>{(subscription.currentPeriodEnd || subscription.trialEnd)!.toLocaleDateString('es-ES')}</strong>
             </Typography>
           )}
         </Box>
@@ -176,12 +206,62 @@ function SubscriptionPanel() {
           </Button>
         )}
 
-        {isPremium && (
-          <Box>
-            <Typography variant="body2" color="text.secondary" textAlign="center">
-              Para gestionar tu suscripción, contacta con soporte
-            </Typography>
-          </Box>
+        {isPremium && !isCanceled && (
+          <Button
+            fullWidth
+            variant="outlined"
+            size="large"
+            onClick={() => setCancelDialogOpen(true)}
+            disabled={isManagementLoading}
+            sx={{
+              color: '#d32f2f',
+              borderColor: '#d32f2f',
+              fontWeight: 'bold',
+              py: 1.5,
+              '&:hover': {
+                borderColor: '#b71c1c',
+                backgroundColor: 'rgba(211, 47, 47, 0.04)'
+              }
+            }}
+          >
+            {isManagementLoading ? (
+              <Box display="flex" alignItems="center" gap={1}>
+                <CircularProgress size={20} sx={{ color: '#d32f2f' }} />
+                Procesando...
+              </Box>
+            ) : (
+              'Cancelar suscripción'
+            )}
+          </Button>
+        )}
+
+        {isPremium && isCanceled && (
+          <Button
+            fullWidth
+            variant="contained"
+            size="large"
+            onClick={handleReactivateSubscription}
+            disabled={isManagementLoading}
+            sx={{
+              background: 'linear-gradient(135deg, #154241 0%, #0F302F 100%)',
+              color: '#FFFFFF',
+              fontWeight: 'bold',
+              py: 1.5,
+              '&:hover': {
+                background: 'linear-gradient(135deg, #0F302F 0%, #0C2625 100%)',
+                transform: 'translateY(-1px)'
+              }
+            }}
+          >
+            {isManagementLoading ? (
+              <Box display="flex" alignItems="center" gap={1}>
+                <CircularProgress size={20} sx={{ color: '#FFFFFF' }} />
+                Procesando...
+              </Box>
+            ) : (
+              'Reactivar suscripción'
+            )}
+          </Button>
         )}
 
         {/* Benefits Preview for Free Users */}
@@ -200,6 +280,61 @@ function SubscriptionPanel() {
           </Box>
         )}
       </CardContent>
+
+      {/* Cancel Confirmation Dialog */}
+      <Dialog
+        open={cancelDialogOpen}
+        onClose={() => setCancelDialogOpen(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle sx={{ fontWeight: 'bold', color: '#154241' }}>
+          ¿Cancelar suscripción?
+        </DialogTitle>
+        <DialogContent>
+          <Typography variant="body1" sx={{ mb: 2 }}>
+            Tu suscripción se cancelará al final del período de facturación actual.
+            Seguirás teniendo acceso a todas las funciones Premium hasta esa fecha.
+          </Typography>
+          {(subscription?.currentPeriodEnd || subscription?.trialEnd) && (
+            <Alert severity="info">
+              Mantendrás acceso Premium hasta el{' '}
+              <strong>{(subscription.currentPeriodEnd || subscription.trialEnd)!.toLocaleDateString('es-ES')}</strong>
+            </Alert>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button
+            onClick={() => setCancelDialogOpen(false)}
+            disabled={isManagementLoading}
+            variant="contained"
+            sx={{
+              background: 'linear-gradient(135deg, #154241 0%, #0F302F 100%)',
+              color: '#FFFFFF',
+              '&:hover': {
+                background: 'linear-gradient(135deg, #0F302F 0%, #0C2625 100%)'
+              }
+            }}
+          >
+            Mantener suscripción
+          </Button>
+          <Button
+            onClick={handleCancelSubscription}
+            disabled={isManagementLoading}
+            color="error"
+            variant="outlined"
+          >
+            {isManagementLoading ? (
+              <Box display="flex" alignItems="center" gap={1}>
+                <CircularProgress size={16} color="error" />
+                Cancelando...
+              </Box>
+            ) : (
+              'Cancelar suscripción'
+            )}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Card>
   );
 }

@@ -524,13 +524,45 @@ export const cancelSubscription = onCall(
         await stripe.subscriptions.cancel(
           userData.subscription.stripeSubscriptionId
         );
+
+        // Actualizar Firestore directamente para feedback inmediato (best-effort, el webhook también lo cubre)
+        try {
+          await db.collection("users").doc(userId).update({
+            "subscription.plan": "free",
+            "subscription.status": "canceled",
+            "subscription.cancelAtPeriodEnd": false,
+            "subscription.currentPeriodEnd": null,
+            "subscription.limits": PLAN_LIMITS.free,
+            "subscription.updatedAt": new Date(),
+          });
+        } catch (firestoreError) {
+          console.error("Error actualizando Firestore (el webhook lo sincronizará):", firestoreError);
+        }
       } else {
-        await stripe.subscriptions.update(
+        const updatedSubscription = await stripe.subscriptions.update(
           userData.subscription.stripeSubscriptionId,
           {
             cancel_at_period_end: true,
           }
         );
+
+        // Actualizar Firestore directamente para feedback inmediato (best-effort, el webhook también lo cubre)
+        try {
+          const periodEnd = (updatedSubscription as any).current_period_end;
+
+          const updateData: any = {
+            "subscription.cancelAtPeriodEnd": true,
+            "subscription.updatedAt": new Date(),
+          };
+
+          if (periodEnd) {
+            updateData["subscription.currentPeriodEnd"] = new Date(periodEnd * 1000);
+          }
+
+          await db.collection("users").doc(userId).update(updateData);
+        } catch (firestoreError) {
+          console.error("Error actualizando Firestore (el webhook lo sincronizará):", firestoreError);
+        }
       }
 
       return {
@@ -593,6 +625,16 @@ export const reactivateSubscription = onCall(
           cancel_at_period_end: false,
         }
       );
+
+      // Actualizar Firestore directamente para feedback inmediato (best-effort, el webhook también lo cubre)
+      try {
+        await db.collection("users").doc(userId).update({
+          "subscription.cancelAtPeriodEnd": false,
+          "subscription.updatedAt": new Date(),
+        });
+      } catch (firestoreError) {
+        console.error("Error actualizando Firestore (el webhook lo sincronizará):", firestoreError);
+      }
 
       return {
         success: true,
