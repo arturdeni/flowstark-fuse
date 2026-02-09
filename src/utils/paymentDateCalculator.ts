@@ -40,38 +40,36 @@ export const calculatePaymentDate = (
 		return new Date(startDate);
 	}
 
-	// ✅ PARA PAGOS VENCIDOS: La fecha de cobro es SIEMPRE el último día del período
-	// Los pagos vencidos SIEMPRE se cobran al final del período, no importa la configuración de 'renovation'
+	// ✅ PARA PAGOS VENCIDOS: último día del período natural actual
 	const frequency = service.frequency;
-	const nextPaymentDate = new Date(startDate);
+	const month = startDate.getMonth();
+	const year = startDate.getFullYear();
 
-	// Sumar el período correspondiente para llegar al final del período
 	switch (frequency) {
 		case 'monthly':
-			// Para mensual: último día del mes en curso
-			nextPaymentDate.setMonth(nextPaymentDate.getMonth() + 1, 0);
-			break;
-		case 'quarterly':
-			// Para trimestral: último día del tercer mes
-			nextPaymentDate.setMonth(nextPaymentDate.getMonth() + 3, 0);
-			break;
-		case 'four_monthly':
-			// Para cuatrimestral: último día del cuarto mes
-			nextPaymentDate.setMonth(nextPaymentDate.getMonth() + 4, 0);
-			break;
-		case 'biannual':
-			// Para semestral: último día del sexto mes
-			nextPaymentDate.setMonth(nextPaymentDate.getMonth() + 6, 0);
-			break;
+			// Mensual: último día del mes en curso
+			return new Date(year, month + 1, 0);
+		case 'quarterly': {
+			// Trimestral natural: fin de Ene-Mar, Abr-Jun, Jul-Sep, Oct-Dic
+			const endMonth = (Math.floor(month / 3) + 1) * 3;
+			return new Date(year, endMonth, 0);
+		}
+		case 'four_monthly': {
+			// Cuatrimestral natural: fin de Ene-Abr, May-Ago, Sep-Dic
+			const endMonth = (Math.floor(month / 4) + 1) * 4;
+			return new Date(year, endMonth, 0);
+		}
+		case 'biannual': {
+			// Semestral natural: fin de Ene-Jun, Jul-Dic
+			const endMonth = (Math.floor(month / 6) + 1) * 6;
+			return new Date(year, endMonth, 0);
+		}
 		case 'annual':
-			// Para anual: último día del año (mes + 12, día 0)
-			nextPaymentDate.setMonth(nextPaymentDate.getMonth() + 12, 0);
-			break;
+			// Anual: 31 de diciembre del año en curso
+			return new Date(year, 12, 0);
 		default:
 			return null;
 	}
-
-	return nextPaymentDate;
 };
 
 /**
@@ -110,32 +108,79 @@ export const calculateNextPaymentDate = (
 		return nextPaymentDate;
 	}
 
-	// ✅ PARA PAGOS VENCIDOS: SIEMPRE último día del período
+	// ✅ PARA PAGOS VENCIDOS: último día del SIGUIENTE período natural
 	if (paymentType === 'arrears') {
+		const month = nextPaymentDate.getMonth();
+		const year = nextPaymentDate.getFullYear();
+
 		switch (frequency) {
 			case 'monthly':
-				nextPaymentDate.setMonth(nextPaymentDate.getMonth() + 1, 0);
-				break;
-			case 'quarterly':
-				nextPaymentDate.setMonth(nextPaymentDate.getMonth() + 3, 0);
-				break;
-			case 'four_monthly':
-				nextPaymentDate.setMonth(nextPaymentDate.getMonth() + 4, 0);
-				break;
-			case 'biannual':
-				nextPaymentDate.setMonth(nextPaymentDate.getMonth() + 6, 0);
-				break;
+				// Mensual: último día del siguiente mes
+				return new Date(year, month + 2, 0);
+			case 'quarterly': {
+				// Trimestral: fin del siguiente trimestre natural
+				const endMonth = (Math.floor(month / 3) + 2) * 3;
+				return new Date(year, endMonth, 0);
+			}
+			case 'four_monthly': {
+				// Cuatrimestral: fin del siguiente cuatrimestre natural
+				const endMonth = (Math.floor(month / 4) + 2) * 4;
+				return new Date(year, endMonth, 0);
+			}
+			case 'biannual': {
+				// Semestral: fin del siguiente semestre natural
+				const endMonth = (Math.floor(month / 6) + 2) * 6;
+				return new Date(year, endMonth, 0);
+			}
 			case 'annual':
-				nextPaymentDate.setMonth(nextPaymentDate.getMonth() + 12, 0);
-				break;
+				// Anual: 31 de diciembre del siguiente año
+				return new Date(year + 1, 12, 0);
 			default:
 				return null;
 		}
-		return nextPaymentDate;
 	}
 
 	// ✅ PARA PAGOS ANTICIPADOS: Aplicar lógica de renovación
-	// Sumar el período correspondiente
+
+	// Para first_day: usar períodos naturales (Ene-Mar, Abr-Jun, Jul-Sep, Oct-Dic, etc.)
+	if (renovation === 'first_day') {
+		const month = nextPaymentDate.getMonth();
+		const year = nextPaymentDate.getFullYear();
+
+		switch (frequency) {
+			case 'monthly':
+				// Mensual: 1 del siguiente mes (ya es período natural)
+				return new Date(year, month + 1, 1);
+			case 'quarterly': {
+				// Trimestral natural: Ene(0), Abr(3), Jul(6), Oct(9)
+				const nextQuarterMonth = (Math.floor(month / 3) + 1) * 3;
+				return nextQuarterMonth >= 12
+					? new Date(year + 1, nextQuarterMonth - 12, 1)
+					: new Date(year, nextQuarterMonth, 1);
+			}
+			case 'four_monthly': {
+				// Cuatrimestral natural: Ene(0), May(4), Sep(8)
+				const nextFourMonth = (Math.floor(month / 4) + 1) * 4;
+				return nextFourMonth >= 12
+					? new Date(year + 1, nextFourMonth - 12, 1)
+					: new Date(year, nextFourMonth, 1);
+			}
+			case 'biannual': {
+				// Semestral natural: Ene(0), Jul(6)
+				const nextSemester = (Math.floor(month / 6) + 1) * 6;
+				return nextSemester >= 12
+					? new Date(year + 1, nextSemester - 12, 1)
+					: new Date(year, nextSemester, 1);
+			}
+			case 'annual':
+				// Anual: 1 de enero del siguiente año
+				return new Date(year + 1, 0, 1);
+			default:
+				return null;
+		}
+	}
+
+	// Para last_day y same_day: mantener lógica de período activo
 	switch (frequency) {
 		case 'monthly':
 			nextPaymentDate.setMonth(nextPaymentDate.getMonth() + 1);
@@ -156,10 +201,7 @@ export const calculateNextPaymentDate = (
 			return null;
 	}
 
-	// Ajustar según el día de renovación (solo para pagos anticipados)
-	if (renovation === 'first_day') {
-		nextPaymentDate.setDate(1);
-	} else if (renovation === 'last_day') {
+	if (renovation === 'last_day') {
 		// Último día del mes
 		nextPaymentDate.setMonth(nextPaymentDate.getMonth() + 1, 0);
 	}
