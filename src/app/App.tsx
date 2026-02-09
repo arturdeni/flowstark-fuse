@@ -12,6 +12,7 @@ import MainThemeProvider from '../contexts/MainThemeProvider';
 import store from '@/store/store';
 import routes from '@/configs/routesConfig';
 import AppContext from '@/contexts/AppContext';
+import MobileWarningModal from './flowstark/components/MobileWarningModal';
 
 /**
  * The main App component.
@@ -35,6 +36,7 @@ function App() {
 							<FuseSettingsProvider>
 								{/* Theme Provider */}
 								<MainThemeProvider>
+									<MobileWarningModal />
 									{/* Notistack Notification Provider */}
 									<SnackbarProvider
 										maxSnack={5}
