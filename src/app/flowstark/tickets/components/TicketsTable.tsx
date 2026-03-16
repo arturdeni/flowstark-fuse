@@ -24,6 +24,7 @@ import {
     Payment as PaymentIcon,
     Schedule as ScheduleIcon,
     Visibility as VisibilityIcon,
+    Description as InvoiceIcon,
 } from '@mui/icons-material';
 import { styled } from '@mui/material/styles';
 import { TicketWithRelations } from '../../../../types/models';
@@ -89,6 +90,9 @@ interface TicketsTableProps {
     isIndeterminate?: boolean;
     onToggleSelection?: (ticketId: string) => void;
     onToggleSelectAll?: () => void;
+    // Props para facturas
+    onGenerateInvoice?: (ticket: TicketWithRelations) => void;
+    onViewInvoice?: (ticket: TicketWithRelations) => void;
 }
 
 export const TicketsTable: React.FC<TicketsTableProps> = ({
@@ -109,6 +113,9 @@ export const TicketsTable: React.FC<TicketsTableProps> = ({
     isIndeterminate = false,
     onToggleSelection,
     onToggleSelectAll,
+    // Props de facturas
+    onGenerateInvoice,
+    onViewInvoice,
 }) => {
     const [order, setOrder] = useState<Order>('desc');
     const [orderBy, setOrderBy] = useState<OrderBy>('dueDate');
@@ -415,6 +422,46 @@ export const TicketsTable: React.FC<TicketsTableProps> = ({
                                         {/* Acciones */}
                                         <CompactTableCell align="right">
                                             <Box display="flex" gap={0.5} justifyContent="flex-end">
+                                                {/* Botón Generar/Ver Factura */}
+                                                {ticket.invoiceId && onViewInvoice ? (
+                                                    <Tooltip title="Ver Factura">
+                                                        <IconButton
+                                                            size="small"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                onViewInvoice(ticket);
+                                                            }}
+                                                            sx={{
+                                                                color: 'secondary.main',
+                                                                '&:hover': {
+                                                                    backgroundColor: 'secondary.light',
+                                                                }
+                                                            }}
+                                                        >
+                                                            <InvoiceIcon fontSize="small" />
+                                                        </IconButton>
+                                                    </Tooltip>
+                                                ) : !ticket.invoiceId && onGenerateInvoice ? (
+                                                    <Tooltip title="Generar Factura">
+                                                        <IconButton
+                                                            size="small"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                onGenerateInvoice(ticket);
+                                                            }}
+                                                            sx={{
+                                                                color: 'grey.400',
+                                                                '&:hover': {
+                                                                    backgroundColor: 'action.hover',
+                                                                    color: 'secondary.main',
+                                                                }
+                                                            }}
+                                                        >
+                                                            <InvoiceIcon fontSize="small" />
+                                                        </IconButton>
+                                                    </Tooltip>
+                                                ) : null}
+
                                                 {/* Botón Ver Detalle */}
                                                 <IconButton
                                                     size="small"

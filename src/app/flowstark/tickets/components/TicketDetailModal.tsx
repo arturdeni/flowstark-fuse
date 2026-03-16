@@ -23,6 +23,7 @@ import {
   Payment as PaymentIcon,
   Schedule as ScheduleIcon,
   GetApp as DownloadIcon,
+  Description as InvoiceIcon,
 } from '@mui/icons-material';
 import html2pdf from 'html2pdf.js';
 import { TicketWithRelations } from '../../../../types/models';
@@ -34,6 +35,9 @@ interface TicketDetailModalProps {
   onEdit?: (ticket: TicketWithRelations) => void;
   onMarkAsPaid?: (ticketId: string) => void;
   onMarkAsPending?: (ticketId: string) => void;
+  onGenerateInvoice?: (ticket: TicketWithRelations) => void;
+  onViewInvoice?: (ticket: TicketWithRelations) => void;
+  invoiceLoading?: boolean;
 }
 
 export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
@@ -43,6 +47,9 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
   onEdit,
   onMarkAsPaid,
   onMarkAsPending,
+  onGenerateInvoice,
+  onViewInvoice,
+  invoiceLoading = false,
 }) => {
   // Estado interno para el ticket
   const [currentTicket, setCurrentTicket] = useState<TicketWithRelations | null>(null);
@@ -180,6 +187,28 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
             >
               {isGeneratingPdf ? 'Generando...' : 'Descargar PDF'}
             </Button>
+
+            {/* Botón Generar/Ver Factura */}
+            {currentTicket.invoiceId && onViewInvoice ? (
+              <Button
+                startIcon={<InvoiceIcon />}
+                variant="outlined"
+                color="secondary"
+                onClick={() => onViewInvoice(currentTicket)}
+              >
+                Ver Factura
+              </Button>
+            ) : !currentTicket.invoiceId && onGenerateInvoice ? (
+              <Button
+                startIcon={<InvoiceIcon />}
+                variant="outlined"
+                color="secondary"
+                onClick={() => onGenerateInvoice(currentTicket)}
+                disabled={invoiceLoading}
+              >
+                {invoiceLoading ? 'Generando...' : 'Generar Factura'}
+              </Button>
+            ) : null}
 
             {/* Botón cambiar estado */}
             {currentTicket.status === 'pending' && onMarkAsPaid ? (

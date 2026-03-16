@@ -6,7 +6,8 @@ import FusePageSimple from '@fuse/core/FusePageSimple';
 import { useTickets } from './hooks/useTickets';
 import { useTicketSelection } from './hooks/useTicketSelection';
 import { useSepaRemesa } from './hooks/useSepaRemesa';
-import { TicketWithRelations } from '../../../types/models';
+import { useInvoice } from './hooks/useInvoice';
+import { TicketWithRelations, Invoice } from '../../../types/models';
 import {
   TicketsTable,
   TicketForm,
@@ -15,6 +16,7 @@ import {
   TicketDetailModal,
   DeleteConfirmDialog,
   PaymentDateDialog,
+  InvoicePreviewModal,
 } from './components';
 
 const Root = styled(FusePageSimple)(({ theme }) => ({
@@ -92,6 +94,19 @@ const Tickets: React.FC = () => {
     generateRemesa,
   } = useSepaRemesa(filteredTickets);
 
+  // Hook para facturas
+  const {
+    loading: invoiceLoading,
+    error: invoiceError,
+    generateInvoice,
+    checkExistingInvoice,
+  } = useInvoice();
+
+  // Estados para factura
+  const [invoicePreviewOpen, setInvoicePreviewOpen] = useState(false);
+  const [currentInvoice, setCurrentInvoice] = useState<Invoice | null>(null);
+  const [invoiceErrorOpen, setInvoiceErrorOpen] = useState(false);
+
   // Estado para mostrar error SEPA
   const [sepaErrorOpen, setSepaErrorOpen] = useState(false);
 
@@ -101,6 +116,13 @@ const Tickets: React.FC = () => {
       setSepaErrorOpen(true);
     }
   }, [sepaError]);
+
+  // Mostrar snackbar cuando hay error de factura
+  useEffect(() => {
+    if (invoiceError) {
+      setInvoiceErrorOpen(true);
+    }
+  }, [invoiceError]);
 
   // Estadísticas de tickets
   const ticketStats = useMemo(() => {
@@ -179,6 +201,37 @@ const Tickets: React.FC = () => {
       // El error ya se maneja en el hook
       console.error('Error al generar remesa SEPA:', err);
     }
+  };
+
+  // Handler para generar factura
+  const handleGenerateInvoice = async (ticket: TicketWithRelations) => {
+    try {
+      const invoice = await generateInvoice(ticket);
+      setCurrentInvoice(invoice);
+      setInvoicePreviewOpen(true);
+      // Refrescar datos para que el ticket muestre el invoiceId
+      refreshData();
+    } catch (err) {
+      console.error('Error al generar factura:', err);
+    }
+  };
+
+  // Handler para ver factura existente
+  const handleViewInvoice = async (ticket: TicketWithRelations) => {
+    try {
+      const invoice = await checkExistingInvoice(ticket.id!);
+      if (invoice) {
+        setCurrentInvoice(invoice);
+        setInvoicePreviewOpen(true);
+      }
+    } catch (err) {
+      console.error('Error al obtener factura:', err);
+    }
+  };
+
+  const handleCloseInvoicePreview = () => {
+    setCurrentInvoice(null);
+    setInvoicePreviewOpen(false);
   };
 
   // Handlers para paginación
@@ -321,6 +374,8 @@ const Tickets: React.FC = () => {
             isIndeterminate={isIndeterminate}
             onToggleSelection={toggleTicketSelection}
             onToggleSelectAll={toggleSelectAll}
+            onGenerateInvoice={handleGenerateInvoice}
+            onViewInvoice={handleViewInvoice}
           />
 
           {/* Formulario para añadir/editar ticket */}
@@ -341,6 +396,16 @@ const Tickets: React.FC = () => {
             open={detailModalOpen}
             ticket={ticketToView}
             onClose={handleCloseDetailModal}
+            onGenerateInvoice={handleGenerateInvoice}
+            onViewInvoice={handleViewInvoice}
+            invoiceLoading={invoiceLoading}
+          />
+
+          {/* Modal de previsualización de factura */}
+          <InvoicePreviewModal
+            open={invoicePreviewOpen}
+            invoice={currentInvoice}
+            onClose={handleCloseInvoicePreview}
           />
 
           {/* Diálogo de confirmación para eliminar */}
@@ -389,6 +454,22 @@ const Tickets: React.FC = () => {
               sx={{ width: '100%', whiteSpace: 'pre-line' }}
             >
               {sepaError}
+            </Alert>
+          </Snackbar>
+
+          {/* Snackbar para errores de factura */}
+          <Snackbar
+            open={invoiceErrorOpen}
+            autoHideDuration={10000}
+            onClose={() => setInvoiceErrorOpen(false)}
+            anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+          >
+            <Alert
+              onClose={() => setInvoiceErrorOpen(false)}
+              severity="error"
+              sx={{ width: '100%' }}
+            >
+              {invoiceError}
             </Alert>
           </Snackbar>
         </Box>

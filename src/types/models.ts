@@ -87,6 +87,7 @@ export interface Ticket {
 	serviceStart?: Date; // Fecha de inicio del período de servicio (opcional para manuales)
 	serviceEnd?: Date; // Fecha de fin del período de servicio (opcional para manuales)
 	paymentMethod?: string; // Método de pago del cliente (card, transfer, cash, direct_debit)
+	invoiceId?: string; // ID de la factura generada desde este ticket
 	createdAt?: Date;
 	updatedAt?: Date;
 }
@@ -119,4 +120,58 @@ export interface TicketWithRelations extends Ticket {
 	subscriptionInfo?: Subscription;
 	clientInfo?: Client;
 	serviceInfo?: Service;
+}
+
+// Línea de factura
+export interface InvoiceLine {
+	description: string;
+	quantity: number;
+	unitPrice: number;
+	total: number;
+}
+
+// Factura
+export interface Invoice {
+	id?: string;
+	invoiceNumber: string;           // "2026-0001"
+	ticketId: string;
+	subscriptionId?: string;
+	clientId: string;
+	issuer: {
+		name: string;
+		nifCif: string;
+		address: string;
+		postalCode: string;
+		city: string;
+		province: string;
+		country: string;
+		phone?: string;
+		email?: string;
+		website?: string;
+		iban?: string;
+	};
+	client: {
+		fiscalName: string;
+		taxId: string;
+		address: string;
+		city: string;
+		postalCode: string;
+		country: string;
+		email?: string;
+	};
+	lines: InvoiceLine[];
+	subtotal: number;
+	vatRate: number;
+	vatAmount: number;
+	retentionRate: number;
+	retentionAmount: number;
+	total: number;
+	issueDate: Date;
+	serviceStart?: Date;
+	serviceEnd?: Date;
+	dueDate: Date;
+	paymentMethod?: string;
+	status: 'issued' | 'paid' | 'cancelled';
+	createdAt?: Date;
+	updatedAt?: Date;
 }
