@@ -1,0 +1,29 @@
+version: 2
+updates:
+  # Actualiza dependencias npm/pnpm automáticamente
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Europe/Madrid"
+    # Agrupa todas las actualizaciones de deps en un solo PR
+    groups:
+      all-dependencies:
+        patterns:
+          - "*"
+    # Límite de PRs abiertos a la vez
+    open-pull-requests-limit: 10
+    # PRs con prefijo estándar
+    commit-message:
+      prefix: "chore"
+      prefix-development: "chore"
+      include: "scope"
+    # Ignora major versions (demasiado disruptivo, solo minor y patch)
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+    labels:
+      - "dependencies"
+      - "automated"
