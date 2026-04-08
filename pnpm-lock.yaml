@@ -21,8 +21,8 @@ importers:
         specifier: 6.19.1
         version: 6.19.1(@aws-amplify/core@6.16.1)
       '@aws-amplify/ui-react':
-        specifier: 6.15.2
-        version: 6.15.2(@aws-amplify/core@6.16.1)(@types/react-dom@19.0.0)(@types/react@19.0.0)(aws-amplify@6.16.3)(react-dom@19.0.0(react@19.0.0))(react@19.0.0)(xstate@4.38.3)
+        specifier: 6.15.3
+        version: 6.15.3(@aws-amplify/core@6.16.1)(@types/react-dom@19.0.0)(@types/react@19.0.0)(aws-amplify@6.16.3)(react-dom@19.0.0(react@19.0.0))(react@19.0.0)(xstate@4.38.3)
       '@emotion/cache':
         specifier: 11.14.0
         version: 11.14.0
@@ -372,14 +372,14 @@ packages:
     peerDependencies:
       '@aws-amplify/core': ^6.1.0
 
-  '@aws-amplify/ui-react-core@3.6.2':
-    resolution: {integrity: sha512-wVyE9DFMJebGp1pLkcvohtGPFL6fpXH7lHiU/1fndPLUrUpHJFxslHAT3LGTwztThC27iM3hap+BcEewFiaqJA==}
+  '@aws-amplify/ui-react-core@3.6.3':
+    resolution: {integrity: sha512-MnAvj/sy/S6i9o/jCImgKTwvGosWB3tYIgenvE07C/aWJgTe02DyN7RAG1ueTqe+V8QzEJvYc0tgVuwmiwIK+A==}
     peerDependencies:
       aws-amplify: ^6.14.3
       react: ^16.14 || ^17 || ^18 || ^19
 
-  '@aws-amplify/ui-react@6.15.2':
-    resolution: {integrity: sha512-8eXVnyl8eLPKGXaJ3CEt1mNwWKJ98El5nVz9NnKzoW1/B5cPhc96yVzIzHmyAyMROLKArzWOC4unx/RLN1YDBA==}
+  '@aws-amplify/ui-react@6.15.3':
+    resolution: {integrity: sha512-S4AfhC+NGpMsIaCoXaQZhCQ+fhBzxkIUBVvNK+g8dYVO/wM9tMAxwESenZfuW+MmrFMTAAVtafoX7TCFAEHdCg==}
     peerDependencies:
       '@aws-amplify/core': '*'
       aws-amplify: ^6.14.3
@@ -389,8 +389,8 @@ packages:
       aws-amplify:
         optional: true
 
-  '@aws-amplify/ui@6.15.2':
-    resolution: {integrity: sha512-w8ElY62cjBIKGOPEkEMXAtwrAoDYMLizfdIuR3KWDI8ta8Riv0l8nZt7N2EtraUnD7RxWUKgzR3kcBtFoPUbRA==}
+  '@aws-amplify/ui@6.15.3':
+    resolution: {integrity: sha512-fJktaSs2oKQGXuriQJ8saDMQJZTff6VeTIYaJjNNuIpu2ZQI21WdPZRzD/nMm0i+OQYUo1Lt2LaV5NxbEGaIgw==}
     peerDependencies:
       '@aws-amplify/core': '*'
       aws-amplify: ^6.14.3
@@ -5068,9 +5068,9 @@ snapshots:
       fast-xml-parser: 5.5.10
       tslib: 2.8.1
 
-  '@aws-amplify/ui-react-core@3.6.2(@aws-amplify/core@6.16.1)(@types/react@19.0.0)(aws-amplify@6.16.3)(react@19.0.0)':
+  '@aws-amplify/ui-react-core@3.6.3(@aws-amplify/core@6.16.1)(@types/react@19.0.0)(aws-amplify@6.16.3)(react@19.0.0)':
     dependencies:
-      '@aws-amplify/ui': 6.15.2(@aws-amplify/core@6.16.1)(aws-amplify@6.16.3)(xstate@4.38.3)
+      '@aws-amplify/ui': 6.15.3(@aws-amplify/core@6.16.1)(aws-amplify@6.16.3)(xstate@4.38.3)
       '@xstate/react': 3.2.2(@types/react@19.0.0)(react@19.0.0)(xstate@4.38.3)
       aws-amplify: 6.16.3
       lodash: 4.18.1
@@ -5082,11 +5082,11 @@ snapshots:
       - '@types/react'
       - '@xstate/fsm'
 
-  '@aws-amplify/ui-react@6.15.2(@aws-amplify/core@6.16.1)(@types/react-dom@19.0.0)(@types/react@19.0.0)(aws-amplify@6.16.3)(react-dom@19.0.0(react@19.0.0))(react@19.0.0)(xstate@4.38.3)':
+  '@aws-amplify/ui-react@6.15.3(@aws-amplify/core@6.16.1)(@types/react-dom@19.0.0)(@types/react@19.0.0)(aws-amplify@6.16.3)(react-dom@19.0.0(react@19.0.0))(react@19.0.0)(xstate@4.38.3)':
     dependencies:
       '@aws-amplify/core': 6.16.1
-      '@aws-amplify/ui': 6.15.2(@aws-amplify/core@6.16.1)(aws-amplify@6.16.3)(xstate@4.38.3)
-      '@aws-amplify/ui-react-core': 3.6.2(@aws-amplify/core@6.16.1)(@types/react@19.0.0)(aws-amplify@6.16.3)(react@19.0.0)
+      '@aws-amplify/ui': 6.15.3(@aws-amplify/core@6.16.1)(aws-amplify@6.16.3)(xstate@4.38.3)
+      '@aws-amplify/ui-react-core': 3.6.3(@aws-amplify/core@6.16.1)(@types/react@19.0.0)(aws-amplify@6.16.3)(react@19.0.0)
       '@radix-ui/react-direction': 1.1.1(@types/react@19.0.0)(react@19.0.0)
       '@radix-ui/react-dropdown-menu': 2.1.16(@types/react-dom@19.0.0)(@types/react@19.0.0)(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
       '@radix-ui/react-slider': 1.3.6(@types/react-dom@19.0.0)(@types/react@19.0.0)(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
@@ -5104,7 +5104,7 @@ snapshots:
       - '@xstate/fsm'
       - xstate
 
-  '@aws-amplify/ui@6.15.2(@aws-amplify/core@6.16.1)(aws-amplify@6.16.3)(xstate@4.38.3)':
+  '@aws-amplify/ui@6.15.3(@aws-amplify/core@6.16.1)(aws-amplify@6.16.3)(xstate@4.38.3)':
     dependencies:
       '@aws-amplify/core': 6.16.1
       aws-amplify: 6.16.3
